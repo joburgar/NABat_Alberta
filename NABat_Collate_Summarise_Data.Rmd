@@ -1,30 +1,241 @@
 ---
 title: "NABat Collate and Summarise Data"
 author: "Joanna Burgar"
-date: "09/10/2020"
-output: html_document
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  word_document: default
+editor_options:
+  chunk_output_type: console
+always_allow_html: yes
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, echo=F, include=F}
+
+#Load Packages
+list.of.packages <- c("leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "data.table", "fs", "lubridate")
+# Check you have them and load them
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+lapply(list.of.packages, require, character.only = TRUE)
+
+# Timezone [Use UTC if your cameras do not correct for daylight saving time, if they do use the timezone where the data was collected]
+tz <- "UTC"
+
+# Set a single catagorical variable of interest from station covariates (`sta`) for summary graphs. If you do not have and appropriate catagory use "Project.ID".
+category <- "Location.Name"
+
+# Define a colour from the R options to base the colourscheme
+colour <- "lightseagreen"
+
+# Define the GRTS.Cell.ID and Year of interest
+GRTS_interest <- "922"
+Year_interest <- as.Date(2018)
+
+## README FIRST ##
+#Read and run this chunk of code line by line - there are some question below which you will have to answer/ logic tests to complete. Once you are happy with this, hit 'knit' above. 
+
+# Create vector, and then dataframe, of processed data file names - not sure I need this...
+# procdata.names <- list.files(path="./Input/NABat_ProcessedFiles", recursive = TRUE)
+# 
+# Proc.df <- as.data.frame(procdata.names)
+# head(Proc.df)
+# nrow(Proc.df)
+# 
+# # Populate dataframe with data structure as columns
+# # Need GRTS.Cell.ID, Location.Name, Deployment.ID, Filename 
+# Proc.df$GRTS.Cell.ID <- word(Proc.df$procdata.names,1,sep = "\\/")
+# Proc.df$Location.Name <- word(Proc.df$procdata.names,2,sep = "\\/")
+# Proc.df$Deployment.ID <- word(Proc.df$procdata.names,3,sep = "\\/")
+# Proc.df$Filename <- word(Proc.df$procdata.names,-1,sep = "\\/")
+
+# Import csv output files for GRTS.Cell.ID of interest
+fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
+
+# Import count files
+dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"), 
+                          regexp = "\\counts.csv$", recurse = TRUE) %>%
+  map_dfr(read_csv, .id = "source") %>% 
+  mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
+  mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  filter(Year==Year_interest)
+
+dat_count$GRTS.Cell.ID <- as.factor(word(dat_count$source,4,sep = "\\/"))
+dat_count$Location.Name <- as.factor(word(dat_count$source,5,sep = "\\/"))
+dat_count$Deployment.ID <- as.factor(word(dat_count$source,6,sep = "\\/"))
+dat_count$Classification <- as.factor(dat_count$Classification %>% 
+                                        recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
+                                               My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+# Import summary files
+dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"), 
+                            regexp = "\\_summary.csv$", recurse = TRUE) %>%
+  map_dfr(~read_csv(.x, col_types = cols(.default = "c")), .id="source") %>% # issues with min_wind so read in as character
+  type_convert() %>% # convert back to proper formats, min_wind still problematic so only use max and mean wind if available
+  mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
+  mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  filter(Year==Year_interest)
+
+dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
+dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
+dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
+
+# Read deployment data csv for station covariates
+eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
+  filter(GRTS.Cell.ID==GRTS_interest) %>%
+  mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time)) %>%
+  filter(Deployment.ID==Year_interest)
+
+# Read station covariates csv
+sta <- read.csv("Input/NABat_Station_Covariates_final.csv", header=T)
+
+##############################################################
+##### DATA TESTS #############################################
+##############################################################
+
+# This code will not work unless your data passes the following checks
+
+# 1) All dates must be in YYYY-MM-DD in 'eff' and YYYY-MM-DD HH:MM:SS in 'dat' 
+# If either of the following return NA, you must change your formatting
+strptime(eff$Survey.Start.Time[1], "%Y-%m-%d", tz="UTC")
+strptime(dat_count$SurveyNight[1], "%Y-%m-%d", tz="UTC")
+strptime(dat_summary$SurveyNight[1], "%Y-%m-%d", tz="UTC")
+
+# 2) ensure all deployment starting dates are before deployment retreival dates
+# Logic = are the stations active for 0 or more days -> all should read TRUE
+table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.Start.Time, "%Y-%m-%d", tz="UTC"))>=0)
+
+# 3) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
+# length(setdiff(eff$Deployment.Location.ID, sta$Deployment.Location.ID))
+# If length > 0, then you have some data missing!
+
+# If all of the above is satisfied -> press 'Knit' above ^
 ```
 
-## R Markdown
+```{r non-adjustable options, echo=F, include=F}
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Count the total number of detector stations
+n.stat <- length(unique(eff$Location.Name))
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Generate colours to display the catagory levels - R needs them as a factor
+sta[,category] <- factor(sta[,category])
+col.cat <- wheel(colour, num = length(levels(sta[,category])))
+sta$Cols <- col.cat[sta[,category]]
 
-```{r cars}
-summary(cars)
+# Code to determine how large the figures will be (we need larger figures if we have more GRTS Cell locations)
+eff.height <- 8
+if(length(unique(eff$Location.Name))>80)
+   {
+     eff.height <- length(unique(eff$Location.Name))/10
+   }
+
+sp.height <- 7
+if(length(unique(dat_count$Classification))>20)
+   {
+     sp.height <- 7+(length(unique(dat_count$Classification))/8)
+   }
+
 ```
 
-## Including Plots
+## NABat Grid Cell `r eff$GRTS.Cell.ID[1]` Surveys
 
-You can also embed plots, for example:
+### ARU locations
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+To date there have been passive ARU deployments at `r n.stat` unique locations within NABat Grid Cell `r GRTS_interest`.
+
+```{r map, echo=F}
+
+
+m <- leaflet() %>%
+  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
+  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+  addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
+                   color=sta$Cols,
+                   popup=paste(sta$Deployment.ID, sta[,category])) %>%
+ addLegend("bottomleft", colors = col.cat,  labels = levels(sta[,category]),
+    title = category,
+    labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  ) %>%
+  # Layers control
+  addLayersControl(
+    baseGroups = c("Satellite", "Base"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+m
+
+
+```
+### ARU activity through time
+
+# Table 1. ARU Recordings Summary
+```{r recording summary, echo=T}
+### add in SE function
+se <- function(x) sd(x)/sqrt(length(x))
+
+cdata <- left_join(dat_count, sta %>% dplyr::select(Location.Name, Land.Unit.Code, Orig.Name, NABat.Sample))
+
+rec.days <- cdata %>% group_by(Land.Unit.Code, GRTS.Cell.ID, Location.Name) %>% 
+  summarise(Nights.Surveyed = max(SurveyNight)-min(SurveyNight)+1)
+
+rec.days %>% summarise_at(vars(Nights.Surveyed), list(Total = sum, Min = min, Mean = mean, Max = max, SE = se))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The daily break down of ARU activity is as follows:
+
+```{r activity, echo=F, fig.height=eff.height}
+
+glimpse(eff) # check for correct loading of deployment data
+eff %>% dplyr::select(-Detector.Failure.Details, -Contact)
+summary(eff) # overview of data and check for NAs
+
+# Adjust layout
+par(mar=c(2,6,1,1))
+plot(c(min(eff$Survey.Start.Time, na.rm=T), max(eff$Survey.End.Time, na.rm=T)),
+     c(1,n.stat), las=1, ylab="", xlab="", type="n", yaxt="n")
+
+axis(2, at= 1:n.stat, labels= unique(eff$Location.Name), las=1, cex.axis=0.8)
+mtext("ARU Station", 2, 4)
+# Make lines for each of the cameras
+for(i in 1:length(unique(eff$Location.Name)))
+{
+  abline(h=i, col=rgb(0,0,0,0.1))
+  tmp <- eff[eff$Location.Name==unique(eff$Location.Name)[i],]
+  for(j in 1:nrow(tmp))
+    {
+      lines(c(tmp$Survey.Start.Time[j],
+                       tmp$Survey.End.Time[j]),
+            c(i,i), lwd=2)
+    }
+  
+}
+
+```
+#Figure 2: Where black lines denote an ARU which is active, white space indicates ARUs which are inactive. 
+
+```{r, include=F}
+# Make species colour codes
+tmp3 <- data.frame("Species"=unique(dat_count$Classification),"Colour"= wheel("lightseagreen", num = length(unique(dat_count$Classification))))
+
+```
+
+# Table 2. Bat Call Summary
+```{r call summary, echo=T}
+
+cdata %>% group_by(Land.Unit.Code, GRTS.Cell.ID, Location.Name) %>% 
+                filter(Classification!="noise") %>%
+                summarise(Recording.Started = min(SurveyNight), Recording.Ended = max(SurveyNight), 
+                          Count.Bat.Calls = sum(Count),
+                          Bat.Calls.Per.Night = sum(Count)/as.numeric((max(SurveyNight)-min(SurveyNight))))
+
+```
+
+# Table 3. Total Bat Call Counts by Species / Species Groups and Land Unit
+```{r species summary, echo=T}
+
+cdata %>% group_by(Classification, Land.Unit.Code) %>% summarise(sum(Count))
+
+sum(cdata[cdata$Classification=="noise",]$Count) #4814 noise sequences
+sum(cdata[cdata$Classification!="noise",]$Count) #14054 bat call sequences
+```
+
+The `r n.stat` stations have resulted in a total of `r cdata %>% filter(Classification!="noise") %>% summarise(sum(Count))` bat call sequences and `r cdata %>% filter(Classification=="noise") %>% summarise(sum(Count))` noise sequences. 
