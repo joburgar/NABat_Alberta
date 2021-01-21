@@ -22,15 +22,15 @@ lapply(list.of.packages, require, character.only = TRUE)
 # Timezone [Use UTC if your cameras do not correct for daylight saving time, if they do use the timezone where the data was collected]
 tz <- "UTC"
 
-# Set a single catagorical variable of interest from station covariates (`sta`) for summary graphs. If you do not have and appropriate catagory use "Project.ID".
-category <- "Location.Name"
+# Set a single catagorical variable of interest from station covariates (`sta`) for summary graphs. If you do not have and appropriate category use "Project.ID".
+category <- "PA"
 
 # Define a colour from the R options to base the colourscheme
 colour <- "lightseagreen"
 
-# Define the GRTS.Cell.ID and Year of interest
-GRTS_interest <- "922"
-Year_interest <- as.Date(2018)
+# # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
+# GRTS_interest <- "922"
+# Year_interest <- as.Date(2018)
 
 ## README FIRST ##
 #Read and run this chunk of code line by line - there are some question below which you will have to answer/ logic tests to complete. Once you are happy with this, hit 'knit' above. 
@@ -49,44 +49,88 @@ Year_interest <- as.Date(2018)
 # Proc.df$Deployment.ID <- word(Proc.df$procdata.names,3,sep = "\\/")
 # Proc.df$Filename <- word(Proc.df$procdata.names,-1,sep = "\\/")
 
-# Import csv output files for GRTS.Cell.ID of interest
+# Import csv output files for all cells GRTS.Cell.ID of interest
 fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
 
 # Import count files
-dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"), 
+dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"), 
                           regexp = "\\counts.csv$", recurse = TRUE) %>%
-  map_dfr(read_csv, .id = "source") %>% 
+  map_dfr(read_csv, col_types = cols(.default = 'c'), .id = "source") %>% 
+  type_convert() %>% 
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
   mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
-  filter(Year==Year_interest)
+  select(-Date)
 
+# # Import count files if selecting only GRTS.Cell.ID of interest
+# make the changes below to add in GRTS_interest and/or Year_interest for other files as appropriate
+# dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"), 
+#                           regexp = "\\counts.csv$", recurse = TRUE) %>%
+#   map_dfr(read_csv, .id = "source") %>% 
+#   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
+#   mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+#   filter(Year==Year_interest)
+
+dat_count$Orig.Name <- as.factor(paste(dat_count$Site, dat_count$Detector, sep="_"))
 dat_count$GRTS.Cell.ID <- as.factor(word(dat_count$source,4,sep = "\\/"))
 dat_count$Location.Name <- as.factor(word(dat_count$source,5,sep = "\\/"))
 dat_count$Deployment.ID <- as.factor(word(dat_count$source,6,sep = "\\/"))
 dat_count$Classification <- as.factor(dat_count$Classification %>% 
                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+glimpse(dat_count)
+
 # Import summary files
-dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"), 
+dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"), 
                             regexp = "\\_summary.csv$", recurse = TRUE) %>%
   map_dfr(~read_csv(.x, col_types = cols(.default = "c")), .id="source") %>% # issues with min_wind so read in as character
   type_convert() %>% # convert back to proper formats, min_wind still problematic so only use max and mean wind if available
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
-  mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
-  filter(Year==Year_interest)
+  mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  select(-Date)%>%
+  rename(Orig.Name=Site)
 
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
 
+glimpse(dat_summary)
+
 # Read deployment data csv for station covariates
 eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
-  filter(GRTS.Cell.ID==GRTS_interest) %>%
-  mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time)) %>%
-  filter(Deployment.ID==Year_interest)
+  mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
+eff$Survey.End.Time - eff$Survey.Start.Time
+glimpse(eff)
+
+eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
+dat.names <- dat_count%>% group_by(Location.Name) %>% count(Orig.Name) 
+dat.names.sum <- dat_summary %>% group_by(Location.Name) %>% count(Orig.Name)
+names.join <- as.data.frame(full_join(eff.names, dat.names.sum, by="Location.Name"))
+names.join[is.na(names.join$n.y),] # missing data for Sulphur 2a and 2b (waiting to hear back from Courtney) and Lineham Trail (no data)
 
 # Read station covariates csv
-sta <- read.csv("Input/NABat_Station_Covariates_final.csv", header=T)
+sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA",-1)) %>%
+  dplyr::select(LandUnitCo, GRTSCellID, LocName, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
+                WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
+  rename(Land.Unit.Code=LandUnitCo, GRTS.Cell.ID=GRTSCellID, Location.Name=LocName, Orig.Name=Orig_Name, NABat.Sample=NABat_Samp,
+         Yrs.Surveyed=YrsSurveye, Land.Cover=LC_class, Natural.Sub.Region=NSRNAME, Natural.Region=NRNAME, Waterbody.Type=WTRBODY_TY,          Waterbody.Distance=DIST_WTRBD, Stream.Type=STREAM_TYP, Stream.Distance=Dist_Strea, Road.Type=RoadType, Road.Distance=DistRoad_M,
+         Human.Footprint.Type=HF_TYPE, Human.Footprint.Distance=Dist_to_HF)
+sta$PA <- as.factor(ifelse(sta$Land.Unit.Code %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
+
+sta$Land.Cover <- as.factor(sta$Land.Cover)
+levels(sta$Land.Cover)
+sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
+                                            "120"="Agriculture", "210"="Coniferous Forest", "220"="Broadleaf Forest", "230"="Mixed Forest")
+
+# Land-Use Type (Agriculture, Barren Land, Forest, Grassland, Shrubland, Urban, Water, Wetland)
+# not enough Urban, keep as "Developed"
+# not enough Wetland for separate category - combine Water and Wetland
+# combine 3 forest types for Forest
+# if waterbody < 10 m, then change Land Use Type to Water, otherwise go with ABMI class
+# Consolidate Land.Cover to Agriculture, Barren (Exposed) Land, Forest, Grassland, Shrubland, Developed (incl Urban), Water/Wetland 
+sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest", "Broadleaf Forest" = "Forest", "Mixed Forest" = "Forest",
+                                               "Exposed Land" = "Barren Land")
+sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water", TRUE ~ as.character(sta$Land.Use.Type))
+glimpse(sta)
 
 ##############################################################
 ##### DATA TESTS #############################################
@@ -104,9 +148,25 @@ strptime(dat_summary$SurveyNight[1], "%Y-%m-%d", tz="UTC")
 # Logic = are the stations active for 0 or more days -> all should read TRUE
 table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.Start.Time, "%Y-%m-%d", tz="UTC"))>=0)
 
-# 3) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
-# length(setdiff(eff$Deployment.Location.ID, sta$Deployment.Location.ID))
+# 3a) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
 # If length > 0, then you have some data missing!
+length(setdiff(unique(eff$Location.Name), unique(sta$Location.Name))) # 0
+# missing.eff.sta <- left_join(eff, sta, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
+# missing.eff.sta[is.na(missing.eff.sta$Orig.Name.y),] # will show missing station covariates
+
+# 3b) Do you have all data represented in the station covariates? If yes, the value should be 0
+length(setdiff(unique(sta$Location.Name), unique(dat_count$Location.Name))) # 12
+missing.dat.sta <- left_join(sta, dat_count, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
+missing.dat.sta[is.na(missing.dat.sta$Orig.Name.y),] # missing Sulphur 2a, Sulphur 2b, Lineham Trail (no actual data), and ABMI data
+
+# 3c) Do you have all data represented in the deployment data? If yes, the value should be 0
+length(setdiff(unique(eff$Location.Name), unique(dat_count$Location.Name))) # 3
+missing.dat.eff <- left_join(eff, dat_count, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
+missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # missing the Sulphur 2a, 2b and Lineham data
+
+# Need Sulphur data from Courtney and ABMI data from Cami - the Lineham Trail does not have data recorded (check with Helena)
+# EINP can be included in the NABat 2020 report but does not include station covariates (no info from Rhonda), just PA, NR, NSR groupings
+
 
 # If all of the above is satisfied -> press 'Knit' above ^
 ```
@@ -115,6 +175,7 @@ table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.S
 
 # Count the total number of detector stations
 n.stat <- length(unique(eff$Location.Name))
+n.GRTS <- length(unique(eff$GRTS.Cell.ID))
 
 # Generate colours to display the catagory levels - R needs them as a factor
 sta[,category] <- factor(sta[,category])
@@ -180,7 +241,7 @@ rec.days <- cdata %>% group_by(Land.Unit.Code, GRTS.Cell.ID, Location.Name) %>%
 rec.days %>% summarise_at(vars(Nights.Surveyed), list(Total = sum, Min = min, Mean = mean, Max = max, SE = se))
 ```
 
-The daily break down of ARU activity is as follows:
+The break down of ARU activity is as follows:
 
 ```{r activity, echo=F, fig.height=eff.height}
 
@@ -229,13 +290,12 @@ cdata %>% group_by(Land.Unit.Code, GRTS.Cell.ID, Location.Name) %>%
 
 ```
 
+The `r n.stat` stations have resulted in a total of `r cdata %>% filter(Classification!="noise") %>% summarise(sum(Count))` bat call sequences and `r cdata %>% filter(Classification=="noise") %>% summarise(sum(Count))` noise sequences. 
+
 # Table 3. Total Bat Call Counts by Species / Species Groups and Land Unit
 ```{r species summary, echo=T}
 
 cdata %>% group_by(Classification, Land.Unit.Code) %>% summarise(sum(Count))
-
-sum(cdata[cdata$Classification=="noise",]$Count) #4814 noise sequences
-sum(cdata[cdata$Classification!="noise",]$Count) #14054 bat call sequences
 ```
 
-The `r n.stat` stations have resulted in a total of `r cdata %>% filter(Classification!="noise") %>% summarise(sum(Count))` bat call sequences and `r cdata %>% filter(Classification=="noise") %>% summarise(sum(Count))` noise sequences. 
+
