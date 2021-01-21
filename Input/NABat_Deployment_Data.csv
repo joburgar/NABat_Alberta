@@ -1,0 +1,327 @@
+Land.Unit.Code,GRTS.Cell.ID,Location.Name,Orig.Name,Survey.Start.Time,Survey.End.Time,Deployment.ID,Detector.Failure.Details,Contact
+LAR,238,238_NE_01,Fort Chip - Unit 2,2015-06-09,2015-06-16,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,238,238_NW_01,Fort Chip - Unit 1,2015-06-09,2015-06-16,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,238,238_SW_01,Fort Chip - Unit 3,2015-06-09,2015-06-16,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,238,238_NE_01,Fort Chip - Unit 2,2017-06-15,2017-06-21,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LAR,238,238_NW_01,Fort Chip - Unit 1,2017-06-15,2017-06-21,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LAR,238,238_SW_01,Fort Chip - Unit 3,2017-06-15,2017-06-21,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LPR,922,922_NW_01,Whitemud4,2020-07-09,2020-07-14,2020,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_NE_01,Whitemud3,2020-07-09,2020-07-14,2020,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_SE_01,Whitemud1,2020-07-09,2020-07-14,2020,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_SW_01,Whitemud2,2020-07-09,2020-07-14,2020,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_NE_01,Whitemud3,2019-07-10,2019-07-17,2019,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_NW_01,Whitemud4,2019-07-10,2019-07-17,2019,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_SE_01,Whitemud1,2019-07-10,2019-07-17,2019,"Don't recall this monitor having fallen over, but there are only  6 files (2 noise, 4 with data) recorded",Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_SW_01,Whitemud2,2019-07-10,2019-07-17,2019,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_NE_01,Whitemud3,2018-06-22,2018-06-28,2018,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_NW_01,Whitemud4,2018-06-22,2018-06-28,2018,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_SE_01,Whitemud1,2018-06-21,2018-06-28,2018,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LPR,922,922_SW_01,Whitemud2,2018-06-21,2018-06-28,2018,,Rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+LAR,2131,2131_NE_01,Oil Sands - Unit 2,2016-06-17,2016-06-24,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_NW_01,Oil Sands - Unit 1,2016-06-17,2016-06-24,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_SE_01,Oil Sands - Unit 4,2016-06-17,2016-06-24,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_SW_01,Oil Sands - Unit 3,2016-06-17,2016-06-24,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_NE_01,Oil Sands - Unit 2,2017-07-05,2017-07-10,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_NW_01,Oil Sands - Unit 1,2017-07-05,2017-07-10,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_SE_01,Oil Sands - Unit 4,2017-07-05,2017-07-10,2017,,Brett.Sarchuk@gov.ab.ca
+LAR,2131,2131_SW_01,Oil Sands - Unit 3,2017-07-05,2017-07-10,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_NE_01,Wabasca - Unit 2,2015-06-29,2015-07-06,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_NW_01,Wabasca - Unit 1,2015-06-29,2015-07-06,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SE_01,Wabasca - Unit 4,2015-06-29,2015-07-06,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SW_01,Wabasca - Unit 3,2015-06-29,2015-07-06,2015,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_NE_01,Wabasca - Unit 2,2016-07-03,2016-07-10,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SE_01,Wabasca - Unit 4,2016-07-03,2016-07-10,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SW_01,Wabasca - Unit 3,2016-07-03,2016-07-10,2016,,joburgar@gmail.com; Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_NE_01,Wabasca - Unit 2,2017-06-26,2017-07-02,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_NW_01,Wabasca - Unit 1,2017-06-26,2017-07-02,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SE_01,Wabasca - Unit 4,2017-06-26,2017-07-02,2017,,Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SW_01,Wabasca - Unit 3,2017-06-26,2017-07-02,2017,Detector malfunction for entire survey,Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_NE_01,Wabasca - Unit 2,2020-07-08,2020-07-21,2019,,Brett.Sarchuk@gov.ab.ca
+LPR,3667,3667_SE_01,Wabasca - Unit 4,2020-07-08,2020-07-21,2019,,Brett.Sarchuk@gov.ab.ca
+SSR,7555,7555_SW_01,Card42_Witt Reesor,2020-06-25,2020-07-12,2020,,sandi.robertson@gov.ab.ca
+RDR,11139,11139_NW_01,RD-9b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+UPR,14234,14234_SE_01,HinesCreek1,2018-06-29,2018-07-04,2018,"Date issues with detector, two nights recording in 2043 (?), overlapping June dates, and then no July dates",rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+UPR,14234,14234_SW_01,HinesCreek2,2018-06-29,2018-07-04,2018,,rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+UPR,14234,14234_SE_01,HinesCreek1,2019-07-04,2019-07-10,2019,,rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+UPR,14234,14234_SW_01,HinesCreek2,2019-07-03,2019-07-10,2019,,rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+UPR,14234,14234_SE_01,HinesCreek1,2020-06-25,2020-06-29,2020,,rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+UPR,14234,14234_SW_01,HinesCreek2,2020-06-25,2020-06-29,2020,,rolanda.Steenweg@gov.ab.ca; Natalka.Melnycky@gov.ab.ca
+RDR,15235,15235_SE_01,RD-1b,2019-06-24,2019-06-30,2019,,Jason.Unruh@gov.ab.ca
+RDR,15235,15235_SE_01,RD-1b,2020-06-22,2020-07-01,2020,,Jason.Unruh@gov.ab.ca
+JNP,23146,23146_NE_01,Tekarra Marsh,2015-06-23,2015-06-28,2015,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_02,Valley of Five,2015-06-21,2015-07-11,2015,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_01,Buffalo Prairie,2015-06-21,2015-06-28,2015,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_02,Wabasso Lake,2015-06-22,2015-07-10,2015,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_01,Tekarra Marsh,2016-06-27,2016-07-17,2016,Unit failed,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_02,Valley of Five,2016-06-27,2016-07-17,2016,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_01,Buffalo Prairie,2016-06-27,2016-07-19,2016,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_02,Wabasso Lake,2016-06-27,2016-07-13,2016,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_01,Tekarra Marsh,2017-06-22,2017-06-28,2017,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_02,Valley of Five,2017-06-22,2017-06-28,2017,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_01,Buffalo Prairie,2017-06-22,2017-06-28,2017,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_02,Wabasso Lake,2017-06-22,2017-06-28,2017,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_01,Tekarra Marsh,2018-06-19,2018-06-25,2018,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_02,Valley of Five,2018-06-19,2018-06-26,2018,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_01,Buffalo Prairie,2018-06-18,2018-06-25,2018,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_02,Wabasso Lake,2018-06-19,2018-06-25,2018,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_01,Tekarra Marsh,2019-06-14,2019-06-27,2019,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_02,Valley of Five,2019-06-18,2019-07-08,2019,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_01,Buffalo Prairie,2019-06-17,2019-07-07,2019,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_02,Wabasso Lake,2019-06-23,2019-07-15,2019,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_01,Tekarra Marsh,2020-06-18,2020-07-03,2020,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_NE_02,Valley of Five,2020-06-18,2020-07-01,2020,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_01,Buffalo Prairie,2020-06-18,2020-07-03,2020,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,23146,23146_SE_02,Wabasso Lake,2020-06-18,2020-07-01,2020,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,267463,267463_NW_01,Pocahontas,2020-06-16,2020-07-06,2020,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+JNP,267463,267463_NE_01,Brule Tunnel Road,2020-06-16,2020-08-17,2020,,saakje.hazenberg@canada.ca; greg.horne@canada.ca
+UAR,24218,24218_SW_01,Edson - Unit2_gc,2015-06-25,2015-06-30,2015,,Lisa.Wilkinson@gov.ab.ca
+UAR,24218,24218_SW_01,Edson - Unit2_gc,2016-06-23,2016-06-23,2016,Detector mafunction from 23:28:08 on 2016-06-23 so call it entire survey,Lisa.Wilkinson@gov.ab.ca
+UAR,24218,24218_SW_01,Edson - Unit2_gc,2017-06-23,2017-06-29,2017,"Detector malfunction for entire survey, no confidence in calls recorded as an indication of relatively abundance",Lisa.Wilkinson@gov.ab.ca
+UAR,24218,24218_SW_01,Edson - Unit2_gc,2019-06-30,2019-07-11,2019,,Lisa.Wilkinson@gov.ab.ca
+WLNP,25027,25027_SE_01,Cameron Lake,2015-07-01,2015-07-06,2015,,helena.mahoney@canada.ca
+WLNP,25027,25027_SE_01,Cameron Lake,2016-06-30,2016-07-06,2016,,helena.mahoney@canada.ca
+WLNP,25027,25027_SE_01,Cameron Lake,2017-06-30,2017-07-04,2017,,helena.mahoney@canada.ca
+WLNP,25027,25027_SE_01,Cameron Lake,2018-06-29,2018-07-04,2018,,helena.mahoney@canada.ca
+WLNP,25027,25027_SE_01,Cameron Lake,2019-06-27,2019-07-02,2019,,helena.mahoney@canada.ca
+WLNP,25027,25027_SE_01,Cameron Lake,2020-06-28,2020-06-29,2020,,helena.mahoney@canada.ca
+RDR,30595,30595_NE_01,RD-10a,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,30595,30595_NE_01,RD-10a,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+SSR,32195,32195_NW_01,Card504BAT_Peigan Creek,2020-06-15,2020-07-08,2020,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_01,Playground,2015-06-12,2015-06-16,2015,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_01,MH - Sheep Camp,2015-06-12,2015-06-16,2015,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_02,MH - Cow Camp,2015-06-12,2015-06-16,2015,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_01,Playground,2016-06-13,2016-06-18,2016,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_02,Reservoir,2016-06-13,2016-06-16,2016,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_01,Playground,2017-06-12,2017-06-20,2017,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_02,Reservoir,2017-06-12,2017-06-16,2017,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_01,Playground,2018-06-08,2018-06-17,2018,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_02,Reservoir,2018-06-18,2018-07-02,2018,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_01,Playground,2019-06-10,2019-06-14,2019,,sandi.robertson@gov.ab.ca
+SSR,39815,39815_SW_02,Reservoir,2019-06-10,2019-06-17,2019,,sandi.robertson@gov.ab.ca
+RDR,40899,40899_SW_01,RD-6a,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,40899,40899_SW_01,RD-6a,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+RDR,44931,44931_NE_01,RD-3b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,44931,44931_NE_01,RD-3b,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+RDR,64387,64387_SE_01,Station2,2018-07-12,2018-07-20,2018,,jason.Unruh@gov.ab.ca
+WLNP,74179,74179_NE_01,Yarrow Cabin,2015-07-14,2015-07-19,2015,,helena.mahoney@canada.ca
+WLNP,74179,74179_NE_01,Yarrow Cabin,2016-07-15,2016-07-22,2016,,helena.mahoney@canada.ca
+WLNP,74179,74179_NE_01,Yarrow Cabin,2017-07-14,2017-07-18,2018,,helena.mahoney@canada.ca
+WLNP,74179,74179_NE_01,Yarrow Cabin,2019-07-23,2019-07-31,2019,,helena.mahoney@canada.ca
+WLNP,74179,74179_NE_01,Yarrow Cabin,2020-07-15,2020-07-20,2020,,helena.mahoney@canada.ca
+WLNP,74179,74179_SW_01,Red Rock,2015-07-14,2015-07-19,2015,,helena.mahoney@canada.ca
+WLNP,74179,74179_SW_01,Red Rock,2016-07-15,2016-07-26,2016,,helena.mahoney@canada.ca
+WLNP,74179,74179_SW_01,Red Rock,2017-07-27,2017-08-01,2018,,helena.mahoney@canada.ca
+WLNP,74179,74179_SW_01,Red Rock,2018-07-13,2018-07-19,2018,,helena.mahoney@canada.ca
+WLNP,74179,74179_SW_01,Red Rock,2019-07-10,2019-07-16,2019,,helena.mahoney@canada.ca
+WLNP,74179,74179_SW_01,Red Rock,2020-07-16,2020-07-21,2020,,helena.mahoney@canada.ca
+UAR,89754,89754_SE_01,Edson - Unit 1_Lh,2015-06-18,2015-06-24,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_02,Edson - Unit 3_tb,2015-06-19,2015-06-22,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_NW_01,Edson - Unit 2_Kby,2016-06-17,2016-06-23,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_01,Edson - Unit 1_Lh,2016-06-17,2016-06-22,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_02,Edson - Unit 3_tb,2016-06-17,2016-06-20,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_NW_01,Edson - Unit 2_Kby,2017-06-17,2017-06-22,2017,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_02,Edson - Unit 3_tb,2017-06-16,2016-06-17,2017,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_NW_01,Edson - Unit 2_Kby,2018-06-19,2018-06-26,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_01,Edson - Unit 1_Lh,2018-06-19,2018-06-26,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_02,Edson - Unit 3_tb,2018-06-20,2018-06-25,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_NW_01,Edson - Unit 2_Kby,2019-06-18,2019-06-26,2019,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_01,Edson - Unit 1_Lh,2019-06-27,2019-07-03,2019,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_NW_01,Edson - Unit 2_Kby,2020-06-24,2020-06-28,2020,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_01,Edson - Unit 1_Lh,2020-06-16,2020-06-19,2020,,lisa.Wilkinson@gov.ab.ca
+UAR,89754,89754_SE_02,Edson - Unit 3_tb,2020-06-18,2020-06-23,2020,,lisa.Wilkinson@gov.ab.ca
+RDR,90051,90051_NW_01,RD-6b,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+WLNP,90563,90563_NE_01,Lost Lake,2015-07-24,2015-07-29,2015,,helena.mahoney@canada.ca
+WLNP,90563,90563_NE_01,Lost Lake,2016-07-23,2016-08-03,2016,"Note the recordings are erroneously labeled with ""Lone"" in the name, but are actually Lost Lake",helena.mahoney@canada.ca
+WLNP,90563,90563_NE_01,Lost Lake,2017-07-23,2017-07-31,2017,,helena.mahoney@canada.ca
+WLNP,90563,90563_NE_01,Lost Lake,2018-07-21,2018-07-26,2018,,helena.mahoney@canada.ca
+WLNP,90563,90563_NE_01,Lost Lake,2019-07-22,2019-07-28,2019,,helena.mahoney@canada.ca
+WLNP,90563,90563_NE_01,Lost Lake,2020-07-27,2020-08-02,2020,,helena.mahoney@canada.ca
+WLNP,90563,90563_SW_01,Lone Lake,2015-07-23,2015-07-27,2015,,helena.mahoney@canada.ca
+WLNP,90563,90563_SW_01,Lone Lake,2016-07-24,2016-08-03,2016,,helena.mahoney@canada.ca
+WLNP,90563,90563_SW_01,Lone Lake,2017-07-24,2017-07-31,2017,,helena.mahoney@canada.ca
+WLNP,90563,90563_SW_01,Lone Lake,2018-07-22,2018-07-29,2018,,helena.mahoney@canada.ca
+WLNP,90563,90563_SW_01,Lone Lake,2019-07-23,2019-07-29,2019,,helena.mahoney@canada.ca
+WLNP,90563,90563_SW_01,Lone Lake,2020-07-28,2020-08-02,2020,,helena.mahoney@canada.ca
+NSR,99523,99523_SW_01,Golden Ranches North,2019-06-09,2019-06-13,2019,,crolson@outlook.com
+NSR,99523,99523_SW_02,Golden Ranches South,2019-06-24,2019-07-02,2019,,crolson@outlook.com
+NSR,99523,99523_SW_01,Golden Ranches North,2020-06-26,2020-07-02,2020,,crolson@outlook.com
+NSR,99523,99523_SW_02,Golden Ranches South,2020-07-03,2020-07-07,2020,,crolson@outlook.com
+RDR,106371,106371_NW_01,RD-2b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,106691,106691_SE_01,RD-7a,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+NSR,108483,108483_SW_01,RD-5a,2019-06-23,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+NSR,110531,110531_NW_01,RD-4b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,106371,106371_NW_01,RD-2b,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+RDR,106691,106691_SE_01,RD-7a,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+NSR,108483,108483_SW_01,RD-5a,2020-06-21,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+NSR,110531,110531_NW_01,RD-4b,2020-06-21,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+RDR,113539,113539_SE_01,Station1,2018-07-11,2018-07-31,2018,,jason.Unruh@gov.ab.ca
+NSR,115907,115907_NW_01,Hicks,2019-06-09,2019-06-13,2019,,crolson@outlook.com
+NSR,115907,115907_SE_01,Gambling_Lake,2019-06-24,2019-07-21,2019,,crolson@outlook.com
+NSR,115907,115907_NW_01,Hicks,2020-06-26,2020-07-03,2020,,crolson@outlook.com
+NSR,115907,115907_SE_01,Gambling_Lake,2020-07-03,2020-07-07,2020,,crolson@outlook.com
+NSR,122499,122499_SW_01,Tomahawk Cabin Old Combine,2020-06-15,2020-06-22,2020,,crolson@outlook.com
+NSR,122499,122499_SW_02,Tomahawk North Big Island,2020-06-16,2020-06-22,2020,,crolson@outlook.com
+NSR,135107,135107_SW_01,RD-5b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+NSR,135107,135107_SW_01,RD-5b,2020-06-22,2020-06-29,2020,,jason.Unruh@gov.ab.ca
+WLNP,139715,139715_NE_01,Blakiston Roadside (BLAK-NEW),2015-06-25,2015-07-01,2015,,helena.mahoney@canada.ca
+WLNP,139715,139715_NE_01,Blakiston Roadside (BLAK-NEW),2016-06-22,2016-06-29,2016,,helena.mahoney@canada.ca
+WLNP,139715,139715_NE_01,Blakiston Roadside (BLAK-NEW),2017-06-22,2017-06-27,2017,,helena.mahoney@canada.ca
+WLNP,139715,139715_NE_01,Blakiston Roadside (BLAK-NEW),2018-06-22,2018-06-28,2018,,helena.mahoney@canada.ca
+WLNP,139715,139715_NE_01,Blakiston Roadside (BLAK-NEW),2019-06-19,2019-06-26,2019,,helena.mahoney@canada.ca
+WLNP,139715,139715_NE_01,Blakiston Roadside (BLAK-NEW),2020-07-06,2020-07-09,2020,"Only empty files, must have been detector malfunction but will check with Helena",helena.mahoney@canada.ca
+WLNP,139715,139715_SE_01,Lineham Trail,,,2015,,helena.mahoney@canada.ca
+WLNP,139715,139715_SE_01,Lineham Trail,,,2016,,helena.mahoney@canada.ca
+WLNP,139715,139715_SE_01,Lineham Trail,,,2017,,helena.mahoney@canada.ca
+WLNP,139715,139715_SE_01,Lineham Trail,,,2018,,helena.mahoney@canada.ca
+WLNP,139715,139715_SE_01,Lineham Trail,,,2019,,helena.mahoney@canada.ca
+WLNP,139715,139715_SE_01,Lineham Trail,,,2020,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_01,CAM,2014-06-24,2014-06-30,2014,Not sure if detectors recorded throughout as only some nights have data,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_01,CAM,2016-06-23,2016-06-29,2016,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_01,CAM,2017-06-22,2017-06-27,2017,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_01,CAM,2018-06-22,2018-06-28,2018,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_01,CAM,2019-06-19,2019-06-25,2019,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_01,CAM,2020-07-01,2020-07-04,2020,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_02,Dipper at Rowe,2015-07-01,2015-07-05,2015,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_02,Dipper at Rowe,2016-06-30,2016-07-06,2016,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_02,Dipper at Rowe,2017-06-30,2017-07-03,2017,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_02,Dipper at Rowe,2018-06-29,2018-07-04,2018,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_02,Dipper at Rowe,2019-06-27,2019-07-01,2019,,helena.mahoney@canada.ca
+WLNP,139715,139715_SW_02,Dipper at Rowe,2020-07-12,2020-07-19,2020,,helena.mahoney@canada.ca
+NSR,171651,171651_NE_01,Tomahawk east anndex,2020-07-10,2020-07-16,2020,,crolson@outlook.com
+NSR,171651,171651_NE_02,Tomahawk west anndex ,2020-07-09,2020-07-14,2020,,crolson@outlook.com
+NSR,171651,171651_NW_01,Tomahawk HSWBI,2020-08-04,2020-08-11,2020,,crolson@outlook.com
+NSR,171651,171651_NW_02,Tomahawk Steel Feeder,2020-08-04,2020-08-11,2020,,crolson@outlook.com
+RDR,179075,179075_SE_01,RD-8b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,179075,179075_SE_01,RD-8b,2020-06-15,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+SSR,199047,199047_NW_01,Card40_MRNA lake,2020-06-12,2020-06-18,2020,,sandi.robertson@gov.ab.ca
+NSR,201603,201603_NE_01,RD-1a,2019-06-25,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+NSR,201603,201603_NE_01,RD-1a,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+UAR,204442,204442_NE_01,Edson - Unit 3_cmp,2015-06-25,2015-07-01,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NW_01,Edson - Unit 1_gcRd,2015-06-25,2015-07-01,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NE_01,Edson - Unit 3_cmp,2016-06-23,2016-06-29,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NW_01,Edson - Unit 1_gcRd,2016-06-24,2016-06-29,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NW_01,Edson - Unit 1_gcRd,2017-06-23,2017-06-29,2017,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NE_01,Edson - Unit 3_cmp,2018-06-27,2018-07-02,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NW_01,Edson - Unit 1_gcRd,2018-06-27,2018-07-02,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NE_01,Edson - Unit 3_cmp,2019-07-01,2019-07-11,2019,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NE_01,Edson - Unit 3_cmp,2020-06-24,2020-07-01,2020,,lisa.Wilkinson@gov.ab.ca
+UAR,204442,204442_NW_01,Edson - Unit 1_gcRd,2020-06-24,2020-07-02,2020,,lisa.Wilkinson@gov.ab.ca
+WLNP,205251,205251_NE_01,Wishbone,2015-07-07,2015-07-12,2015,,helena.mahoney@canada.ca
+WLNP,205251,205251_NE_01,Wishbone,2016-07-07,2016-07-20,2016,,helena.mahoney@canada.ca
+WLNP,205251,205251_NE_01,Wishbone,2017-07-06,2017-07-10,2017,,helena.mahoney@canada.ca
+WLNP,205251,205251_NE_01,Wishbone,2018-07-18,2018-07-24,2018,,helena.mahoney@canada.ca
+WLNP,205251,205251_NE_01,Wishbone,2019-07-10,2019-07-17,2019,,helena.mahoney@canada.ca
+WLNP,205251,205251_NE_01,Wishbone,2020-07-10,2020-07-15,2020,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_01,POW -NEW,2016-06-26,2016-07-01,2016,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_01,POW -NEW,2017-06-22,2017-06-27,2017,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_01,POW -NEW,2018-06-29,2018-07-04,2018,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_01,POW -NEW,2019-06-20,2019-06-26,2019,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_01,POW -NEW,2020-06-22,2020-06-24,2020,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_02,Sewage Lagoon,2015-07-07,2015-07-11,2015,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_02,Sewage Lagoon,2016-07-06,2016-07-13,2016,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_02,Sewage Lagoon,2017-07-06,2017-07-09,2017,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_02,Sewage Lagoon,2018-07-05,2018-07-11,2018,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_02,Sewage Lagoon,2019-07-03,2019-07-07,2019,,helena.mahoney@canada.ca
+WLNP,205251,205251_SW_02,Sewage Lagoon,2020-07-06,2020-07-10,2020,,helena.mahoney@canada.ca
+RDR,206019,206019_SW_01,RD-2a,2020-06-22,2020-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,217283,217283_NE_01,RD-3a,2019-06-24,2019-06-30,2020,,jason.Unruh@gov.ab.ca
+RDR,217283,217283_NE_01,RD-3a,2020-06-21,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+SSR,220611,220611_NE_01,Card43_Stebunk-low valley,2020-06-25,2020-07-17,2020,,sandi.robertson@gov.ab.ca
+SSR,220611,220611_NE_02,Card20A_Stebunk-upland,2020-06-26,2020-07-17,2020,,sandi.robertson@gov.ab.ca
+WLNP,221635,221635_NW_01,Belly Bend (AKA Belly River),2015-07-07,2015-07-11,2015,,helena.mahoney@canada.ca
+WLNP,221635,221635_NW_01,Belly Bend (AKA Belly River),2016-07-07,2016-07-14,2016,,helena.mahoney@canada.ca
+WLNP,221635,221635_NW_01,Belly Bend (AKA Belly River),2017-07-13,2017-07-16,2017,,helena.mahoney@canada.ca
+WLNP,221635,221635_NW_01,Belly Bend (AKA Belly River),2018-07-06,2018-07-12,2018,,helena.mahoney@canada.ca
+WLNP,221635,221635_NW_01,Belly Bend (AKA Belly River),2019-07-03,2019-07-09,2019,,helena.mahoney@canada.ca
+SSR,224135,224135_SE_01,Lost River - Unit 1,2015-07-29,2015-08-03,2015,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_01,Lost River - Unit 1,2016-06-23,2016-06-27,2016,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_01,Lost River - Unit 1,2017-06-20,2017-06-24,2017,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_01,Lost River - Unit 1,2018-06-08,2016-06-17,2018,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_01,Lost River - Unit 1,2019-06-10,2019-06-17,2019,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_02,Lost River - Unit 2,2015-07-29,2015-08-03,2015,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_02,Lost River - Unit 2,2016-06-23,2016-06-28,2016,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_02,Lost River - Unit 2,2017-06-20,2017-06-24,2017,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_02,Lost River - Unit 2,2018-06-08,2018-06-15,2018,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_02,Lost River - Unit 2,2019-06-10,2019-06-16,2019,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_03,Lost River - Unit 3,2015-07-29,2015-08-02,2015,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_03,Lost River - Unit 3,2016-06-23,2016-06-28,2016,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_03,Lost River - Unit 3,2017-06-20,2017-06-27,2017,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_03,Lost River - Unit 3,2018-06-08,2018-06-18,2018,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_03,Lost River - Unit 3,2019-06-10,2019-06-18,2019,,sandi.robertson@gov.ab.ca
+SSR,224135,224135_SE_04,Card22A_MRNA coulee edge,2020-06-12,2020-06-13,2020,,sandi.robertson@gov.ab.ca
+RDR,230851,230851_NW_01,RD-8a,2020-06-15,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+RDR,250051,250051_NW_01,Station3,2018-07-11,2018-07-24,2018,,jason.Unruh@gov.ab.ca
+UAR,254362,254362_NE_01,Switzer - Unit 2_gp,2015-07-10,2015-07-13,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_NE_01,Switzer - Unit 2_gp,2016-06-30,2016-07-06,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_NE_01,Switzer - Unit 2_gp,2017-06-30,2017-07-13,2017,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_NE_01,Switzer - Unit 2_gp,2018-07-04,2018-07-13,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_NE_01,Switzer - Unit 2_gp,2019-07-04,2019-07-14,2019,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_NE_01,Switzer - Unit 2_gp,2020-07-04,2020-07-11,2020,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_01,Switzer - Unit 3_fen,2015-07-10,2015-07-16,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_01,Switzer - Unit 3_fen,2016-06-30,2016-07-05,2016,dates incorrect; files say 20000101 to 20000106,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_01,Switzer - Unit 3_fen,2018-07-04,2018-07-13,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_01,Switzer - Unit 3_fen,2020-07-04,2020-07-13,2020,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_02,Switzer - Unit 1_vc,2015-07-02,2015-07-08,2015,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_02,Switzer - Unit 1_vc,2016-06-30,2016-07-06,2016,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_02,Switzer - Unit 1_vc,2018-07-04,2018-07-13,2018,,lisa.Wilkinson@gov.ab.ca
+UAR,254362,254362_SE_02,Switzer - Unit 1_vc,2019-07-04,2019-07-19,2019,,lisa.Wilkinson@gov.ab.ca
+BNP,296805,296805_SE_01,South of Moose Meadows,2015-07-03,2015-07-10,2015,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SE_01,South of Moose Meadows,2016-07-06,2016-07-27,2016,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SE_01,South of Moose Meadows,2017-06-30,2017-07-07,2017,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SE_01,South of Moose Meadows,2020-06-26,2020-07-03,2020,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_01,Castle Landfill,2015-07-04,2015-07-09,2015,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_01,Castle Landfill,2017-06-30,2017-07-07,2017,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_01,Castle Landfill,2020-06-26,2020-07-03,2020,"Detector must have malfunctioned for survey, no confidence in calls recorded as an indication of relatively abundance (too few calls for survey period)",barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_02,Silver City,2015-07-04,2015-07-10,2015,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_02,Silver City,2016-07-06,2016-07-26,2016,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_02,Silver City,2017-07-02,2017-07-07,2017,,barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+BNP,296805,296805_SW_02,Silver City,2020-06-26,2020-07-03,2020,"Detector must have malfunctioned for survey, no confidence in calls recorded as an indication of relatively abundance (too few calls for survey period)",barb.johnston@canada.ca; geoffrey.prophet@canada.ca
+WBNP,303706,303706_NE_01,Rainbow - Unit 2,2015-06-10,2015-06-17,2015,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NE_01,Rainbow - Unit 2,2016-06-10,2016-06-16,2016,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NE_01,Rainbow - Unit 2,2017-06-09,2017-06-16,2017,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NE_01,Rainbow - Unit 2,2018-06-08,2018-06-14,2018,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NE_01,Rainbow - Unit 2,2019-06-10,2019-06-17,2019,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NW_01,Pine - Unit 3,2017-06-09,2017-06-16,2017,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NW_01,Pine - Unit 3,2018-06-08,2018-06-14,2018,,sharon.irwin2@canada.ca
+WBNP,303706,303706_NW_01,Pine - Unit 3,2019-06-10,2019-06-17,2019,,sharon.irwin2@canada.ca
+WBNP,303706,303706_SW_01,Parsons - Unit 1,2015-06-10,2015-06-17,2015,,sharon.irwin2@canada.ca
+WBNP,303706,303706_SW_01,Parsons - Unit 1,2016-06-09,2016-06-16,2016,,sharon.irwin2@canada.ca
+WBNP,303706,303706_SW_01,Parsons - Unit 1,2017-06-09,2017-06-16,2017,,sharon.irwin2@canada.ca
+WBNP,303706,303706_SW_01,Parsons - Unit 1,2019-06-10,2019-06-17,2019,,sharon.irwin2@canada.ca
+SSR,322807,322807_SE_01,Card41_MRNA dugout,2020-06-11,2020-07-04,2020,,sandi.robertson@gov.ab.ca
+WLNP,323436,323436_SW_01,Bison Paddock,2015-07-01,2015-07-05,2015,,helena.mahoney@canada.ca
+WLNP,323436,323436_SW_01,Bison Paddock,2016-06-30,2016-07-06,2016,,helena.mahoney@canada.ca
+WLNP,323436,323436_SW_01,Bison Paddock,2017-06-30,2017-07-02,2017,,helena.mahoney@canada.ca
+WLNP,323436,323436_SW_01,Bison Paddock,2018-06-29,2018-07-04,2018,,helena.mahoney@canada.ca
+WLNP,323436,323436_SW_01,Bison Paddock,2019-07-02,2019-07-07,2019,,helena.mahoney@canada.ca
+WLNP,323436,323436_SW_01,Bison Paddock,2020-07-06,2020-07-10,2020,,helena.mahoney@canada.ca
+RDR,326934,326934_SW_01,RD-9a,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+WLNP,328329,328329_SW_01,Sofa Burn,2015-07-07,2015-07-11,2015,,helena.mahoney@canada.ca
+WLNP,328329,328329_SW_01,Sofa Burn,2016-07-07,2016-07-14,2016,,helena.mahoney@canada.ca
+WLNP,328329,328329_SW_01,Sofa Burn,2017-07-07,2017-07-09,2017,,helena.mahoney@canada.ca
+WLNP,328329,328329_SW_01,Sofa Burn,2018-07-06,2018-07-12,2018,,helena.mahoney@canada.ca
+WLNP,328329,328329_SW_01,Sofa Burn,2019-07-25,2019-07-31,2019,,helena.mahoney@canada.ca
+WLNP,328329,328329_SW_01,Sofa Burn,2020-07-10,2020-07-14,2020,,helena.mahoney@canada.ca
+SSR,329075,329075_NW_01,MH - Sheep Camp,2015-06-12,2015-06-15,2015,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_02,MH - Cow Camp,2015-06-12,2015-06-16,2015,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_01,MH - Sheep Camp,2016-06-13,2016-06-21,2016,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_02,MH - Cow Camp,2016-06-13,2016-06-20,2016,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_01,MH - Sheep Camp,2017-06-12,2017-06-16,2017,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_02,MH - Cow Camp,2017-06-12,2017-06-17,2017,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_01,MH - Sheep Camp,2018-06-18,2018-06-24,2018,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_02,MH - Cow Camp,2018-06-18,2018-07-02,2018,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_01,MH - Sheep Camp,2019-06-10,2019-06-18,2019,,sandi.robertson@gov.ab.ca
+SSR,329075,329075_NW_02,MH - Cow Camp,2019-06-10,2019-06-18,2019,,sandi.robertson@gov.ab.ca
+RDR,329991,329991_NE_01,RD-10b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+NSR,330622,330622_NE_01,RD-4a,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,338036,338036_NE_01,RD-7b,2019-06-24,2019-06-30,2019,,jason.Unruh@gov.ab.ca
+RDR,329991,329991_NE_01,RD-10b,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+NSR,330622,330622_NE_01,RD-4a,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+RDR,338036,338036_NE_01,RD-7b,2020-06-22,2020-07-01,2020,,jason.Unruh@gov.ab.ca
+PR,221850,221850_SE_01,Copton 1,,,2020,,
+PR,221850,221850_SW_01,Copton 2,,,2020,,
+PR,9626,9626_NW_01,Muskeg 1,,,2020,,
+PR,9626,9626_NE_01,Muskeg 2,,,2020,,
+PR,197018,197018_NW_01,Sulphur 1,,,2020,,
+PR,31898,31898_SE_01,Sulphur 2a,,,2020,,
+PR,197018,197018_NE_01,Sulphur 2b,,,2020,,
