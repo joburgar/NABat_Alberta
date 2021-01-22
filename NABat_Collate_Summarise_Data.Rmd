@@ -135,6 +135,19 @@ sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
 eff <- left_join(eff %>% select(-Land.Unit.Code), 
                  sta %>% dplyr::select(Location.Name, Land.Unit.Code, Natural.Region, PA, Land.Use.Type))
 
+# Read distance matrix csv
+dist.mat <- read.csv("Input/DistanceMatrixTable.csv", header=T)
+glimpse(dist.mat)
+
+# convert FID to Location.Name and create ORIGIN and DESTINATION Location.Name columns in dist.mat
+FID <- as.data.frame(cbind(rownames(sta),as.character(sta$Location.Name)))
+colnames(FID) <- c("FID", "Location.Name")
+dist.mat$ORIGIN_Location.Name <- FID$Location.Name[match(dist.mat$ORIGIN_FID, FID$FID,)]
+dist.mat$DESTINATION_Location.Name <- FID$Location.Name[match(dist.mat$DESTINATION_FID, FID$FID,)]
+dist.mat$PA <- sta$PA[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
+dist.mat$Natural.Region <- sta$Natural.Region[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
+dist.mat$Land.Unit.Code <- sta$Land.Unit.Code[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
+
 ##############################################################
 ##### DATA TESTS #############################################
 ##############################################################
@@ -177,6 +190,17 @@ missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # missing the Sulphur 2a, 2
 ```{r non-adjustable options, echo=F, include=F}
 # SE function
 se <- function(x) sqrt(var(x)/length(x))
+
+# Determine distance between bat survey locations
+dist.mat$count <- 1 # to count number of survey locations within x distance of original survey location
+dist.mat.100km <- as.data.frame(dist.mat %>%
+                                 group_by(PA, Natural.Region, Land.Unit.Code, ORIGIN_Location.Name) %>% 
+                                 summarise_at(c("Link.Distance..km."), list(Mean = mean, SE = se, Min = min, Max = max)))
+dist.mat.100km <- left_join(dist.mat.100km, dist.mat %>% filter(Link.Distance..km.<=10) %>% group_by(ORIGIN_Location.Name) %>% count(count))
+dist.mat.100km <- dist.mat.100km %>% select(-count)
+dist.mat.100km$n <- dist.mat.100km$n %>% replace_na(0) # the number of survey locations within 10 km
+mean(dist.mat.100km$n); se(dist.mat.100km$n) # the mean and se of survey locations wtihin 10 km
+dist.mat.100km %>% filter(n==0) %>% nrow()
 
 # Count the total number of detector stations and GRTS cells
 n.stat <- length(unique(sta$Location.Name))
@@ -233,18 +257,31 @@ if(length(unique(dat_count$Classification))>20)
 ```
 ## Bat Acoustic Survey Locations (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
-To date there have been passive ARU deployments at `r n.stat` unique locations (i.e., bat survey locations) within `r n.GRTS` NABat grid cells. On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) ARUs recording, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` ARUs recording per quadrat. While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) locations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) lcoations were surveyed following similar NABat protocols but not for NABat monitoring per se. Bat survey locations are distributed across Alberta with a slight concentration in the south-western portion of the province (Figs 1-3).  
+To date there have been passive ARU deployments at `r n.stat` unique locations (i.e., bat survey locations) within `r n.GRTS` NABat grid cells. On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) ARUs recording, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` ARUs recording per quadrat. The average minimum distance between bat survey locations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Bat survey locations had an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` survey locations within 10 km. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` bat survey locations where the next nearest survey location was >10 km away. While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) locations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) locations were surveyed following similar NABat protocols but not for NABat monitoring per se. 
 
-# Table 1. The number of bat survey locations in Protected Areas, Natural Regions and Land-use Framework Regions (Land Units). Land Unit abbreviations as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
-```{r call summary, echo=F}
-sta.dist <- sta %>% count(PA, Natural.Region, Land.Unit.Code)
-colnames(sta.dist) <- c("Protected Area", "Natural Region", "Land Unit", "Number Bat Survey Locations")
-as.data.frame(sta.dist)
+```{r survey distance fig, echo=F}
+dist.mat.100km <- dist.mat.100km[order(dist.mat.100km$Mean),]
+fsurvey.dist = ggplot(dist.mat.100km, aes(x = reorder(ORIGIN_Location.Name, Mean), Mean))+
+  geom_point(colour="white", shape=21, size=5,aes(fill=PA))+
+  scale_fill_manual(values=unique(sta$Cols)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Distance (km)"))) +
+  geom_linerange(aes(ORIGIN_Location.Name, ymin = Mean-SE, ymax = Mean+SE)) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank()) +
+  theme(axis.text.y = element_text(size=14))+
+  theme(axis.text.x = element_blank())+
+  theme(legend.position = "none") 
+
+fsurvey.dist
 ```
+Figure 1. Mean distance (km) between bat survey locations within 100 km of one another. 
+Green denotes bat survey locations within National Parks, and red denotes locations outside of parks.
 
-The majority (i.e., `r nrow(sta)-sum(ARUs.by.PA$n)` or `r round((nrow(sta)-sum(ARUs.by.PA$n))/nrow(sta)*100,0)`%) of bat survey locations are outside of National Parks. Of the `r sum(ARUs.by.PA$n)` (`r round(sum(ARUs.by.PA$n)/nrow(sta)*100,0)`%) survey lcoations within National Parks, `r sum(ARUs.by.PA[ARUs.by.PA$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` are part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.PA$n),1)` ± `r round(se(ARUs.by.PA$n),1)` locations; ranging from `r ARUs.by.PA[1,2]` locations within `r ARUs.by.PA[1,1]` to `r ARUs.by.PA[5,2]` locations within both `r ARUs.by.PA[5,1]` and `r ARUs.by.PA[4,1]`.
+Bat survey locations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figs 2-4).
 
-# Figure 1. Distribution of bat survey locations in/out of Protected Areas. 
+The majority (i.e., `r nrow(sta)-sum(ARUs.by.PA$n)` or `r round((nrow(sta)-sum(ARUs.by.PA$n))/nrow(sta)*100,0)`%) of bat survey locations were outside of National Parks. Of the `r sum(ARUs.by.PA$n)` (`r round(sum(ARUs.by.PA$n)/nrow(sta)*100,0)`%) survey lcoations within National Parks, `r sum(ARUs.by.PA[ARUs.by.PA$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.PA$n),1)` ± `r round(se(ARUs.by.PA$n),1)` locations; ranging from `r ARUs.by.PA[1,2]` locations within `r ARUs.by.PA[1,1]` to `r ARUs.by.PA[5,2]` locations within both `r ARUs.by.PA[5,1]` and `r ARUs.by.PA[4,1]`.
+
 ```{r map PA, echo=F}
 
 ### Check distribution of sites and correct spatial assignment (PA, Natural Region, Land Use Type)
@@ -265,13 +302,14 @@ mPA <- leaflet() %>%
     baseGroups = c("Satellite", "Base"),
     options = layersControlOptions(collapsed = FALSE)
   )
+
 mPA
-
 ```
+Figure 2. Distribution of bat survey locations in/out of Protected Areas. 
 
-Bat survey locations occur within each of the six Natural Regions, with an average, `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` bat survey locations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.NR[1,1]` and only (i.e., `r ARUs.by.NR[6,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`.
+Bat survey locations occurred within each of the six Natural Regions, with an average, `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` bat survey locations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.NR[1,1]` and only (i.e., `r ARUs.by.NR[6,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`.
 
-# Figure 2. Distribution of bat survey locations by Natural Region
+
 ```{r map NR, echo=F}
 
 # Natural Region
@@ -291,13 +329,15 @@ mNR <- leaflet() %>%
     baseGroups = c("Satellite", "Base"),
     options = layersControlOptions(collapsed = FALSE)
   )
+
 mNR
 ```
+Figure 3. Distribution of bat survey locations by Natural Region
 
 Outside of National Parks, bat survey locations were within `r nrow(ARUs.by.LUC)` Land Units, with an average, 
 `r round(mean(ARUs.by.LUC$n),1)` ± `r round(se(ARUs.by.LUC$n),1)` bat survey locations within each Land Unit. Most (i.e., `r ARUs.by.LUC[1,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.LUC[1,1]` and only (i.e., `r ARUs.by.LUC[7,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.LUC[7,1]`.
 
-# Figure 3. Distribution of bat survey locations by Land Unit
+
 ```{r map LUC, echo=F}
 
 # Land Unit Code
@@ -317,13 +357,14 @@ mLUC <- leaflet() %>%
     baseGroups = c("Satellite", "Base"),
     options = layersControlOptions(collapsed = FALSE)
   )
+
 mLUC
-
 ```
+Figure 4. Distribution of bat survey locations by Land Unit
 
-Bat survey locations can be grouped into `r nrow(ARUs.by.LUT)` categories. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[1,1]` and the fewest were within (i.e., `r ARUs.by.LUT[7,2]` or  `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[7,1]`
+Bat survey locations can be grouped into `r nrow(ARUs.by.LUT)` categories. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[1,1]` and the fewest (i.e., `r ARUs.by.LUT[7,2]` or  `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) were within `r ARUs.by.LUT[7,1]`
 
-# Figure 4. Representation of bat survey locations by Land Use Type in/out of Protected Areas (PA) 
+
 ```{r map LUT, echo=F}
 
 # Land Use Type
@@ -340,10 +381,11 @@ LUT.hist <- ggplot(data = LUT.PA.hist, aes(x = reorder(Land.Use.Type, -n), y = n
 
 LUT.hist
 ```
+Figure 5. Representation of bat survey locations by Land Use Type in/out of Protected Areas (PA) 
 
 ## Bat Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
-Bat survey locations have been surveyed between `r min(sta$Yrs.Surveyed)` and `r max(sta$Yrs.Surveyed)` times (mean = `r round(mean(sta$Yrs.Surveyed),1)` ± `r round(se(sta$Yrs.Surveyed),1)` SE). 
+Bat survey locations have been surveyed between `r min(sta$Yrs.Surveyed)` and `r max(sta$Yrs.Surveyed)` times (mean = `r round(mean(sta$Yrs.Surveyed),1)` ± `r round(se(sta$Yrs.Surveyed),1)`). 
 
 # Figure 5. Annual bat survey effort by NABat grid cell in/out of Protected Areas (PA) 
 ```{r survey effort, echo=F}
