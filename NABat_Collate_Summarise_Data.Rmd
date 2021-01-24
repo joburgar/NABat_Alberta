@@ -21,7 +21,7 @@ if(length(new.packages)) install.packages(new.packages)
 
 lapply(list.of.packages, require, character.only = TRUE)
 
-# Timezone [Use UTC if your cameras do not correct for daylight saving time, if they do use the timezone where the data was collected]
+# Timezone 
 tz <- "UTC"
 
 # Set a single catagorical variable of interest from station covariates (`sta`) for summary graphs. If you do not have and appropriate category use "Project.ID".
@@ -37,22 +37,8 @@ colour <- "lightseagreen"
 ## README FIRST ##
 #Read and run this chunk of code line by line - there are some question below which you will have to answer/ logic tests to complete. Once you are happy with this, hit 'knit' above. 
 
-# Create vector, and then dataframe, of processed data file names - not sure I need this...
-# procdata.names <- list.files(path="./Input/NABat_ProcessedFiles", recursive = TRUE)
-# 
-# Proc.df <- as.data.frame(procdata.names)
-# head(Proc.df)
-# nrow(Proc.df)
-# 
-# # Populate dataframe with data structure as columns
-# # Need GRTS.Cell.ID, Location.Name, Deployment.ID, Filename 
-# Proc.df$GRTS.Cell.ID <- word(Proc.df$procdata.names,1,sep = "\\/")
-# Proc.df$Location.Name <- word(Proc.df$procdata.names,2,sep = "\\/")
-# Proc.df$Deployment.ID <- word(Proc.df$procdata.names,3,sep = "\\/")
-# Proc.df$Filename <- word(Proc.df$procdata.names,-1,sep = "\\/")
-
-# Import csv output files for all cells GRTS.Cell.ID of interest
-fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
+# Check the listing of output files
+# fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
 
 # Import count files
 dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"), 
@@ -80,6 +66,7 @@ dat_count$Classification <- as.factor(dat_count$Classification %>%
                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
 
+
 # Import summary files
 dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"), 
                             regexp = "\\_summary.csv$", recurse = TRUE) %>%
@@ -94,7 +81,6 @@ dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
 
-
 # Read deployment data csv for station covariates
 eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
@@ -105,13 +91,13 @@ eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
 dat.names <- dat_count%>% group_by(Location.Name) %>% count(Orig.Name) 
 dat.names.sum <- dat_summary %>% group_by(Location.Name) %>% count(Orig.Name)
 names.join <- as.data.frame(full_join(eff.names, dat.names.sum, by="Location.Name"))
-names.join[is.na(names.join$n.y),] # missing data for Sulphur 2a and 2b (waiting to hear back from Courtney) and Lineham Trail (no data)
+names.join[is.na(names.join$n.y),] # will show missing deployment data
 
 # Read station covariates csv
 sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1)) %>%
-  dplyr::select(LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
+  dplyr::select(OBJECTID, LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
                 WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
-  rename(Land.Unit.Code=LandUnitCo, GRTS.Cell.ID=GRTSCellID, Location.Name=LocName,Orig.Name=Orig_Name, NABat.Sample=NABat_Samp,
+  rename(FID = OBJECTID, Land.Unit.Code=LandUnitCo, GRTS.Cell.ID=GRTSCellID, Location.Name=LocName,Orig.Name=Orig_Name, NABat.Sample=NABat_Samp,
          Yrs.Surveyed=YrsSurveye, Land.Cover=LC_class, Natural.Sub.Region=NSRNAME, Natural.Region=NRNAME, Waterbody.Type=WTRBODY_TY,          Waterbody.Distance=DIST_WTRBD, Stream.Type=STREAM_TYP, Stream.Distance=Dist_Strea, Road.Type=RoadType, Road.Distance=DistRoad_M,
          Human.Footprint.Type=HF_TYPE, Human.Footprint.Distance=Dist_to_HF)
 sta$PA <- as.factor(ifelse(sta$Land.Unit.Code %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
@@ -140,8 +126,7 @@ dist.mat <- read.csv("Input/DistanceMatrixTable.csv", header=T)
 glimpse(dist.mat)
 
 # convert FID to Location.Name and create ORIGIN and DESTINATION Location.Name columns in dist.mat
-FID <- as.data.frame(cbind(rownames(sta),as.character(sta$Location.Name)))
-colnames(FID) <- c("FID", "Location.Name")
+FID <- sta[c("FID","Location.Name")]
 dist.mat$ORIGIN_Location.Name <- FID$Location.Name[match(dist.mat$ORIGIN_FID, FID$FID,)]
 dist.mat$DESTINATION_Location.Name <- FID$Location.Name[match(dist.mat$DESTINATION_FID, FID$FID,)]
 dist.mat$PA <- sta$PA[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
@@ -164,25 +149,58 @@ strptime(dat_summary$SurveyNight[1], "%Y-%m-%d", tz="UTC")
 # Logic = are the stations active for 0 or more days -> all should read TRUE
 table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.Start.Time, "%Y-%m-%d", tz="UTC"))>=0)
 
-# 3a) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
+# 3) Ensure Deployment.ID (year) is the same as SurveyNight year
+dat_count %>% group_by(Deployment.ID) %>% count(Year)
+# issues with Dipper Rowe - ARUs progammed as 20000212 when should be 20200712
+dat_count$unique <- paste(dat_count$Location.Name, dat_count$Year, sep="_")
+dat_count$SurveyNight <- case_when(dat_count$unique=="139715_SW_02_2000" ~ dat_count$SurveyNight + 7456,
+                               TRUE ~ as.Date(dat_count$SurveyNight))
+dat_count <- dat_count %>%  
+  mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  select(-unique)
+
+dat_count %>% group_by(Deployment.ID) %>% count(Year) 
+# no discrepancy between SurveyNight and Deployment.ID
+
+dat_summary$unique <- paste(dat_summary$Location.Name, dat_summary$Year, sep="_")
+dat_summary$SurveyNight <- case_when(dat_summary$unique=="139715_SW_02_2000" ~ dat_summary$SurveyNight + 7456,
+                               TRUE ~ as.Date(dat_summary$SurveyNight))
+dat_summary <- dat_summary %>%  
+  mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  select(-unique)
+
+dat_summary %>% group_by(Deployment.ID) %>% count(Year) # no discrepancy between SurveyNight and Deployment.ID
+as.data.frame(dat_summary %>% filter(is.na(Year)))
+
+# 4a) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
 # If length > 0, then you have some data missing!
 length(setdiff(unique(eff$Location.Name), unique(sta$Location.Name))) # 0
 # missing.eff.sta <- left_join(eff, sta, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
 # missing.eff.sta[is.na(missing.eff.sta$Orig.Name.y),] # will show missing station covariates
 
-# 3b) Do you have all data represented in the station covariates? If yes, the value should be 0
-length(setdiff(unique(sta$Location.Name), unique(dat_count$Location.Name))) # 12
+# 4b) Do you have all data represented in the station covariates? If yes, the value should be 0
+length(setdiff(unique(sta$Location.Name), unique(dat_count$Location.Name))) # 9
 missing.dat.sta <- left_join(sta, dat_count, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
-missing.dat.sta[is.na(missing.dat.sta$Orig.Name.y),] # missing Sulphur 2a, Sulphur 2b, Lineham Trail (no actual data), and ABMI data
+missing.dat.sta[is.na(missing.dat.sta$Orig.Name.y),] # missing ABMI data
 
-# 3c) Do you have all data represented in the deployment data? If yes, the value should be 0
-length(setdiff(unique(eff$Location.Name), unique(dat_count$Location.Name))) # 3
+# 4c) Do you have all data represented in the deployment data? If yes, the value should be 0
+length(setdiff(unique(eff$Location.Name), unique(dat_count$Location.Name))) # 0
 missing.dat.eff <- left_join(eff, dat_count, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
-missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # missing the Sulphur 2a, 2b and Lineham data
+missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # will show missing deployment data covariates
 
-# Need Sulphur data from Courtney and ABMI data from Cami - the Lineham Trail does not have data recorded (check with Helena)
+# Need ABMI data from Cami
 # EINP can be included in the NABat 2020 report but does not include station covariates (no info from Rhonda), just PA, NR, NSR groupings
 
+# 5) Remove dates outside survey range (i.e., ARUs turned on but not deployed)
+eff %>% group_by(Deployment.ID) %>% summarise(min(Survey.Start.Time), max(Survey.End.Time))
+# remove all dates before May 01 and after Sept 01, using Julian date
+yday("2020-05-01"); yday("2020-09-01")
+
+dat_count %>% group_by(Deployment.ID) %>% count(Year) 
+dat_count <- dat_count %>% filter(between(jDay, 122, 245))
+
+dat_summary %>% group_by(Deployment.ID) %>% count(Year) 
+dat_summary <- dat_summary %>% filter(between(jDay, 122, 245))
 
 # If all of the above is satisfied -> press 'Knit' above ^
 ```
@@ -278,6 +296,19 @@ fsurvey.dist
 Figure 1. Mean distance (km) between bat survey locations within 100 km of one another. 
 Green denotes bat survey locations within National Parks, and red denotes locations outside of parks.
 
+Table 1. The number of bat survey locations in Protected Areas, Natural Regions and Land-use Framework Regions (Land Units). Land Unit abbreviations as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
+```{r Table 1 bat survey locations echo=F}
+sta.count <- sta %>% count(PA, Natural.Region, Land.Unit.Code)
+sta.count2 <- sta %>% group_by(PA, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
+sta.count2$GRTS.count <- 1
+sta.count3 <- sta.count2 %>% group_by(PA, Natural.Region, Land.Unit.Code) %>% summarise(sum(GRTS.count))
+
+sta.count$Count.Grid.Cells <- sta.count3[,4]
+knitr::kable(sta.count,
+      colnames=c("Protected Area", "Natural Region", "Land Unit", "Count Bat Survey Locations", "Count NABat Grid Cells"),
+      align = "lllrr")
+```
+
 Bat survey locations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figs 2-4).
 
 The majority (i.e., `r nrow(sta)-sum(ARUs.by.PA$n)` or `r round((nrow(sta)-sum(ARUs.by.PA$n))/nrow(sta)*100,0)`%) of bat survey locations were outside of National Parks. Of the `r sum(ARUs.by.PA$n)` (`r round(sum(ARUs.by.PA$n)/nrow(sta)*100,0)`%) survey lcoations within National Parks, `r sum(ARUs.by.PA[ARUs.by.PA$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.PA$n),1)` ± `r round(se(ARUs.by.PA$n),1)` locations; ranging from `r ARUs.by.PA[1,2]` locations within `r ARUs.by.PA[1,1]` to `r ARUs.by.PA[5,2]` locations within both `r ARUs.by.PA[5,1]` and `r ARUs.by.PA[4,1]`.
@@ -365,7 +396,7 @@ Figure 4. Distribution of bat survey locations by Land Unit
 Bat survey locations can be grouped into `r nrow(ARUs.by.LUT)` categories. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[1,1]` and the fewest (i.e., `r ARUs.by.LUT[7,2]` or  `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) were within `r ARUs.by.LUT[7,1]`
 
 
-```{r map LUT, echo=F}
+```{r map LUT, echo=F, message=F}
 
 # Land Use Type
 LUT.PA.hist <- sta %>% group_by(PA) %>% count(Land.Use.Type, sort=TRUE)
@@ -387,8 +418,7 @@ Figure 5. Representation of bat survey locations by Land Use Type in/out of Prot
 
 Bat survey locations have been surveyed between `r min(sta$Yrs.Surveyed)` and `r max(sta$Yrs.Surveyed)` times (mean = `r round(mean(sta$Yrs.Surveyed),1)` ± `r round(se(sta$Yrs.Surveyed),1)`). 
 
-# Figure 5. Annual bat survey effort by NABat grid cell in/out of Protected Areas (PA) 
-```{r survey effort, echo=F}
+```{r annual survey effort, echo=F}
 Years.Surveyed <- eff %>% group_by(PA, Natural.Region, Land.Unit.Code,Deployment.ID) %>% count(GRTS.Cell.ID)
 
 Yr.GRTS.hist <- Years.Surveyed %>% group_by(PA) %>% count(Deployment.ID)
@@ -402,5 +432,58 @@ Yr.hist <- ggplot(data = Yr.GRTS.hist, aes(x = as.factor(Deployment.ID), y = n, 
 
 Yr.hist
 ```
+Figure 6. Annual bat survey effort by NABat grid cell in/out of Protected Areas (PA) 
+
+# Nightly Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
 
+```{r nightly survey effort PA, echo=F}
+dat_count$PA <- sta$PA[match(dat_count$Location.Name, sta$Location.Name,)]
+dat_count$Natural.Region <- sta$Natural.Region[match(dat_count$Location.Name, sta$Location.Name,)]
+dat_count$Land.Unit.Code <- sta$Land.Unit.Code[match(dat_count$Location.Name, sta$Location.Name,)]
+  
+calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,PA, Natural.Region, Land.Unit.Code, Location.Name) %>%
+  filter(Classification!="noise") %>%
+  summarise(Call.Count =sum(Count))
+calls.per.night.locn$Night.Count <- 1
+
+# julian day for July 10
+yday("2020-07-10") # 192
+yday("2020-01-01")# 192
+as.Date("2020-01-01") + 181
+yday("2020-09-01")
+
+
+NightPA.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=PA)) + 
+  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(sta$Cols))+
+  scale_x_continuous(breaks = c(153, 183, 214, 245),
+  label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
+  theme_classic() + ylab("Number Locations Surveyed") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_text(size = 14))+
+  facet_wrap(~Year, ncol=1)
+
+NightPA.hist
+```
+Figure 7. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in/out of Protected Areas (PA).
+
+```{r nightly survey effort NR, echo=F}
+
+NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Natural.Region)) + 
+  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(sta$ColsNR))+
+  scale_x_continuous(breaks = c(153, 183, 214, 245),
+  label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
+  theme_classic() + ylab("Number Locations Surveyed") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_text(size = 14))+
+  facet_wrap(~Year, ncol=1)
+
+NightNR.hist
+```
+Figure 8. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in each Natural Region.
+
+Table 2.
