@@ -133,6 +133,10 @@ dist.mat$NP <- sta$NP[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
 dist.mat$Natural.Region <- sta$Natural.Region[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
 dist.mat$Land.Unit.Code <- sta$Land.Unit.Code[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
 
+
+# Read spatial covariate csv
+cov.prop <- read.csv("Input/Cov.area.csv", header=T)
+cov.prop
 ##############################################################
 ##### DATA TESTS #############################################
 ##############################################################
@@ -243,6 +247,22 @@ ARUs.by.NR <- sta %>% count(Natural.Region, sort = TRUE)
 ARUs.by.LUC <- sta %>% filter(NP=="Out") %>% count(Land.Unit.Code, sort = TRUE)
 ARUs.by.LUT <- sta %>% count(Land.Use.Type, sort = TRUE)
 
+# Proportion of stations vs spatial covariates
+sum(ARUs.by.LUC$n) # 87
+sum(ARUs.by.NP$n) # 30
+sum(ARUs.by.NR$n) # 117
+colnames(cov.prop)[5] <- "prop.area"
+cov.prop$NP <- as.factor(ifelse(grepl("NP",cov.prop$Name), "In", "Out"))
+#cov.prop <- cov.prop %>% arrange(NP, Cov, Name)
+cov.prop <- left_join(cov.prop,ARUs.by.LUC,by=c("Name"="Land.Unit.Code"))
+cov.prop <- left_join(cov.prop,ARUs.by.NP,by=c("Name"="Land.Unit.Code"))
+cov.prop <- left_join(cov.prop,ARUs.by.NR,by=c("Name"="Natural.Region"))
+cov.prop$Num.Stn <- rowSums(cov.prop[7:9],na.rm=T)
+cov.prop$prop.stn <- ifelse(cov.prop$Cov=="Land.Unit.Code" & cov.prop$NP=="Out", cov.prop$Num.Stn / sum(ARUs.by.LUC$n),
+                            ifelse(cov.prop$Cov=="Land.Unit.Code" & cov.prop$NP=="In", cov.prop$Num.Stn / sum(ARUs.by.NP$n),
+                                   ifelse(cov.prop$Cov=="Natural.Region", cov.prop$Num.Stn / sum(ARUs.by.NR$n), NA)))
+cov.prop <- cov.prop %>% select(-c(n.x, n.y, n))
+
 # Generate colours to display the catagory levels - R needs them as a factor
 sta[,category] <- factor(sta[,category])
 col.cat <- wheel(colour, num = length(levels(sta[,category])))
@@ -279,6 +299,7 @@ To date there have been passive ARU deployments at `r n.stat` unique locations (
 
 ```{r survey distance fig, echo=F}
 dist.mat.100km <- dist.mat.100km[order(dist.mat.100km$Mean),]
+
 fsurvey.dist = ggplot(dist.mat.100km, aes(x = reorder(ORIGIN_Location.Name, Mean), Mean))+
   geom_point(colour="white", shape=21, size=5,aes(fill=NP))+
   scale_fill_manual(values=unique(sta$Cols)) +
@@ -296,7 +317,7 @@ fsurvey.dist
 Figure 1. Mean distance (km) between bat survey locations within 100 km of one another. 
 Green denotes bat survey locations within National Parks, and red denotes locations outside of parks.
 
-Table 1. The number of bat survey locations in National Parks, Natural Regions and Land-use Framework Regions (Land Units). Land Unit abbreviations as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
+Table 1. The number of bat survey locations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
 ```{r Table 1 bat survey location, echo=F}
 sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
 sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
@@ -314,9 +335,31 @@ colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Count 
 knitr::kable(sta.count, align = "lllrr")
 ```
 
-Bat survey locations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figs 2-4).
+Considering the area of each National Park, BNP and JNP had proportional survey representation, i.e., `r round(sta.NP %>% filter(Land.Unit.Code=="BNP") %>% summarise(sum(prop))*100,0)`% and `r round(sta.NP %>% filter(Land.Unit.Code=="JNP") %>% summarise(sum(prop))*100,0)`% of Alberta's park area and proportion of bat survey locations within the parks. In contrast, WLNP and EINP were over-represented, and WBNP was under-represented, in terms of survey locations to park area. For Land Units outside of National Parks, bat survey locations were under-represented in LAR and LPR, over-represented in RDR and UPR and roughly proportional in the remaining Land Units. For each Natural Region, bat survey locations were under-represented in the Boreal (i.e., `r round(sta.NR %>% filter(Natural.Region=="Boreal") %>% summarise(sum(prop))*100,0)`% of the survey locations) to Alberta's land area (58%).In contrast, bat survey locations were over-represented in the Foothills, Grassland and Rocky Mountain Natural Regions. The Canadian Shield and Parkland Natural Regions had roughly proportional survey to land area representation (Fig 2).
 
-The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of bat survey locations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) survey lcoations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` locations; ranging from `r ARUs.by.NP[1,2]` locations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` locations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`. Considering the area of each park, BNP and JNP had proportional survey representation, i.e., `r round(sta.NP %>% filter(Land.Unit.Code=="BNP") %>% summarise(sum(prop))*100,0)`% and `r round(sta.NP %>% filter(Land.Unit.Code=="JNP") %>% summarise(sum(prop))*100,0)`% of Alberta's park area and proportion of bat survey locations within the parks. In contrast, WLNP comprises only 1% of Alberta's National Park area but had `r round(sta.NP %>% filter(Land.Unit.Code=="WLNP") %>% summarise(sum(prop))*100,0)`% of park bat survey locations while WBNP comprises 71% of park area with only `r round(sta.NP %>% filter(Land.Unit.Code=="WLNP") %>% summarise(sum(prop))*100,0)`% of park bat survey locations. EINP is Alberta's smallest National Park, comprising not even 1% of Alberta's park area but with `r round(sta.NP %>% filter(Land.Unit.Code=="EINP") %>% summarise(sum(prop))*100,0)`% of the surveys. 
+```{r Figure 2 spatial representation, echo=F}
+cov.prop <- cov.prop %>% arrange(Cov, NP, Name)
+cov.prop.hist.data <- gather(cov.prop,`prop.area`, `prop.stn`, key="Prop.Type", value="Proportion")
+cov.prop.hist.data$Prop.Type <- recode(cov.prop.hist.data$Prop.Type, prop.area = "Area", prop.stn = "Bat Survey Locations")
+cov.prop.hist.data$Cov2 <- ifelse(cov.prop.hist.data$Cov=="Land.Unit.Code" & cov.prop.hist.data$NP=="In", "Within National Park",
+                                  ifelse(cov.prop.hist.data$Cov=="Land.Unit.Code" & cov.prop.hist.data$NP=="Out", "Outside National Park",
+                                         ifelse(cov.prop.hist.data$Cov=="Natural.Region","Natural Region",NA)))
+                                                    
+
+
+cov.prop.hist <- ggplot(cov.prop.hist.data, aes(fill=Prop.Type, y=Proportion, x=Name)) +
+  geom_bar(position="dodge", stat="identity") +
+  theme(legend.title = element_blank())+
+  theme(axis.title.y = element_text(size = 14)) +   
+  theme(axis.title.x = element_blank())+
+  facet_wrap(~Cov2, scales="free_x", ncol=1)
+cov.prop.hist
+```
+Figure 2. Proportional representation of bat survey locations compared with land mass area for Natural Region and Land Unit types.
+
+
+Bat survey locations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figs 3-5). The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of bat survey locations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) survey lcoations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` locations; ranging from `r ARUs.by.NP[1,2]` locations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` locations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`.
+
 ```{r map NP, echo=F}
 
 ### Check distribution of sites and correct spatial assignment (NP, Natural Region, Land Use Type)
@@ -342,8 +385,7 @@ mPA
 ```
 Figure 2. Distribution of bat survey locations in/out of National Parks. 
 
-Bat survey locations occurred within each of the six Natural Regions, with an average `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` of bat survey locations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.NR[1,1]` and only `r ARUs.by.NR[6,2]` (i.e., `r round(ARUs.by.NR[6,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`. Considering the area of each Natural Region, the Boreal was undersubscribed in terms of bat survey locations (i.e., `r round(sta.NR %>% filter(Natural.Region=="Boreal") %>% summarise(sum(prop))*100,0)`% of the survey locations but comprising 58% of Alberta's land mass. The Parkland and Canadian Shield Natural Regions were proportionally represented (i.e, `r round(sta.NR %>% filter(Natural.Region=="Parkland") %>% summarise(sum(prop))*100,0)`% and `r round(sta.NR %>% filter(Natural.Region=="Canadian Shield") %>% summarise(sum(prop))*100,0)`%, respectively of Alberta's area and bat survey locations). In contrast, Foothills, Grassland and Rocky Mountain Natural Regions were proportionally overrepresented in terms of bat survey locations to area (`r round(sta.NR %>% filter(Natural.Region=="Foothills") %>% summarise(sum(prop))*100,0)`%, `r round(sta.NR %>% filter(Natural.Region=="Grassland") %>% summarise(sum(prop))*100,0)`%, and `r round(sta.NR %>% filter(Natural.Region=="Rocky Mountain") %>% summarise(sum(prop))*100,0)`, of locations compared to 10%, 14%, and 7% of Alberta's area, respectively).
-
+Bat survey locations occurred within each of the six Natural Regions, with an average `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` of bat survey locations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.NR[1,1]` and only `r ARUs.by.NR[6,2]` (i.e., `r round(ARUs.by.NR[6,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`. 
 
 ```{r map NR, echo=F}
 
