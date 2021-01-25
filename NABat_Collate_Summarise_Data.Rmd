@@ -1,7 +1,7 @@
 ---
-title: "NABat Collate and Summarise Data"
+title: "Collate and Summarise Alberta's NABat Data 2015 - 2020"
 author: "Created by Joanna Burgar"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+date: "Report generated on `r format(Sys.time(), '%d %B, %Y')`"
 output:
   word_document: default
   html_document:
@@ -11,6 +11,8 @@ editor_options:
   chunk_output_type: console
 always_allow_html: yes
 ---
+---
+Bats across Canada face unprecedented threats including white-nose syndrome (WNS), wind energy development, habitat loss and fragmentation, and climate change. However, a lack of basic information about the distribution and abundance of bats across the continent makes it difficult to evaluate the impacts of these threats.  Although bat monitoring is conducted in Alberta, no landscape-level spatial and temporal analyses have been completed. The mountain national parks have proposed an Integrated Conservation Planning project that aims to substantively advance bat conservation actions within PCA with partners across Alberta. This analysis and reporting examines monitoring and bat conservation in Alberta from 2015 - 2020, witin a provincial and landscape context. The hope was that this work would inform the Integrated Conservation Planning project.
 
 ```{r setup, echo=F, include=F}
 
@@ -66,6 +68,10 @@ dat_count$Deployment.ID <- as.factor(word(dat_count$source,6,sep = "\\/"))
 dat_count$Classification <- as.factor(dat_count$Classification %>% 
                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+dat_count$Classification <- factor(dat_count$Classification,
+                                    levels = c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU",
+                                               "MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k",
+                                               "unknown", "noise"))
 
 
 # Import summary files
@@ -81,7 +87,13 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
-
+# dat_summary$sp1 <- as.factor(dat_summary$sp1 %>% 
+#                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
+#                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+# dat_summary$sp1 <- factor(dat_summary$sp1,
+#                                     levels = c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU",
+#                                                "MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k",
+#                                                "unknown", "noise"))
 # Read deployment data csv for station covariates
 eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
@@ -124,7 +136,6 @@ eff <- left_join(eff %>% select(-Land.Unit.Code),
 
 # Read distance matrix csv
 dist.mat <- read.csv("Input/DistanceMatrixTable.csv", header=T)
-glimpse(dist.mat)
 
 # convert FID to Location.Name and create ORIGIN and DESTINATION Location.Name columns in dist.mat
 FID <- sta[c("FID","Location.Name")]
@@ -137,7 +148,7 @@ dist.mat <- dist.mat[complete.cases(dist.mat),] # removes any entries without co
 
 # Read spatial covariate csv
 cov.prop <- read.csv("Input/Cov.area.csv", header=T)
-cov.prop
+
 ##############################################################
 ##### DATA TESTS #############################################
 ##############################################################
@@ -145,7 +156,7 @@ cov.prop
 # This code will not work unless the data passes the following checks
 
 # 1) All dates must be in YYYY-MM-DD in 'eff' and YYYY-MM-DD HH:MM:SS in 'dat' 
-# If either of the following return NA, you must change your formatting
+# If either of the following return NA, the formatting needs to change
 strptime(eff$Survey.Start.Time[1], "%Y-%m-%d", tz="UTC")
 strptime(dat_count$SurveyNight[1], "%Y-%m-%d", tz="UTC")
 strptime(dat_summary$SurveyNight[1], "%Y-%m-%d", tz="UTC")
@@ -264,7 +275,7 @@ cov.prop$prop.stn <- ifelse(cov.prop$Cov=="Land.Unit.Code" & cov.prop$NP=="Out",
                                    ifelse(cov.prop$Cov=="Natural.Region", cov.prop$Num.Stn / sum(ARUs.by.NR$n), NA)))
 cov.prop <- cov.prop %>% select(-c(n.x, n.y, n))
 
-# Generate colours to display the catagory levels - R needs them as a factor
+# Generate colours to display the category levels - R needs them as a factor
 sta[,category] <- factor(sta[,category])
 col.cat <- wheel(colour, num = length(levels(sta[,category])))
 sta$Cols <- col.cat[sta[,category]]
@@ -280,7 +291,12 @@ sta[,"Land.Use.Type"] <- factor(sta[,"Land.Use.Type"])
 col.catLUT <- wheel(colour, num = length(levels(sta[,"Land.Use.Type"])))
 sta$ColsLUT <- col.catLUT[sta[,"Land.Use.Type"]]
 
+
+eff[,"Deployment.ID"] <- factor(eff[,"Deployment.ID"])
+col.catYr <- wheel(colour, num = length(levels(eff[,"Deployment.ID"])))
+eff$ColsYr <- col.catYr[eff[,"Deployment.ID"]]
 ```
+
 ## Bat Acoustic Survey Locations (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
 To date there have been passive ARU deployments at `r n.stat` unique locations (i.e., bat survey locations) within `r n.GRTS` NABat grid cells. On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) ARUs recording, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` ARUs recording per quadrat. The average minimum distance between bat survey locations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Bat survey locations had an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` survey locations within 10 km. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` bat survey locations where the next nearest survey location was >10 km away. While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) locations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) locations were surveyed following similar NABat protocols but not for NABat monitoring per se. 
@@ -302,10 +318,10 @@ fsurvey.dist = ggplot(dist.mat.100km, aes(x = reorder(ORIGIN_Location.Name, Mean
 
 fsurvey.dist
 ```
-Figure 1. Mean distance (km) between bat survey locations within 100 km of one another. 
+### Figure 1. Mean distance (km) between bat survey locations within 100 km of one another. 
 Green denotes bat survey locations within National Parks, and red denotes locations outside of parks.
 
-Table 1. The number of bat survey locations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
+#### Table 1. The number of bat survey locations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
 ```{r Table 1 bat survey location, echo=F}
 sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
 sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
@@ -345,7 +361,7 @@ cov.prop.hist <- ggplot(cov.prop.hist.data, aes(fill=Prop.Type, y=Proportion, x=
 cov.prop.hist
 ```
 
-###Figure 2. Proportional representation of bat survey locations compared with land mass area for Natural Region and Land Unit types.
+##### Figure 2. Proportional representation of bat survey locations compared with land mass area for Natural Region and Land Unit types.
 
 
 Bat survey locations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figs 3-5). The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of bat survey locations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) survey lcoations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` locations; ranging from `r ARUs.by.NP[1,2]` locations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` locations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`.
@@ -373,7 +389,8 @@ mPA <- leaflet() %>%
 
 mPA
 ```
-###Figure 3. Distribution of bat survey locations in/out of National Parks. 
+
+#### Figure 3. Distribution of bat survey locations in/out of National Parks. 
 
 Bat survey locations occurred within each of the six Natural Regions, with an average `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` of bat survey locations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.NR[1,1]` and only `r ARUs.by.NR[6,2]` (i.e., `r round(ARUs.by.NR[6,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`. 
 
@@ -399,7 +416,8 @@ mNR <- leaflet() %>%
 
 mNR
 ```
-###Figure 4. Distribution of bat survey locations by Natural Region
+
+#### Figure 4. Distribution of bat survey locations by Natural Region
 
 Outside of National Parks, bat survey locations were within `r nrow(ARUs.by.LUC)` Land Units, with an average, 
 `r round(mean(ARUs.by.LUC$n),1)` ± `r round(se(ARUs.by.LUC$n),1)` bat survey locations within each Land Unit. Most (i.e., `r ARUs.by.LUC[1,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.LUC[1,1]` and only (i.e., `r ARUs.by.LUC[7,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.LUC[7,1]`.
@@ -427,9 +445,12 @@ mLUC <- leaflet() %>%
 
 mLUC
 ```
-###Figure 5. Distribution of bat survey locations by Land Unit
 
-Bat survey locations can be grouped into `r nrow(ARUs.by.LUT)` categories. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[1,1]` and the fewest (i.e., `r ARUs.by.LUT[7,2]` or  `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) were within `r ARUs.by.LUT[7,1]`
+### Figure 5. Distribution of bat survey locations by Land Unit
+
+Land Use Type was derived from the Alberta Biodiversity Monitoring Institute (ABMI) Wall-to-wall Land Cover Map 2010 Version 1.0 (ABMIw2wLCV2010v1.0) with the following three deviations: 1) the three forest classes were consolidated into one "Forest" class; 2) exposed land was renamed as "Barren Land"; and 3) if any bat survey location was within 10 m of water the Land-use Type was changed to "Water".
+
+Bat survey locations can be grouped into `r nrow(ARUs.by.LUT)` Land Use Types. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[1,1]` and the fewest (i.e., `r ARUs.by.LUT[7,2]` or  `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) were within `r ARUs.by.LUT[7,1]`
 
 
 ```{r hist LUT, echo=F, warning=F, fig.width=6.5}
@@ -441,14 +462,15 @@ LUT.NP.hist <- LUT.NP.hist[complete.cases(LUT.NP.hist),] # remove EINP which doe
 LUT.hist <- ggplot(data = LUT.NP.hist, aes(x = reorder(Land.Use.Type, -n), y = n, fill= NP)) + 
   geom_bar(stat = "identity") + 
   scale_fill_manual(values=unique(sta$Cols))+
-  theme_classic() + xlab("Land Use Type") + ylab("Number of Bat Survey Locations") + 
-  #theme(legend.title = element_blank())+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black")) +
-  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_text(size = 14))
+  theme_classic() + ylab("Number of Locations Surveyed") + 
+  theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) + theme(axis.title.x = element_blank())
 
 LUT.hist
 ```
-###Figure 6. Representation of bat survey locations by Land Use Type in/out of National Parks (NP) 
+
+#### Figure 6. Representation of bat survey locations by Land Use Type in/out of National Parks (NP) 
 
 ## Bat Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
@@ -469,10 +491,10 @@ Yr.hist <- ggplot(data = Yr.GRTS.hist, aes(x = as.factor(Deployment.ID), y = n, 
 
 Yr.hist
 ```
-###Figure 7. Annual bat survey effort by NABat grid cell in/out of National Parks (NP) 
 
-# Nightly Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
+#### Figure 7. Annual bat survey effort by NABat grid cell in/out of National Parks (NP) 
 
+## Nightly Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
 ```{r nightly survey effort NP, echo=F, fig.height=8.5, fig.width=6.5}
 dat_count$NP <- sta$NP[match(dat_count$Location.Name, sta$Location.Name,)]
@@ -484,20 +506,13 @@ calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,NP, Natura
   summarise(Call.Count =sum(Count))
 calls.per.night.locn$Night.Count <- 1
 
-# julian day for July 10
-yday("2020-07-10") # 192
-yday("2020-01-01")# 192
-as.Date("2020-01-01") + 181
-yday("2020-09-01")
-
-
 NightPA.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=NP)) + 
   geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
   geom_bar(stat = "identity") + 
   scale_fill_manual(values=unique(sta$Cols))+
   scale_x_continuous(breaks = c(153, 183, 214, 245),
   label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
-  theme_classic() + ylab("Number Locations Surveyed") +
+  theme_classic() + ylab("Number of Locations Surveyed") +
   theme(legend.position="bottom") +
   theme(axis.title.x = element_blank()) +
   theme(axis.title.y = element_text(size = 14))+
@@ -505,7 +520,8 @@ NightPA.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Coun
 
 NightPA.hist
 ```
-###Figure 8. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in/out of National Parks (NP).
+
+#### Figure 8. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in/out of National Parks (NP).
 
 ```{r nightly survey effort NR, echo=F, fig.height=8.5, fig.width=6.5}
 
@@ -516,13 +532,47 @@ NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Coun
   scale_x_continuous(breaks = c(153, 183, 214, 245),
   label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
   theme_classic() + ylab("Number Locations Surveyed") +
-  theme(legend.position="bottom") +
+  theme(legend.position="bottom", legend.title = element_blank()) +
   theme(axis.title.x = element_blank()) +
   theme(axis.title.y = element_text(size = 14))+
   facet_wrap(~Year, ncol=1)
 
 NightNR.hist
 ```
-###Figure 9. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in each Natural Region.
 
-Table 2.
+#### Figure 9. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in each Natural Region.
+
+## Nightly Bat Call Summaries
+Bat calls were analysed using Alberta eBat (albertaebat.ca) an online platfrom that automates bat species identification from acoustic records. The assumption was that each call file, regardless of call type (i.e., wav or zero-cross) contained one single bat call. For this report, one call is considered as a series of pulses, emanating from one bat and each call file was assumed to be an independent bat call. Due to the magnitude of recordings amassed over the 6 years of survey data, calls were not manually vetted to verify species identification. However, Alberta eBat species identification criteria is relatively conservative with species identification defaulting to "unknown" if certainty criteria were not met. Please see the Alberta eBat technical report for detailed methods (https://www.albertaebat.ca/static/doc/Alberta_e-bat_FinalReport.pdf).
+
+```{r sp hist, echo=F, fig.width=6.5}
+# Generate colours to display the species levels
+call_count <- dat_count %>% filter(Classification!="noise")
+call_count$Classification <- droplevels(call_count$Classification)
+
+unknown.calls <- call_count %>% filter(Classification!="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
+
+Sp.hist.data <- call_count %>% group_by(Deployment.ID) %>% count(Classification)
+
+Sp.hist <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Deployment.ID)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(eff$ColsYr))+
+  theme_classic() + xlab("Species / Species Group") + ylab("Call Count") + 
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())
+
+Sp.hist
+```
+
+### Figure 10. Overall bat call counts for species / species groups by year.
+
+There were `r sum(call_count$Count)` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
+
+```{r nightly overall call fig, echo=F, fig.height=8.5, fig.width=6.5}
+head(call_count)
+# fill by LUC, grouped for pre and post volancy, facet wrap by year (might be too busy)
+
+```
+
+### Figure 11. Mean nightly bat calls for each NABat grid cell by year (volancy?).
