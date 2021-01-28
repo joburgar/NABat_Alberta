@@ -917,6 +917,32 @@ dat_time %>% count(Classification_Volancy)
 
 dat_timeVol <- dat_time %>% pivot_wider(names_from = c("Volancy"),  values_from = c("Classification"))
 
+# create activity overlap plots for all bats in/out of parks 
+dat_time$NP <- sta$NP[match(dat_time$Location.Name, sta$Location.Name,)]
+activityOverlap(recordTable = dat_time,#[dat_time$Volancy=="Pre-volancy",],
+                                 speciesA = "In",
+                                 speciesB = "Out",
+                                 speciesCol = "NP",
+                                 recordDateTimeCol = "Time",
+                                 recordDateTimeFormat = "%H:%M:%S",
+                                 xcenter="midnight",
+                                 overlapEstimator = "Dhat4",
+                                 plotR = TRUE,
+                                 writePNG = TRUE,
+                                 plotDirectory = ("./Output"),
+                                 addLegend = TRUE,
+                                 legendPosition = "topleft",
+                                 pngMaxPix   = 1000,
+                                 linecol     = c("black", "blue"),
+                                 linewidth   = c(3,3),
+                                 linetype    = c(1, 2),
+                                 olapcol     = "darkgrey",
+                                 add.rug     = TRUE,
+                                 extend      = "lightgrey",
+                                 ylim = c(0,0.25),
+                                 main = "Overall bat activity overlap in/out of National Parks")
+
+
 # create function to produce activity overlap for all classifications pre and post volancy 
 volancy_overlap.fn <- function(Classification=Classification){
   activityOverlap(recordTable = dat_time,
@@ -947,28 +973,33 @@ volancy_overlap.fn <- function(Classification=Classification){
 class.list <- as.data.frame(dat_time %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% 
   filter(n>100) %>% select(Classification))
 volancy.overlap <- volancy_overlap.fn(Classification=class.list[8,])
-
 ```
 
+```{r NP activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_In-Out_2021-01-27.png",
+                          "./Output/activity_overlap_In-Out_pre_2021-01-27.png",
+                          "./Output/activity_overlap_In-Out_post_2021-01-27.png"))
+``` 
 
 ```{r EFPU-LANO activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for EPFU, LANO and EPFU-LANO", fig.show='hold', fig.align='center', echo=FALSE}
 
 knitr::include_graphics(c("./Output/activity_overlap_EPFU Pre-volancy-EPFU Post-volancy_2021-01-27.png",
-                          "path/to/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy_2021-01-27.png",
-                          "path/to/activity_overlap_LANO Pre-volancy-LANO Post-volancy_2021-01-27.png"))
+                          "./Output/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy_2021-01-27.png",
+                          "./Output/activity_overlap_LANO Pre-volancy-LANO Post-volancy_2021-01-27.png"))
 ``` 
 
 
 ```{r LABO-MYLU activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LABO, MYLU and LABO-MYLU", fig.show='hold', fig.align='center', echo=FALSE}
 
 knitr::include_graphics(c("./Output/activity_overlap_LABO Pre-volancy-LABO Post-volancy_2021-01-27.png",
-                          "path/to/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy_2021-01-27.png",
-                          "path/to/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy_2021-01-27.png"))
+                          "./Output/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy_2021-01-27.png",
+                          "./Output/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy_2021-01-27.png"))
 ``` 
 
 
 ```{r LACO-Myotis 40k activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LACI and Myotis 40k", fig.show='hold', fig.align='center', echo=FALSE}
 
 knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy_2021-01-27.png",
-                          "path/to/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy_2021-01-27.png"))
+                          "./Output/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy_2021-01-27.png"))
 ``` 
