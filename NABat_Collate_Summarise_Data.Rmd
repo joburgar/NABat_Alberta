@@ -16,7 +16,7 @@ Bats across Canada face unprecedented threats including white-nose syndrome (WNS
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "data.table", "fs", "lubridate")
+list.of.packages <- c("leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "data.table", "fs", "lubridate", "camtrapR")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -86,13 +86,21 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
-# dat_summary$sp1 <- as.factor(dat_summary$sp1 %>% 
-#                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
-#                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
-# dat_summary$sp1 <- factor(dat_summary$sp1,
-#                                     levels = c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU",
-#                                                "MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k",
-#                                                "unknown", "noise"))
+
+# Create file type to differentiate zc from wav 
+dat_summary$File.Type <- str_sub(dat_summary$Filename,-2,-1) %>% recode("0#" = "zc", "av"="wav")
+nrow(dat_summary)
+# Extract the time from filename and put in date format
+dat_summary$Time.temp1 <- str_extract(dat_summary$Filename,"_[0-9]{6}.wav") %>% str_sub(2,7)
+dat_summary$Time.temp2 <- str_extract(dat_summary$Filename,"[0-9]{2}\\-[0-9]{2}\\-[0-9]{2} [0-9]{2}\\-[0-9]{2}\\-[0-9]{2}") %>% str_sub(-8,-1)
+dat_summary$Time.temp3 <- str_extract(dat_summary$Filename,"_[0-9]{6}_") %>% str_sub(2,7)
+
+dat_summary$Time.temp1p <- as.POSIXct(strptime(dat_summary$Time.temp1, "%H%M%S", tz))
+dat_summary$Time.temp2p <- as.POSIXct(strptime(dat_summary$Time.temp2, "%H-%M-%S", tz))
+dat_summary$Time.temp3p <- as.POSIXct(strptime(dat_summary$Time.temp3, "%H%M%S", tz))
+dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p)) %>% 
+  select(-c(Time.temp1, Time.temp2, Time.temp3, Time.temp1p, Time.temp2p, Time.temp3p))
+
 # Read deployment data csv for station covariates
 eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
@@ -216,6 +224,13 @@ dat_count <- dat_count %>% filter(between(jDay, 122, 245))
 dat_summary %>% group_by(Deployment.ID) %>% count(Year) 
 dat_summary <- dat_summary %>% filter(between(jDay, 122, 245))
 
+# 6) # check to make sure pulling times from start and end of day
+dat_summary %>% group_by(File.Type) %>% summarise(min(Timep, na.rm=T), max(Timep, na.rm=T))
+sum(is.na(dat_summary$Timep)) / nrow(dat_summary)
+
+# hist(dat_summary[dat_summary$File.Type=="zc",]$Timep, breaks=60)
+# will have some NAs in dat_summary as not all filenames contained time, but if small proportion then ok to go ahead
+
 # If all of the above is satisfied -> press 'Knit' above ^
 ```
 
@@ -291,10 +306,13 @@ sta$ColsLUC <- col.catLUC[sta[,"Land.Unit.Code"]]
 
 sta[,"Land.Use.Type"] <- factor(sta[,"Land.Use.Type"])
 col.catLUT <- wheel(colour, num = length(levels(sta[,"Land.Use.Type"])))
+col.catLUT <- col.catLUT[order(col.catLUT, decreasing = TRUE)] # have Water as blue
 sta$ColsLUT <- col.catLUT[sta[,"Land.Use.Type"]]
 
 col.catYr <- wheel(colour, num = 6)
 col.catYr <- col.catYr[order(col.catYr, decreasing = TRUE)]
+
+###--- create land.use.type covariate
 
 ###--- create volancy covariate
 yday("2020-07-10") # 192 = July 10 (general date of volancy)
@@ -383,7 +401,7 @@ cov.prop.hist
 ```
 
 
-```{r TerraSolis pdf map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap=c("Bat Survey Locations 2015-2020"), echo=FALSE}
+```{r TerraSolis pdf map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap="Bat Survey Locations 2015-2020", echo=FALSE}
 knitr::include_graphics("./Input/Bats_finaldata.pdf")
 ```
 
@@ -391,75 +409,75 @@ knitr::include_graphics("./Input/Bats_finaldata.pdf")
 
 ### Check distribution of sites and correct spatial assignment (NP, Natural Region, Land Use Type)
 #NP
-mPA <- leaflet() %>%
-  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
-  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
-  addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
-                   color=sta$Cols,
-                   popup=paste(sta$Deployment.ID, sta[,category])) %>%
- addLegend("bottomleft", colors = col.cat,  labels = levels(sta[,category]),
-    title = category,
-    labFormat = labelFormat(prefix = "$"),
-    opacity = 1
-  ) %>%
-  # Layers control
-  addLayersControl(
-    baseGroups = c("Satellite", "Base"),
-    options = layersControlOptions(collapsed = FALSE)
-  )
-
-mPA
+# mPA <- leaflet() %>%
+#   addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
+#   addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+#   addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
+#                    color=sta$Cols,
+#                    popup=paste(sta$Deployment.ID, sta[,category])) %>%
+#  addLegend("bottomleft", colors = col.cat,  labels = levels(sta[,category]),
+#     title = category,
+#     labFormat = labelFormat(prefix = "$"),
+#     opacity = 1
+#   ) %>%
+#   # Layers control
+#   addLayersControl(
+#     baseGroups = c("Satellite", "Base"),
+#     options = layersControlOptions(collapsed = FALSE)
+#   )
+# 
+# mPA
 ```
 
 
 ```{r map NR, echo=F, fig.cap="Distribution of bat survey locations by Natural Region"}
 
-# Natural Region
-mNR <- leaflet() %>%
-  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
-  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
-  addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
-                   color=sta$ColsNR,
-                   popup=paste(sta$Deployment.ID, sta[,"Natural.Region"])) %>%
- addLegend("bottomleft", colors = col.catNR,  labels = levels(sta[,"Natural.Region"]),
-    title = "Natural Region",
-    labFormat = labelFormat(prefix = "$"),
-    opacity = 1
-  ) %>%
-  # Layers control
-  addLayersControl(
-    baseGroups = c("Satellite", "Base"),
-    options = layersControlOptions(collapsed = FALSE)
-  )
-
-mNR
+# # Natural Region
+# mNR <- leaflet() %>%
+#   addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
+#   addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+#   addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
+#                    color=sta$ColsNR,
+#                    popup=paste(sta$Deployment.ID, sta[,"Natural.Region"])) %>%
+#  addLegend("bottomleft", colors = col.catNR,  labels = levels(sta[,"Natural.Region"]),
+#     title = "Natural Region",
+#     labFormat = labelFormat(prefix = "$"),
+#     opacity = 1
+#   ) %>%
+#   # Layers control
+#   addLayersControl(
+#     baseGroups = c("Satellite", "Base"),
+#     options = layersControlOptions(collapsed = FALSE)
+#   )
+# 
+# mNR
 ```
 
 ```{r map LUC, echo=F, fig.cap="Distribution of bat survey locations by Land Unit"}
 
 # Land Unit Code
-mLUC <- leaflet() %>%
-  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
-  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
-  addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
-                   color=sta$ColsLUC,
-                   popup=paste(sta$Deployment.ID, sta[,"Land.Unit.Code"])) %>%
- addLegend("bottomleft", colors = col.catLUC,  labels = levels(sta[,"Land.Unit.Code"]),
-    title = "Land Unit",
-    labFormat = labelFormat(prefix = "$"),
-    opacity = 1
-  ) %>%
-  # Layers control
-  addLayersControl(
-    baseGroups = c("Satellite", "Base"),
-    options = layersControlOptions(collapsed = FALSE)
-  )
-
-mLUC
+# mLUC <- leaflet() %>%
+#   addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
+#   addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+#   addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
+#                    color=sta$ColsLUC,
+#                    popup=paste(sta$Deployment.ID, sta[,"Land.Unit.Code"])) %>%
+#  addLegend("bottomleft", colors = col.catLUC,  labels = levels(sta[,"Land.Unit.Code"]),
+#     title = "Land Unit",
+#     labFormat = labelFormat(prefix = "$"),
+#     opacity = 1
+#   ) %>%
+#   # Layers control
+#   addLayersControl(
+#     baseGroups = c("Satellite", "Base"),
+#     options = layersControlOptions(collapsed = FALSE)
+#   )
+# 
+# mLUC
 ```
 
 
-```{r hist LUT, echo=F, warning=F, fig.width=6.5 fig.cap="Representation of bat survey locations by Land Use Type in/out of National Parks (NP) "}
+```{r hist LUT, echo=F, warning=F, fig.width=6.5, fig.cap="Representation of bat survey locations by Land Use Type in/out of National Parks (NP)"}
 
 # Land Use Type
 LUT.NP.hist <- sta %>% group_by(NP) %>% count(Land.Use.Type, sort=TRUE)
@@ -502,6 +520,7 @@ Yr.hist
 dat_count$NP <- sta$NP[match(dat_count$Location.Name, sta$Location.Name,)]
 dat_count$Natural.Region <- sta$Natural.Region[match(dat_count$Location.Name, sta$Location.Name,)]
 dat_count$Land.Unit.Code <- sta$Land.Unit.Code[match(dat_count$Location.Name, sta$Location.Name,)]
+dat_count$Land.Use.Type <- sta$Land.Use.Type[match(dat_count$Location.Name, sta$Location.Name,)]
   
 calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,NP, Natural.Region, Land.Unit.Code, Location.Name) %>%
   filter(Classification!="noise") %>%
@@ -540,32 +559,65 @@ NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Coun
 NightNR.hist
 ```
 
-### Nightly Bat Call Summaries
+### Nightly Overall Bat Call Summaries
 Bat calls were analysed using Alberta eBat (albertaebat.ca) an online platfrom that automates bat species identification from acoustic records. The assumption was that each call file, regardless of call type (i.e., wav or zero-cross) contained one single bat call. For this report, one call is considered as a series of pulses, emanating from one bat and each call file was assumed to be an independent bat call. Due to the magnitude of recordings amassed over the 6 years of survey data, calls were not manually vetted to verify species identification. However, Alberta eBat species identification criteria is relatively conservative with species identification defaulting to "unknown" if certainty criteria were not met. Please see the Alberta eBat technical report for detailed methods (https://www.albertaebat.ca/static/doc/Alberta_e-bat_FinalReport.pdf).
 
-```{r sp hist, echo=F, fig.width=6.5, fig.cap="Overall bat call counts for species / species groups by year"}
-# Generate colours to display the species levels
-call_count <- dat_count %>% filter(Classification!="noise")
-call_count$Classification <- droplevels(call_count$Classification)
 
+```{r mean nightly call by NR, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each Natural Region by year and volancy period."}
+call_count <- dat_count %>% filter(Classification!="noise")
 unknown.calls <- call_count %>% filter(Classification!="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
 
-Sp.hist.data <- call_count %>% group_by(Deployment.ID) %>% count(Classification)
+call_count.NR <- call_count %>% group_by(Natural.Region, Deployment.ID, Volancy)
 
-Sp.hist <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Deployment.ID)) + 
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=col.catYr)+
-  theme_classic() + xlab("Species / Species Group") + ylab("Call Count") + 
-  theme(legend.position="bottom", legend.title = element_blank()) +
+# subset data for overall mean nightly bat calls by year for each Natural Region
+NR.Calls.Yr <- call_count.NR%>% group_by(Natural.Region, Deployment.ID, Volancy) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.NR <- NR.Calls.Yr %>%
+  ggplot(aes(x = Natural.Region, y = Mean, fill=Volancy))+
+  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
+  scale_fill_manual(values=unique(col.catVol)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  ylim(c(0,60))+
+  geom_linerange(aes(Natural.Region, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  facet_wrap(~Deployment.ID, ncol=1)
+fcalls.NR
 
-Sp.hist
 ```
 
-There were `r sum(call_count$Count)` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
 
-```{r mean nightly call by GRTS, echo=F, fig.height=9, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each NABat grid cell by year"}
+```{r mean nightly call by LUT, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each Land Use Type in/out of National Parks by year and volancy period."}
+call_count.LUT <- call_count %>% group_by(NP, Land.Use.Type, Deployment.ID, Volancy)
+call_count.LUT <- call_count.LUT[complete.cases(call_count.LUT),]
+
+# subset data for overall mean nightly bat calls by year for each LUT
+LUT.Calls.Yr <- call_count.LUT %>% group_by(NP, Land.Use.Type, Deployment.ID, Volancy) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.LUT <- LUT.Calls.Yr %>%
+  ggplot(aes(x = Land.Use.Type, y = Mean, fill=NP))+
+  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
+  scale_fill_manual(values=unique(sta$Cols)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  ylim(c(0,100))+
+  geom_linerange(aes(Land.Use.Type, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(legend.position = "bottom") +
+  facet_wrap(~Deployment.ID+Volancy, ncol=2, scales="free_y")
+fcalls.LUT
+
+```
+
+
+```{r mean nightly call by GRTS, echo=F, fig.height=9, fig.width=7, warning=FALSE, fig.cap="Mean nightly bat calls for each NABat grid cell by year."}
 call_count2 <- call_count %>% group_by(NP, Land.Unit.Code, Deployment.ID, GRTS.Cell.ID)
 
 # Reorder GRTS to be NP, Land.Unit.Code then GRTS
@@ -590,7 +642,7 @@ fcalls.GRTS <- GRTS.Calls.Yr %>%
   ylim(c(0,150))+
   xlab(expression("NABat GRTS Cell ID"))+
   geom_linerange(aes(GRTS.Cell.ID, ymin = Mean-SE, ymax = Mean+SE)) +
-  theme(axis.text.y = element_text(size=14))+
+  theme(axis.text.y = element_text(size=12))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8)) +
   theme(legend.position = "bottom", legend.title=element_blank()) +
   facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
@@ -633,18 +685,16 @@ fn.mean.se.quad.count.YR <- function(year=year){
                                            "NW_mean", "NW_se", "NW_ns")]
   
   colnames(df.year) <- c("Land Unit", "GRTS ID","SE Mean", "SE", "# Nights", "SW Mean", "SE", "# Nights", "NE Mean", "SE", "# Nights", "NW Mean", "Se", "# Nights")
-
   return(df.year)
   }
 
 # create loop to run annual tables
 call_year <- unique(call_count4$Deployment.ID)
-
 for (i in 1:length(call_year)) {
   opts <- options(knitr.kable.NA = "")
   df.year <- fn.mean.se.quad.count.YR(year=call_year[i])
   print(knitr::kable(df.year, 
-             caption = paste("Mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) in ",year,". # Nights refers to the number of nights the quadrant was surveyed.", sep=""), 
+             caption = paste(call_year[i],"mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) surveyed. # Nights refers to the number of nights the quadrant was surveyed.", sep=" "), 
              digits=1))
   cat('\n\n')
   options(opts)
@@ -652,47 +702,273 @@ for (i in 1:length(call_year)) {
 
 ```
 
-##### Table 3.Mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) in 2016. # Nights refers to the number of nights the quadrant was surveyed.
-``` {r 2016 mean nightly call by GRTS quadrant, echo=F, warning=FALSE}
+#### Nightly Bat Call Summaries by Species / Species Group
+There were `r sprintf("%.0f", sum(call_count$Count))` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
 
-opts <- options(knitr.kable.NA = "")
-knitr::kable(mean.se.quad.count2016, booktabs=TRUE, digits=1)
-options(opts)
+```{r sp hist NR, echo=F, fig.height=8.5, fig.width=7, fig.cap="Total bat calls for species / species groups by year and Natural Region"}
+# Generate colours to display the species levels
+call_count$Classification <- droplevels(call_count$Classification)
 
-```
+Sp.hist.data <- call_count %>% group_by(Deployment.ID, Natural.Region, Land.Use.Type) %>% count(Classification)
 
-##### Table 4.Mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) in 2017. # Nights refers to the number of nights the quadrant was surveyed.
-``` {r 2017 mean nightly call by GRTS quadrant, echo=F, warning=FALSE}
+Sp.hist.NR <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Natural.Region)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=col.catNR)+
+  theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
+  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
 
-opts <- options(knitr.kable.NA = "")
-knitr::kable(mean.se.quad.count2017, booktabs=TRUE, digits=1)
-options(opts)
-
-```
-
-##### Table 5.Mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) in 2018. # Nights refers to the number of nights the quadrant was surveyed.
-``` {r 2018 mean nightly call by GRTS quadrant, echo=F, warning=FALSE}
-
-opts <- options(knitr.kable.NA = "")
-knitr::kable(mean.se.quad.count2018, booktabs=TRUE, digits=1)
-options(opts)
+Sp.hist.NR
 
 ```
 
-##### Table 6.Mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) in 2019. # Nights refers to the number of nights the quadrant was surveyed.
-``` {r 2019 mean nightly call by GRTS quadrant, echo=F, warning=FALSE}
 
-opts <- options(knitr.kable.NA = "")
-knitr::kable(mean.se.quad.count2019, booktabs=TRUE, digits=1)
-options(opts)
+```{r sp hist LUT, echo=F, fig.height=8.5, fig.width=7, fig.cap="Total bat calls for species / species groups by year and Land Use Type"}
+
+Sp.hist.LUT <- ggplot(data = Sp.hist.data %>% filter(!is.na(Land.Use.Type)), aes(x = Classification, y = n, fill= Land.Use.Type)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=col.catLUT)+
+  theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
+  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
+
+Sp.hist.LUT
+```
+
+
+```{r mean species call by year and volancy, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each species / species group by year and volancy period."}
+call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
+
+# subset data for overall mean nightly bat calls by year for each Natural Region
+Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Volancy) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification!="unknown")%>%
+  ggplot(aes(x = Classification, y = Mean, fill=Volancy))+
+  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
+  scale_fill_manual(values=unique(col.catVol)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  #ylim(c(0,60))+
+  geom_linerange(aes(Classification, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  facet_wrap(~Deployment.ID, ncol=1)
+fcalls.Sp
 
 ```
 
-##### Table 6.Mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) in 2020. # Nights refers to the number of nights the quadrant was surveyed.
-``` {r 2020 mean nightly call by GRTS quadrant, echo=F, warning=FALSE}
+``` {r mean species call for each year and volancy period by Land Unit, echo=F, warning=FALSE, results='asis'}
+call_count.LUC.Sp <- call_count %>% group_by(Land.Unit.Code, Deployment.ID, Volancy, Classification) %>% summarise(Mean=mean(Count), SE=se(Count)) 
 
-opts <- options(knitr.kable.NA = "")
-knitr::kable(mean.se.quad.count2020, booktabs=TRUE, digits=1)
-options(opts)
+call_count.LUC.Sp$Deployment.ID <- factor(call_count.LUC.Sp$Deployment.ID, levels=c("2015", "2016", "2017", "2018", "2019", "2020"))
+levels(call_count.LUC.Sp$Deployment.ID)
+
+mean.LUCSp.count <- call_count.LUC.Sp  %>% arrange(Land.Unit.Code, Classification, Volancy) %>% select(-SE) %>% 
+                               pivot_wider(names_from = c("Deployment.ID"),  values_from = c("Mean")) %>%
+                             rename(mean2015=`2015`, mean2016=`2016`, mean2017=`2017`, mean2018=`2018`, mean2019=`2019`, mean2020=`2020`)
+
+se.LUCsp.count <- call_count.LUC.Sp %>% arrange(Land.Unit.Code, Classification, Volancy) %>% select(-Mean) %>%
+                            pivot_wider(names_from = c("Deployment.ID"),  values_from = c("SE")) %>%
+                             rename(se2015=`2015`, se2016=`2016`, se2017=`2017`, se2018=`2018`, se2019=`2019`, se2020=`2020`)
+
+mean.se.LUCsp.count <- cbind(mean.LUCSp.count, se.LUCsp.count) %>% select(-Land.Unit.Code1:-Classification1)
+mean.se.LUCsp.count$Volancy <- mean.se.LUCsp.count$Volancy %>% recode_factor("Pre-volancy" = "Pre", "Post-volancy"="Post")
+
+# function to separate out into year tables for knitr:kable
+fn.mean.se.Sp.count.LUC <- function(LUC=LUC){
+  
+  df.LUC <- mean.se.LUCsp.count %>% filter(Land.Unit.Code==LUC)
+  df.LUC <- df.LUC[c("Classification","Volancy",
+                     "mean2015", "se2015","mean2016", "se2016","mean2017", "se2017",
+                     "mean2018", "se2018","mean2019", "se2019","mean2020", "se2020")]
+  
+  colnames(df.LUC) <- c("Species", "Volancy","2015 Mean", "SE", "2016 Mean", "SE", "2017 Mean", "SE", "2018 Mean", "SE", "2019 Mean", "SE", "2020 Mean", "SE")
+  return(df.LUC)
+  
+}
+  
+# create loop to run annual tables
+call_LUC <- unique(call_count.LUC.Sp$Land.Unit.Code)
+for (i in 1:length(call_LUC)) {
+  opts <- options(knitr.kable.NA = "")
+  df.LUC <- fn.mean.se.Sp.count.LUC(LUC=call_LUC[i])
+  print(knitr::kable(df.LUC, 
+             caption = paste(call_LUC[i],"mean ± 1 SE nightly bat calls by species / species group for year and volancy period.", sep=" "), 
+             digits=1))
+  cat('\n\n')
+  options(opts)
+}
 
 ```
+
+``` {r temporal summaries, include=F}
+
+# remove call files without time
+dat_summaryT <- dat_summary[complete.cases(dat_summary$Timep),]
+
+# now use Alberta eBat criteria to classify species
+dat_sum_sub <- dat_summaryT[c("GRTS.Cell.ID","Location.Name","SurveyNight","Year","Month","jDay","Volancy","Timep",
+                              "Filename","n_calls","prob1","sp1","prob2","sp2","prob3","sp3")]
+
+# the Whitemud files that came from Kaleidoscope don't have probabilities so exclude them from this analysis
+dat_sum_sub <- dat_sum_sub[complete.cases(dat_sum_sub$n_calls),] # now down to 285,596 files
+
+# subset data to one month pre and one month post volancy (July 10)
+dat_sum_sub <- dat_sum_sub %>% filter(between(jDay, 162,223))
+nrow(dat_sum_sub) # now down to 277,785
+
+# create thresholds for noise and bat classificaitons
+threshold_noise <- 0.8; threshold_bat <- 0.5
+# start with all call sequences as "unknown"
+dat_sum_sub$category <- "unknown"
+
+# Index cases to be categorized as noise
+index_noise <- with(dat_sum_sub, (sp1 == "noise") & (prob1 > threshold_noise)) 
+# Set the indexed categories to "noise" 
+dat_sum_sub$category[index_noise] <- "noise"
+
+# Index the noise values to be filtered out
+index_remove_noise <- with(dat_sum_sub, (category == "unknown") & (sp1 == "noise")) 
+
+# Note that there are 76 `NA` values
+sum(is.na(index_remove_noise)) 
+# These `NA` values are due to an `NA` in the `sp1` column which is the result of a tie in the random forest probabilities
+dat_sum_sub[is.na(index_remove_noise),]
+
+# Set any `NA` value to `FALSE` (i.e. not a noise value to be filtered out)
+index_remove_noise[is.na(index_remove_noise)] <- FALSE 
+# For the noise values to be filtered out, get the corresponding probabilities
+prob_noise <- dat_sum_sub[index_remove_noise, "prob1"] 
+# Record the state of the data frame before the filtering out of noise
+dat_sum_sub_before_noise_removal <- dat_sum_sub
+
+dat_sum_sub[index_remove_noise, "sp1"] <- dat_sum_sub[index_remove_noise, "sp2"]
+dat_sum_sub[index_remove_noise,"sp2"] <- dat_sum_sub[index_remove_noise, "sp3"] 
+dat_sum_sub[index_remove_noise, "prob1"] <- dat_sum_sub[index_remove_noise, "prob2"] 
+dat_sum_sub[index_remove_noise,"prob2"] <- dat_sum_sub[index_remove_noise, "prob3"] 
+
+# Now that the `prob3` value has been shifted to the `prob2` column, replace the `prob3` column with `NA` values, for the cases where noise has been filtered out
+dat_sum_sub[index_remove_noise, "prob3"] <- NA 
+dat_sum_sub[index_remove_noise, "sp3"] <- NA
+
+dat_sum_sub[index_remove_noise, "prob1"] <- dat_sum_sub[index_remove_noise, "prob1"] / (1 - prob_noise) 
+dat_sum_sub[index_remove_noise, "prob2"] <- dat_sum_sub[index_remove_noise, "prob2"] / (1 - prob_noise) 
+# Compare "sp1" columns before and after filtering out noise
+# table(dat_sum_sub_before_noise_removal$sp1)
+# table(dat_sum_sub$sp1)
+
+index_bat_species <- with(dat_sum_sub, (category == "unknown") & (n_calls >= 3) & (prob2 / prob1 <= 0.80)) 
+
+index_bat_species[is.na(index_bat_species)] <- FALSE # to deal with the 5 NA values
+
+dat_sum_sub$category[index_bat_species] <- dat_sum_sub$sp1[index_bat_species]
+# dat_sum_sub$sp1 <- dat_sum_sub$sp1 %>% replace_na("unknown")
+# dat_sum_sub$sp2 <- dat_sum_sub$sp2 %>% replace_na("unknown")
+ 
+LABO.MYLU_index <- (dat_sum_sub$sp1 %in% c("LABO", "MYLU")) & (dat_sum_sub$sp2 %in% c("LABO", "MYLU")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+EPFU.LANO_index <- (dat_sum_sub$sp1 %in% c("EPFU", "LANO")) & (dat_sum_sub$sp2 %in% c("EPFU", "LANO")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+MYEV.MYSE_index <- (dat_sum_sub$sp1 %in% c("MYEV", "MYSE")) & (dat_sum_sub$sp2 %in% c("MYEV", "MYSE")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+My_40k_index <- (dat_sum_sub$sp1 %in% c("MYCI", "MYLU", "MYVO")) & (dat_sum_sub$sp2 %in% c("MYCI", "MYLU", "MYVO")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+#' Check the number of call sequences belonging to each category:
+sum(LABO.MYLU_index, na.rm=T)
+sum(EPFU.LANO_index, na.rm=T)
+sum(MYEV.MYSE_index, na.rm=T)
+sum(My_40k_index, na.rm=T)
+
+#' Define a new data frame:  
+dat_sum_sub_df <- dat_sum_sub
+dat_sum_sub_df$category <- dat_sum_sub_df$sp1
+
+dat_sum_sub_df$category[dat_sum_sub_df$n_calls < 3 | 
+                          dat_sum_sub_df$prob1 < threshold_bat & dat_sum_sub_df$sp1 != "noise"] <- "unknown"
+dat_sum_sub_df$category[LABO.MYLU_index] <- "LABO.MYLU"
+dat_sum_sub_df$category[EPFU.LANO_index] <- "EPFU.LANO"
+dat_sum_sub_df$category[My_40k_index] <- "My_40k"
+
+###--- Visualization of overlapping species detection data
+# uses camtrapR and dependent packages (overlap and plotrix)
+# create new df with select columns, remove noise files and add in some covariates
+dat_time <- dat_sum_sub_df %>% select(-Filename:-sp3) %>% filter(category!="noise")
+# now down to 204,452 files
+
+dat_time$Classification <- as.factor(dat_time$category %>% 
+                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
+                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+dat_time$Classification <- factor(dat_time$Classification,
+                                     levels = c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU",
+                                                "MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k",
+                                                "unknown"))
+dat_time <- as.data.frame(dat_time) 
+dat_time$Time <- format(dat_time$Timep, format = "%H:%M:%S")
+
+dat_time$Classification_Volancy <- as.factor(paste(dat_time$Classification, dat_time$Volancy))
+dat_time %>% count(Classification_Volancy)
+
+dat_timeVol <- dat_time %>% pivot_wider(names_from = c("Volancy"),  values_from = c("Classification"))
+
+# create function to produce activity overlap for all classifications pre and post volancy 
+volancy_overlap.fn <- function(Classification=Classification){
+  activityOverlap(recordTable = dat_time,
+                                 speciesA = paste(Classification,"Pre-volancy"),
+                                 speciesB = paste(Classification,"Post-volancy"),
+                                 speciesCol = "Classification_Volancy",
+                                 recordDateTimeCol = "Time",
+                                 recordDateTimeFormat = "%H:%M:%S",
+                                 xcenter="midnight",
+                                 overlapEstimator = "Dhat4",
+                                 plotR = TRUE,
+                                 writePNG = TRUE,
+                                 plotDirectory = ("./Output"),
+                                 addLegend = TRUE,
+                                 legendPosition = "topleft",
+                                 pngMaxPix   = 1000,
+                                 linecol     = c("black", "blue"),
+                                 linewidth   = c(3,3),
+                                 linetype    = c(1, 2),
+                                 olapcol     = "darkgrey",
+                                 add.rug     = TRUE,
+                                 extend      = "lightgrey",
+                                 ylim = c(0,0.35),
+                                 main = paste(Classification,"Pre and Post Volancy"))
+}
+
+# run through each classification, except "unknown" and any classification with <100 calls
+class.list <- as.data.frame(dat_time %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% 
+  filter(n>100) %>% select(Classification))
+volancy.overlap <- volancy_overlap.fn(Classification=class.list[8,])
+
+```
+
+
+```{r EFPU-LANO activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for EPFU, LANO and EPFU-LANO", fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_EPFU Pre-volancy-EPFU Post-volancy_2021-01-27.png",
+                          "path/to/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy_2021-01-27.png",
+                          "path/to/activity_overlap_LANO Pre-volancy-LANO Post-volancy_2021-01-27.png"))
+``` 
+
+
+```{r LABO-MYLU activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LABO, MYLU and LABO-MYLU", fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_LABO Pre-volancy-LABO Post-volancy_2021-01-27.png",
+                          "path/to/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy_2021-01-27.png",
+                          "path/to/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy_2021-01-27.png"))
+``` 
+
+
+```{r LACO-Myotis 40k activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LACI and Myotis 40k", fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy_2021-01-27.png",
+                          "path/to/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy_2021-01-27.png"))
+``` 
