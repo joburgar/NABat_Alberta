@@ -16,7 +16,7 @@ Bats across Canada face unprecedented threats including white-nose syndrome (WNS
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "data.table", "fs", "lubridate", "camtrapR")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "camtrapR", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -133,8 +133,9 @@ sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "
 # combine 3 forest types for Forest
 # if waterbody < 10 m, then change Land Use Type to Water, otherwise go with ABMI class
 # Consolidate Land.Cover to Agriculture, Barren (Exposed) Land, Forest, Grassland, Shrubland, Developed (incl Urban), Water/Wetland 
-sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest", "Broadleaf Forest" = "Forest", "Mixed Forest" = "Forest",
-                                               "Exposed Land" = "Barren Land")
+
+sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest", "Broadleaf Forest" = "Forest", 
+                                               "Mixed Forest" = "Forest", "Exposed Land" = "Barren Land")
 sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
                                TRUE ~ as.character(sta$Land.Use.Type))
 
@@ -153,7 +154,7 @@ dist.mat$Natural.Region <- sta$Natural.Region[match(dist.mat$ORIGIN_Location.Nam
 dist.mat$Land.Unit.Code <- sta$Land.Unit.Code[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
 dist.mat <- dist.mat[complete.cases(dist.mat),] # removes any entries without corresponding sta data
 
-# Read spatial covariate csv
+# Read covariate proportion csv
 cov.prop <- read.csv("Input/Cov.area.csv", header=T)
 
 ##############################################################
@@ -312,7 +313,12 @@ sta$ColsLUT <- col.catLUT[sta[,"Land.Use.Type"]]
 col.catYr <- wheel(colour, num = 6)
 col.catYr <- col.catYr[order(col.catYr, decreasing = TRUE)]
 
-###--- create land.use.type covariate
+###--- add covariates to dat objects
+dat_count$NP <- sta$NP[match(dat_count$Location.Name, sta$Location.Name,)]
+dat_count$Natural.Region <- sta$Natural.Region[match(dat_count$Location.Name, sta$Location.Name,)]
+dat_count$Land.Unit.Code <- sta$Land.Unit.Code[match(dat_count$Location.Name, sta$Location.Name,)]
+dat_count$Land.Use.Type <- sta$Land.Use.Type[match(dat_count$Location.Name, sta$Location.Name,)]
+
 
 ###--- create volancy covariate
 yday("2020-07-10") # 192 = July 10 (general date of volancy)
@@ -325,6 +331,14 @@ dat_summary %>% group_by(Volancy, Deployment.ID) %>% summarise(min(jDay), max(jD
 
 col.catVol <- as.character(c("#2028B2","#B2AA20"))
 
+# Create a call df without the noise files
+call_count <- dat_count %>% filter(Classification!="noise")
+unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
+
+# Determine total effort (survey nights)
+total.effort <- call_count %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
+total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
+sum(total.effort$Diff) # 2852 survey nights
 ```
 
 ### Bat Acoustic Survey Locations (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
@@ -517,11 +531,7 @@ Yr.hist
 ### Nightly Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
 
 ```{r nightly survey effort NP, echo=F, fig.height=8.5, fig.width=6.5, fig.cap="Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in/out of National Parks (NP)"}
-dat_count$NP <- sta$NP[match(dat_count$Location.Name, sta$Location.Name,)]
-dat_count$Natural.Region <- sta$Natural.Region[match(dat_count$Location.Name, sta$Location.Name,)]
-dat_count$Land.Unit.Code <- sta$Land.Unit.Code[match(dat_count$Location.Name, sta$Location.Name,)]
-dat_count$Land.Use.Type <- sta$Land.Use.Type[match(dat_count$Location.Name, sta$Location.Name,)]
-  
+
 calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,NP, Natural.Region, Land.Unit.Code, Location.Name) %>%
   filter(Classification!="noise") %>%
   summarise(Call.Count =sum(Count))
@@ -564,9 +574,6 @@ Bat calls were analysed using Alberta eBat (albertaebat.ca) an online platfrom t
 
 
 ```{r mean nightly call by NR, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each Natural Region by year and volancy period."}
-call_count <- dat_count %>% filter(Classification!="noise")
-unknown.calls <- call_count %>% filter(Classification!="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
-
 call_count.NR <- call_count %>% group_by(Natural.Region, Deployment.ID, Volancy)
 
 # subset data for overall mean nightly bat calls by year for each Natural Region
@@ -703,7 +710,21 @@ for (i in 1:length(call_year)) {
 ```
 
 #### Nightly Bat Call Summaries by Species / Species Group
-There were `r sprintf("%.0f", sum(call_count$Count))` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
+There were `r sprintf("%.0f", sum(call_count$Count))` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`, over `r sum(as.numeric(total.effort$Diff))` survey nights. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
+
+``` {r overall call table, echo=F, results="asis"}
+# create a table for the paper
+# Determine call count overall, percentage and by effort for each species
+Table.Calls <- call_count %>% group_by(Classification) %>% summarise(Call.Count = sum(Count))
+Table.Calls$Per.Known <- as.data.frame(round(Table.Calls$Call.Count/sum(Table.Calls$Call.Count)*100,0))[,1]
+Table.Calls$Occupancy <- as.data.frame(round(Table.Calls$Call.Count/sum(as.numeric(total.effort$Diff)),2))[,1] 
+colnames(Table.Calls) <- c("Species / Species Group", "Call Count", "% of Calls","Calls per Night")
+
+knitr::kable(replace(Table.Calls, Table.Calls==0, ""), 
+             caption=paste("Overall bat calls and naive occupancy for ",n.stat," bat survey locations from ",min(eff$Deployment.ID),"-", max(eff$Deployment.ID),".", sep=""),
+             align = "lrrr")
+```
+
 
 ```{r sp hist NR, echo=F, fig.height=8.5, fig.width=7, fig.cap="Total bat calls for species / species groups by year and Natural Region"}
 # Generate colours to display the species levels
@@ -912,14 +933,18 @@ dat_time$Classification <- factor(dat_time$Classification,
 dat_time <- as.data.frame(dat_time) 
 dat_time$Time <- format(dat_time$Timep, format = "%H:%M:%S")
 
+# covariates for overlap
 dat_time$Classification_Volancy <- as.factor(paste(dat_time$Classification, dat_time$Volancy))
-dat_time %>% count(Classification_Volancy)
+dat_time$NP <- sta$NP[match(dat_time$Location.Name, sta$Location.Name,)]
+dat_time$Land.Use.Type <- sta$Land.Use.Type[match(dat_time$Location.Name, sta$Location.Name,)]
+dat_time$Natural.Region <- sta$Natural.Region[match(dat_time$Location.Name, sta$Location.Name,)]
 
-dat_timeVol <- dat_time %>% pivot_wider(names_from = c("Volancy"),  values_from = c("Classification"))
+# when graphing issues with time stamps in Barren Land and Grassland - need to remove these from the analyses
+dat_time <- dat_time %>% filter(Land.Use.Type!="Barren Land" & Land.Use.Type!="Grassland") 
+dat_time %>% count(Land.Use.Type)
 
 # create activity overlap plots for all bats in/out of parks 
-dat_time$NP <- sta$NP[match(dat_time$Location.Name, sta$Location.Name,)]
-activityOverlap(recordTable = dat_time,#[dat_time$Volancy=="Pre-volancy",],
+activityOverlap(recordTable = dat_time[dat_time$Volancy=="Post-volancy",],
                                  speciesA = "In",
                                  speciesB = "Out",
                                  speciesCol = "NP",
@@ -939,8 +964,8 @@ activityOverlap(recordTable = dat_time,#[dat_time$Volancy=="Pre-volancy",],
                                  olapcol     = "darkgrey",
                                  add.rug     = TRUE,
                                  extend      = "lightgrey",
-                                 ylim = c(0,0.25),
-                                 main = "Overall bat activity overlap in/out of National Parks")
+                                # ylim = c(0,0.5),
+                                 main = "Overall post-volancy bat activity overlap in/out of National Parks")
 
 
 # create function to produce activity overlap for all classifications pre and post volancy 
@@ -972,34 +997,408 @@ volancy_overlap.fn <- function(Classification=Classification){
 # run through each classification, except "unknown" and any classification with <100 calls
 class.list <- as.data.frame(dat_time %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% 
   filter(n>100) %>% select(Classification))
-volancy.overlap <- volancy_overlap.fn(Classification=class.list[8,])
+volancy.overlap <- volancy_overlap.fn(Classification=class.list[7,])
+
+# create function to produce activity overlap for all bats pre and post volancy by land use type
+dat_timeLUT <- dat_time[!is.na(dat_time$Land.Use.Type),]
+dat_timeLUT %>% group_by(Volancy) %>% count(Land.Use.Type)
+
+LUT.class <- c("EPFU", "LANO","LABO","LACI","MYLU") # too much to do LUT.class * LUT so stick with just LUT for now
+LUT <- c("Agriculture","Developed","Forest","Shrubland","Water" )
+
+LUT_overlap.fn <- function(LUT=LUT){ 
+  activityOverlap(recordTable = dat_timeLUT[dat_timeLUT$Land.Use.Type==LUT,],
+                                 speciesA = "Pre-volancy",
+                                 speciesB = "Post-volancy",
+                                 #allSpecies = FALSE,
+                                 speciesCol = "Volancy",
+                                 recordDateTimeCol = "Time",
+                                 recordDateTimeFormat = "%H:%M:%S",
+                                 xcenter="midnight",
+                                 overlapEstimator = "Dhat4",
+                                 plotR = TRUE,
+                                 writePNG = TRUE,
+                                 plotDirectory = ("./Output"),
+                                 addLegend = TRUE,
+                                 legendPosition = "topleft",
+                                 pngMaxPix   = 1000,
+                                 linecol     = c("black", "blue"),
+                                 linewidth   = c(3,3),
+                                 linetype    = c(1, 2),
+                                 olapcol     = "darkgrey",
+                                 add.rug     = TRUE,
+                                 extend      = "lightgrey",
+                                 #ylim = c(0,0.35),
+                                 main = paste("Overall bat activity pre and post volancy overlap in",LUT))
+}
+# run through each land use type
+
+LUT.overlap <- LUT_overlap.fn (LUT=LUT[3])
+
+# create function to produce activity overlap for all bats pre and post volancy by Natural Region type
+dat_time %>% group_by(Volancy) %>% count(Natural.Region)
+
+NR <- c("Boreal","Foothills","Grassland","Parkland","Rocky Mountain" )
+
+NR_overlap.fn <- function(NR=NR){ 
+  activityOverlap(recordTable = dat_time[dat_time$Natural.Region==NR,],
+                                 speciesA = "Pre-volancy",
+                                 speciesB = "Post-volancy",
+                                 #allSpecies = FALSE,
+                                 speciesCol = "Volancy",
+                                 recordDateTimeCol = "Time",
+                                 recordDateTimeFormat = "%H:%M:%S",
+                                 xcenter="midnight",
+                                 overlapEstimator = "Dhat4",
+                                 plotR = TRUE,
+                                 writePNG = TRUE,
+                                 plotDirectory = ("./Output"),
+                                 addLegend = TRUE,
+                                 legendPosition = "topleft",
+                                 pngMaxPix   = 1000,
+                                 linecol     = c("black", "blue"),
+                                 linewidth   = c(3,3),
+                                 linetype    = c(1, 2),
+                                 olapcol     = "darkgrey",
+                                 add.rug     = TRUE,
+                                 extend      = "lightgrey",
+                                 ylim = c(0,0.25),
+                                 main = paste("Overall bat activity pre and post volancy overlap in",NR))
+}
+# run through each land use type
+
+NR.overlap <- NR_overlap.fn (NR=NR[5])
+
 ```
 
 ```{r NP activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_In-Out_2021-01-27.png",
-                          "./Output/activity_overlap_In-Out_pre_2021-01-27.png",
-                          "./Output/activity_overlap_In-Out_post_2021-01-27.png"))
+knitr::include_graphics(c("./Output/activity_overlap_In-Out_NP.png",
+                          "./Output/activity_overlap_In-Out_NP_pre.png",
+                          "./Output/activity_overlap_In-Out_NP_post.png"))
+``` 
+
+```{r LUT activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_Agriculture.png",
+                          "./Output/activity_overlap_Developed.png",
+                          "./Output/activity_overlap_Forest.png",
+                          "./Output/activity_overlap_Shrubland.png",
+                          "./Output/activity_overlap_Water.png"))
+``` 
+
+```{r NR activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_Boreal.png",
+                          "./Output/activity_overlap_Foothills.png",
+                          "./Output/activity_overlap_Grassland.png",
+                          "./Output/activity_overlap_Parkland.png",
+                          "./Output/activity_overlap_Rocky Mountain.png"))
 ``` 
 
 ```{r EFPU-LANO activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for EPFU, LANO and EPFU-LANO", fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_EPFU Pre-volancy-EPFU Post-volancy_2021-01-27.png",
-                          "./Output/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy_2021-01-27.png",
-                          "./Output/activity_overlap_LANO Pre-volancy-LANO Post-volancy_2021-01-27.png"))
+knitr::include_graphics(c("./Output/activity_overlap_EPFU Pre-volancy-EPFU Post-volancy.png",
+                          "./Output/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy.png",
+                          "./Output/activity_overlap_LANO Pre-volancy-LANO Post-volancy.png"))
 ``` 
 
 
 ```{r LABO-MYLU activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LABO, MYLU and LABO-MYLU", fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_LABO Pre-volancy-LABO Post-volancy_2021-01-27.png",
-                          "./Output/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy_2021-01-27.png",
-                          "./Output/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy_2021-01-27.png"))
+knitr::include_graphics(c("./Output/activity_overlap_LABO Pre-volancy-LABO Post-volancy.png",
+                          "./Output/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy.png",
+                          "./Output/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy.png"))
 ``` 
 
 
 ```{r LACO-Myotis 40k activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LACI and Myotis 40k", fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy_2021-01-27.png",
-                          "./Output/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy_2021-01-27.png"))
+knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy.png",
+                          "./Output/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy.png"))
 ``` 
+
+``` {r HMSC prep, include=F}
+# Code to prepare data for HMSC analysis, do not include in rmarkdown output
+# Objective: examine the data hierarchically.
+
+# First an overall community composition analysis
+
+# Data - use the call count data for aggregated nightly counts
+glimpse(call_count)
+dat <- call_count
+
+# Exclude EINP as no station covariates
+dat <- dat %>% filter(Land.Unit.Code!="EINP") 
+dat %>% count(Location.Name) #113 stations, EINP has been removed
+
+# Subset to the species / species groups with sufficient data (>100), exclude unknown
+dat %>% count(Classification, sort=TRUE)
+sp.to.include <- dat %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% filter(n>100) %>% select(Classification)
+
+dat <- dat[dat$Classification %in% sp.to.include$Classification,]  
+dat %>% count(Classification, sort=TRUE) # all here
+dat$Species <- factor(dat$Classification)
+
+# Effort data and covariates  
+# Station (unique survey bat location) data
+nrow(sta)
+# remove EINP as doesn't have the GIS covaraites
+sta <- sta %>% filter(Land.Unit.Code!="EINP") # now only 113 stations
+nrow(sta) # EINP has been removed
+
+plot(sta$Longitude , sta$Latitude, asp=1)
+
+# modify the GIS covariates to suit the analysis
+### Road type and distance
+sta %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
+sta$Road.Type <- as.character(sta$Road.Type)
+
+# if Road is within 100 m, keep as Road.Type.Ord but if >100 then change to 1, i.e., "No Road"
+sta$Road.Type <- case_when(sta$Road.Distance > 100 ~ "No Road",
+                               TRUE ~ as.character(sta$Road.Type))
+# recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
+sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
+  recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4, 
+         "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
+
+hist(sta$Road.Type.Ord)
+# recode distance to ordinal scale 1-10 for 0-100 m being 1, 100-200 being 2 and so on
+max(sta$Road.Distance, na.rm=T) # 759 m, so max category is 9 for roads > 800 and those with NA (none within 1000 m)
+sta$Road.Distance.Ord <- ifelse(sta$Road.Distance<100, 1, 
+                                ifelse(sta$Road.Distance<200, 2,
+                                       ifelse(sta$Road.Distance<300, 3,
+                                              ifelse(sta$Road.Distance<400, 4,
+                                                     ifelse(sta$Road.Distance<500, 5,
+                                                            ifelse(sta$Road.Distance<600, 6,
+                                                                   ifelse(sta$Road.Distance<700, 7,
+                                                                          ifelse(sta$Road.Distance<800, 8,
+                                                                                 ifelse(sta$Road.Distance>800,9, NA)))))))))
+
+sta$Road.Distance.Ord <- sta$Road.Distance.Ord %>% replace_na(9)
+sta %>% group_by(Road.Distance.Ord) %>% summarise(min(Road.Distance), max(Road.Distance))
+
+### Water type and distance
+sta %>% filter(is.na(Waterbody.Distance)) %>% count(Stream.Type)
+# some streams are closer than waterbodies, perhaps change waterbody type to stream?
+# yes - stream and water have similar features - consolidate into one called "Water" with the closest distance being the type/distance attributed
+sta %>% filter(Stream.Distance<100 | Waterbody.Distance<100) %>% group_by(Stream.Type, Waterbody.Type) %>% 
+  select(Location.Name, Stream.Distance, Waterbody.Distance, Stream.Type, Waterbody.Type)
+
+sta$Water.Distance <- with(sta, pmin(Stream.Distance, Waterbody.Distance, na.rm=T))
+# to remove NAs, will change this to ordinal scale later as actually >1000 but unknown
+sta$Water.Distance <- replace_na(sta$Water.Distance, 1001) 
+
+sta$Water.Type <- case_when(sta$Waterbody.Distance < sta$Stream.Distance ~ as.character(sta$Waterbody.Type), 
+                            TRUE ~ as.character(sta$Stream.Type))
+as.data.frame(sta %>% group_by(Water.Type) %>% select(Waterbody.Type, Stream.Type, Waterbody.Distance, Stream.Distance, Water.Distance))
+
+max(sta$Water.Distance, na.rm=T) # 1001 m, so max category is 11 for water with 11 being >1000 m
+
+# recode to ordinal scale, also changing NA to No Water as it meant no waterbody or stream within 1000 m
+sta$Water.Type.Ord <- sta$Water.Type %>% replace_na("No Water") %>%
+  recode("No Stream"=1, "No Water"=1, "DITCH"=2,"FLOW-ARB-DEM"=2,"STR-INDEF"=3, "STR-PER"=3, "STR-RECUR"=3, "OXBOW-RECUR"=3, 
+         "WETLAND"=4, "RIV-MAJ"=5, "QUARRY"=6, "RESERVOIR"=6, "LAKE-PER"=7, "LAKE-RECUR"=7)
+sta %>% group_by(Water.Type) %>% count(Water.Type.Ord)
+hist(sta$Water.Type.Ord)
+
+sta$Water.Distance.Ord <- ifelse(sta$Water.Distance<100, 1, 
+                                ifelse(sta$Water.Distance<200, 2,
+                                       ifelse(sta$Water.Distance<300, 3,
+                                              ifelse(sta$Water.Distance<400, 4,
+                                                     ifelse(sta$Water.Distance<500, 5,
+                                                            ifelse(sta$Water.Distance<600, 6,
+                                                                   ifelse(sta$Water.Distance<700, 7,
+                                                                          ifelse(sta$Water.Distance<800, 8,
+                                                                                 ifelse(sta$Water.Distance<900,9, 
+                                                                                        ifelse(sta$Water.Distance<1000,10,11))))))))))
+
+sta %>% group_by(Water.Distance.Ord) %>% summarise(min(Water.Distance), max(Water.Distance))
+hist(sta$Water.Distance.Ord)
+
+### Human Footprint type and distance
+as.data.frame(sta %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report 
+sta$Human.Footprint.Distance <- replace_na(sta$Human.Footprint.Distance, 1001)
+sta$Human.Footprint.Sublayer <- ifelse(sta$Human.Footprint.Type %in% 
+                                         c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
+                                           "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
+                                       ifelse(sta$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
+                                              ifelse(sta$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
+                                                     ifelse(sta$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
+                                                            ifelse(sta$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
+                                                                   ifelse(sta$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
+
+sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 100 ~ "No Human Footprint", 
+                            TRUE ~ as.character(sta$Human.Footprint.Sublayer))
+
+sta %>% count(Human.Footprint.Sublayer)
+as.data.frame(sta %>% group_by(Human.Footprint.Sublayer) %>% count(Human.Footprint.Type))
+summary(sta$Human.Footprint.Distance) # 94 are within 100 m of site, so let's change to log for ordinal scale
+sta$Human.Footprint.Distance.log <- log(sta$Human.Footprint.Distance+1)
+summary(sta$Human.Footprint.Distance.log) # now values range from 0-6.9
+# recode distance to ordinal scale 1-10 using log transformed distance values
+sta$Human.Footprint.Distance.Ord <- ifelse(sta$Human.Footprint.Distance.log<1, 1, 
+                                ifelse(sta$Human.Footprint.Distance.log<2, 2,
+                                       ifelse(sta$Human.Footprint.Distance.log<3, 3,
+                                              ifelse(sta$Human.Footprint.Distance.log<4, 4,
+                                                     ifelse(sta$Human.Footprint.Distance.log<5, 5,
+                                                            ifelse(sta$Human.Footprint.Distance.log<6, 6,7))))))
+
+sta %>% group_by(Human.Footprint.Distance.Ord) %>% summarise(min(Human.Footprint.Distance), max(Human.Footprint.Distance))
+
+# now have ordinal scales for road distance, road type, water distance, water type and human footprint distance
+# categorical scale for human footprint (no footprint will be reference value)
+# other categorical scale covariates = NP, Natural Region, Land.Use.Type
+# final station covariates = Latitude and Longitude
+# temporal covariates = Year, Volancy
+# environmental covariates = max temp, max humidity
+
+# Need to determine lenght of surveys (effort) per location as not always what it says in eff df
+dat %>% group_by(Deployment.ID) %>% summarise_at(c("SurveyNight"), list(min, mean, max))
+# looks surveys started by June 9 (or earlier) most years, surveys ended by end of July or later
+# go with June 9/10 - July 31 as the date range for HMSC
+dat %>% group_by(Deployment.ID) %>% summarise_at(c("jDay"), list(min, mean, max))
+# July 30 in julian day can be 211 or 212, go with 211 as some years only go till 211
+# June 10 in julian day can be 161 or 162 depending on leap year so go with 162 to make even 7 weeks for weekly observations
+# in the weekly obs, volancy will be considered as the start of week 28 (i.e., 190 days)
+week("2020-07-10") # week 28 for all years (2015-2020)
+yday("2020-07-10") # day 192 in 2020
+
+dat <- dat %>% filter(between(jDay, 162, 211))
+
+call_effort <- dat %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
+call_effort$Location.Name.Year <- as.factor(paste(call_effort$Location.Name, call_effort$Deployment.ID,sep="_"))
+
+call_effort_daily <- call_effort %>%
+     # sequence of daily dates for each corresponding start, end elements
+     transmute(Location.Name.Year, Date = map2(Min, Max, seq, by = "1 day")) %>%
+     # unnest the list column
+     unnest %>% 
+     # remove any duplicate rows
+     distinct
+
+call_effort_daily$Year <- year(call_effort_daily$Date)
+call_effort_daily %>% group_by(Year) %>% summarise(min(Date), max(Date))
+call_effort_daily %>% group_by(Year) %>% count(Date)
+call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
+
+##################################################################### 
+# Build the analysis data      ######################################
+#####################################################################
+
+# Y data          
+
+# Daily
+  # Station / Date / Effort / Species      
+    tmp <- call_effort_daily
+    daily.obs <- tmp %>% 
+      group_by(Location.Name,Date ) %>%
+      summarise(Effort = n())
+    
+    daily.obs <- as.data.frame(daily.obs[!is.na(daily.obs$Date),]) # removing any NAs
+    
+    daily.obs[, levels(dat$Species)] <- NA
+    i <-1
+        for(i in 1:nrow(daily.obs)){
+      tmp <- dat[dat$Location.Name==daily.obs$Location.Name[i] & dat$SurveyNight== daily.obs$Date[i],]
+      for(j in 1:length(levels(dat$Species))){
+        daily.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
+      }
+    }
+        
+
+# Weekly
+  # Station / Month / Effort / Covariates / Species  
+    dat$Location.Name_Yr <- paste(dat$Location.Name, dat$Year, sep="_")
+    
+    tmp <- call_effort_daily
+    tmp$Week <- week(tmp$Date) 
+    as.data.frame(tmp %>% group_by(Year, Week) %>% filter(Week == 24 |Week == 31) %>% summarise(min(Date), max(Date))) 
+    # week 31 starts on July 29/30 so remove from df
+    week.obs <- tmp %>% 
+      filter(Week != 31) %>%
+      group_by(Year, Location.Name, Week) %>%
+      summarise(Effort = n())
+    
+    week.obs <- as.data.frame(week.obs)
+    week.obs$Location.Name_Yr <- paste(week.obs$Location.Name, week.obs$Year, sep="_")
+    
+    week.obs[, levels(dat$Species)] <- NA
+    i <-1
+    for(i in 1:nrow(week.obs))
+    {
+      tmp <- dat[dat$Location.Name_Yr==week.obs$Location.Name_Yr[i] & week(dat$SurveyNight)== week.obs$Week[i],]
+      for(j in 1:length(levels(dat$Species)))
+      {
+        week.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
+      }
+    }
+ 
+# Save the Y data
+write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )    
+write.csv(week.obs %>% select(-Location.Name_Yr),"Output/week_observations.csv", row.names = F )    
+write.csv(call_effort_daily,"Output/row_lookup.csv", row.names = F )    
+
+# Make the Y matrix
+# week
+# add in temporal covariates (Volancy only as Year already included); volancy starts in week 28
+week.obs$Volancy <- as.factor(ifelse(week.obs$Week<28, "Pre-volancy","Post-volancy"))
+week.obs %>% group_by(Week) %>% count(Volancy)
+
+# Make the Y Matrix
+Y <- week.obs
+row.names(Y) <- paste(as.character(week.obs$Location.Name),week.obs$Week,week.obs$Year,sep="_") 
+head(Y)
+
+# clean up the matrix
+Y$Location.Name <- NULL; Y$Effort <- NULL; Y$Location.Name_Yr <- NULL; Y$Year <- NULL ; Y$Volancy <- NULL; Y$Week <- NULL
+head(Y)
+
+Y <- as.matrix(Y)
+
+# Make the XData
+sta.week  <- week.obs[,c("Location.Name", "Week","Year", "Volancy","Effort")]
+head(sta.week)
+sta.week <- left_join(sta %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Sublayer","Human.Footprint.Distance.Ord"), sta.week)
+
+XData <- data.frame(sta.week)
+# remove the two surveys done outside the temporal window: 171651_NW_01 and 171651_NW_02
+XData <- XData %>% filter(Location.Name!="171651_NW_01" & Location.Name!="171651_NW_02")
+
+# Responses
+tmp <- cor(Y)
+corrplot.mixed(tmp)
+
+# Predictors
+tmp <- cor(XData[,c("Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Distance.Ord")])
+corrplot.mixed(tmp)
+
+nChains   = 2 # Ultimately use 4
+thin      = 100 # build up from 100
+samples   = 100 # #1000
+transient = 100*thin
+verbose   = T
+
+
+# Add a station-level random effect (for the covariances)
+studyDesign = data.frame(station = as.character(week.obs$Location.Name))
+
+rL = HmscRandomLevel(units = studyDesign$station)
+
+# Added poisson distributed
+
+# No offline - Season as NDVI
+m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
+           NP + Natural.Region + Land.Unit.Code + Land.Use.Type + Human.Footprint.Sublayer +
+           Road.Type.Ord + Water.Type.Ord + Road.Distance.Ord + Water.Distance.Ord + Human.Footprint.Distance.Ord,
+         studyDesign = studyDesign, ranLevels = list(station = rL), distr="poisson")
+
+m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+               nChains = nChains, verbose = verbose, nParallel = 2)
+
+
+saveRDS(m,file="Output/MultiSpeciesHMSC.RData") 
+#m <- readRDS("Output/MultiSpeciesHMSC.RData")
+
+```
+
