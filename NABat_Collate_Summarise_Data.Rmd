@@ -528,6 +528,8 @@ NP.postVol.WWT <- watson.wheeler.test(list(NP.postVol$densityA, NP.postVol$densi
 NP.preVol <- activityOverlap(recordTable = dat_time[dat_time$Volancy=="Pre-volancy",], speciesA = "In", speciesB = "Out", speciesCol = "NP", recordDateTimeCol = "Time", recordDateTimeFormat = "%H:%M:%S",xcenter="midnight", overlapEstimator = "Dhat4",plotR = TRUE, writePNG = TRUE, plotDirectory = ("./Output"), addLegend = TRUE, legendPosition = "topleft", pngMaxPix   = 1000, linecol     = c("black", "blue"), linewidth   = c(3,3), linetype    = c(1, 2), olapcol     = "darkgrey", add.rug     = TRUE, extend      = "lightgrey", main = "Overall pre-volancy bat activity overlap in/out of National Parks")
 NP.pretVol.WWT <- watson.wheeler.test(list(NP.preVol$densityA, NP.preVol$densityB))
 
+NP.WWT <- cbind(NP.WWT, NP.postVol.WWT, NP.pretVol.WWT)
+
 # create function to produce activity overlap for all classifications pre and post volancy 
 volancy_overlap.fn <- function(Classification=Classification){
   overlap <- activityOverlap(recordTable = dat_time,
@@ -615,6 +617,8 @@ GR.WWT <- LUT_overlap.fn (LUT=LUT[5])
 SH.WWT <- LUT_overlap.fn (LUT=LUT[6])
 WT.WWT <- LUT_overlap.fn (LUT=LUT[7])
 
+LUT.WWT <- cbind(AG.WWT, BO.WWT, DV.WWT, FR.WWT, GR.WWT, SH.WWT, WT.WWT)
+
 # create function to produce activity overlap for all bats pre and post volancy by Natural Region type
 dat_time %>% group_by(Volancy) %>% count(Natural.Region)
 
@@ -654,6 +658,7 @@ GA.WWT <- NR_overlap.fn (NR=NR[3])
 PA.WWT <- NR_overlap.fn (NR=NR[4])
 RM.WWT <- NR_overlap.fn (NR=NR[5])
 
+NR.WWT <- cbind(BO.WWT, FO.WWT, GA.WWT, PA.WWT, RM.WWT)
 ```
 
 #### Spatial and Temporal Patterns 
@@ -1325,25 +1330,14 @@ fcalls.Sp
 See Appendix A for detailed mean nightly call counts for species /species groups by Land Unit.
 
 #### Nocturnal Activity Results
+Figures show the kernel density estimates representing nocturnal activity curves and temporal overlap of all bats, and eight bat species / species groups. Periods of activity overlap is represented by the coefficient of overlap (Δ; denoted in grey) accompanied by the 95 % confidence intervals in parentheses; Δ = 1 represents no activity shift while Δ = 0 represents complete activity shift.
 
-At first glance nocturnal activity appeared similar for bats within and outside of National Parks; however, activity differed when separated into pre- and post-volancy periods (Figure 14). Within parks pre-volancy activity had a steep peak just after sunset, a trough in the early morning and another small peak just before sunrise. Nocturnal activity outside of parks was much more muted with a peak after sunset but no trough or second peak. The exact opposite activity patterns were observed in the post-volancy period: a steep post sunset peak, early morning trough and smaller pre-sunrise peak for nocturnal activity outside of parks compared to a muted, consistent level of activity post-volancy in parks. This may suggest that parks are surveying near maternity roosts where reproductive females are taking shorter, more frequent foraging trips during the start of the night during the pre-volancy period, when they are tending to the pups, and then foraging more evenly throughout the night once the pups are volant. In contrast bats outside of parks are active more evenly throughout the night during the pre-volancy period but with focused activity post-volancy.
+Nocturnal activity differed within and outside of National Parks (χ2 = `r round(as.numeric(NP.WWT[3]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[4]),3)`),) overall and within each volancy periods, although the difference was weaker in the post-volancy period (pre-volancy χ2 = `r round(as.numeric(NP.WWT[13]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[14]),3)` compared to χ2 = `r round(as.numeric(NP.WWT[8]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[9]),3)` post-volancy) (Figure 14). Within parks pre-volancy activity had a steep peak just after sunset, a trough in the early morning and another small peak just before sunrise. Nocturnal activity outside of parks was much more muted with a peak after sunset but no trough or second peak. The exact opposite activity patterns were observed in the post-volancy period: a steep post sunset peak, early morning trough and smaller pre-sunrise peak for nocturnal activity outside of parks compared to a muted, consistent level of activity post-volancy in parks. This may suggest that parks are surveying near maternity roosts where reproductive females are taking shorter, more frequent foraging trips during the start of the night during the pre-volancy period, when they are tending to the pups, and then foraging more evenly throughout the night once the pups are volant. In contrast bats outside of parks are active more evenly throughout the night during the pre-volancy period but with focused activity post-volancy.
 
-Nocturnal activity patterns were typically consistent within a species, although the magnitude and timing may differ based on volancy period. Species with a bi-modal pattern (i.e., two distinct activity phases) were EPFU, LANO, and MYLU. LABO exhibited a clearly unimodal pattern with a single steep peak, while LACI had a higher initial activity peak and a more gradual levelling off of activity as the night progressed. Unsurprisingly the combined species groups were less distinct in their activity patterns as they comprise two or more species with contrasting activity patterns (Figures 15 to 17).
+Nocturnal activity patterns were typically consistent within a species, although the magnitude and timing may differ based on volancy period. Species with a bi-modal pattern (i.e., two distinct activity phases) were EPFU, LANO, and MYLU. LABO exhibited a clearly unimodal pattern with a single steep peak, while LACI had a higher initial activity peak and a more gradual levelling off of activity as the night progressed. Species activity patterns were significantly different between volancy periods: EPFU χ2 `r round(EPFU.WWT$statistic,2)`, df = 2, p-value `r round(EPFU.WWT$p.value,3)`; LANO χ2 `r round(LANO.WWT$statistic,2)`, df = 2, p-value `r round(LANO.WWT$p.value),3)`; MYLU χ2 `r round(MYLU.WWT$statistic,2)`, df = 2, p-value `r round(MYLU.WWT$p.value,3)`;  LABO χ2 `r round(LABO.WWT$statistic,2)`, df = 2, p-value `r round(LABO.WWT$p.value,3)`; and LACI χ2 `r round(LACI.WWT$statistic,2)`, df = 2, p-value `r round(LACI.WWT$p.value,3)`. Unsurprisingly the combined species groups activity patterns were less distinct, and  non-signficant, as they comprise two or more species with potentially contrasting activity patterns (Figures 15 to 17).
 
-Figures show the kernel density estimates representing nocturnal activity curves and temporal overlap of all bats, and eight bat species / species groups. Periods of activity overlap is represented by the coefficient of overlap (Δ; denoted in grey) accompanied by the 95 % confidence intervals in parentheses; Δ = 1 represents no activity shift while Δ = 0 represents complete activity shift. Bat nocturnal activity patterns generally overlapped with Δ ranging from a low of 0.72 to a high of 0.92.
+Within Natural Regions, overall bat activity patterns only diverged between volancy periods in Grassland (χ2 `r round(GA.WWT$statistic,2)`, df = 2, p-value `r round(GA.WWT$p.value,3)`), Parkland (χ2 `r round(PA.WWT$statistic,2)`, df = 2, p-value `r round(PA.WWT$p.value,3)`), and to a lesser extent in the Foothills (χ2 `r round(FO.WWT$statistic,2)`, df = 2, p-value `r round(FO.WWT$p.value,3)`).  Land Use Types with significantly different activity patterns between volancy periods were Developed (χ2 `r round(DV.WWT$statistic,2)`, df = 2, p-value `r round(DV.WWT$p.value,3)`), Grassland (χ2 `r round(GR.WWT$statistic,2)`, df = 2, p-value `r round(GR.WWT$p.value,3)`), Shrubland (χ2 `r round(SH.WWT$statistic,2)`, df = 2, p-value `r round(SH.WWT$p.value,3)`), and Water (χ2 `r round(WT.WWT$statistic,2)`, df = 2, p-value `r round(WT.WWT$p.value,3)`). See Appendix B for overall bat activity patterns pre- and post-volancy in each of the Natural Regions and Land Use Types.
 
-``` {r Nocturnal activity WWT output as table}
-
-
-opts <- options(knitr.kable.NA = "")
-knitr::kable(df.LUC, 
-             caption = paste(call_LUC[i],"mean ± 1 SE nightly bat calls by species / species group for year and volancy period.", sep=" "), 
-             digits=1))
-options(opts)
-
-```
-
-See Appendix B for overall bat activity patterns pre- and post-volancy in each of the Natural Regions and Land Use Types.
 
 ```{r NP activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
