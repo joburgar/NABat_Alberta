@@ -1,5 +1,5 @@
 ---
-title: "Collate and Summarise Alberta's NABat 2015-2020 Data"
+title: "North American Bat Monitoring Program (NABat) Multi-year Acoustic Data Analysis and Reporting"
 author: "Created by Joanna Burgar"
 date: "Report generated on `r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -11,12 +11,26 @@ editor_options:
   chunk_output_type: console
 always_allow_html: yes
 ---
-Bats across Canada face unprecedented threats including white-nose syndrome (WNS), wind energy development, habitat loss and fragmentation, and climate change. However, a lack of basic information about the distribution and abundance of bats across the continent makes it difficult to evaluate the impacts of these threats.  Although bat monitoring is conducted in Alberta, no landscape-level spatial and temporal analyses have been completed. The mountain national parks have proposed an Integrated Conservation Planning project that aims to substantively advance bat conservation actions within PCA with partners across Alberta. This analysis and reporting examines monitoring and bat conservation in Alberta from 2015 - 2020, witin a provincial and landscape context. The hope was that this work would inform the Integrated Conservation Planning project.
+```{r LACI image, out.width="0.3\\linewidth", include=TRUE, fig.align="center", echo=FALSE}
+knitr::include_graphics("./Input/JasonHeadley-LACI-9544.jpg")
+```
+
+Prepared by: Joanna M. Burgar, PhD RPBio
+ joburgar@gmail.com 
+
+Prepared for: Parks Canada
+Jasper National Park, P.O. Box 10, Jasper AB T0E 1E0 
+
+
+
+Suggested Citation: Burgar, J.M. 2021. North American Bat Monitoring Program Multi-year Acoustic Data Analysis and Reporting. Parks Canada, Alberta, Canada. 
+
+Cover Illustration: Lasiurus cinereus © Jason Headley
 
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "camtrapR", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "overlap", "circular", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -77,7 +91,7 @@ dat_count$Classification <- factor(dat_count$Classification,
 dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"), 
                             regexp = "\\_summary.csv$", recurse = TRUE) %>%
   map_dfr(~read_csv(.x, col_types = cols(.default = "c")), .id="source") %>% # issues with min_wind so read in as character
-  type_convert() %>% # convert back to proper formats, min_wind still problematic so only use max and mean wind if available
+  type_convert() %>% # convert back to proper formats, min_wind still problematic so only use max or mean wind if available
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-Date)%>%
@@ -100,6 +114,10 @@ dat_summary$Time.temp2p <- as.POSIXct(strptime(dat_summary$Time.temp2, "%H-%M-%S
 dat_summary$Time.temp3p <- as.POSIXct(strptime(dat_summary$Time.temp3, "%H%M%S", tz))
 dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p)) %>% 
   select(-c(Time.temp1, Time.temp2, Time.temp3, Time.temp1p, Time.temp2p, Time.temp3p))
+
+# Create environmental covariate
+nightly.max.env.cov <- dat_summary %>% group_by(Location.Name,SurveyNight) %>% dplyr::summarise_at(c("max_temp","max_hum","max_wind"), list(Mean = mean))
+nightly.max.env.cov <- nightly.max.env.cov %>% rename(Max.Temp = "max_temp_Mean", Max.Hum = "max_hum_Mean", Max.Wind = "max_wind_Mean")
 
 # Read deployment data csv for station covariates
 eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
@@ -341,493 +359,39 @@ total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
 sum(total.effort$Diff) # 2852 survey nights
 ```
 
-### Bat Acoustic Survey Locations (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
+### Introduction
 
-To date there have been passive ARU deployments at `r n.stat` unique locations (i.e., bat survey locations) within `r n.GRTS` NABat grid cells. On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) ARUs recording, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` ARUs recording per quadrat. The average minimum distance between bat survey locations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Bat survey locations had an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` survey locations within 10 km. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` bat survey locations where the next nearest survey location was >10 km away. While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) locations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) locations were surveyed following similar NABat protocols but not for NABat monitoring per se. 
+Bats across Canada face unprecedented threats including white-nose syndrome (WNS), wind energy development, habitat loss and fragmentation, and climate change. However, a lack of basic information about the distribution and abundance of bats across the continent makes it difficult to evaluate the impacts of these threats. Although bat monitoring is conducted in Alberta, no landscape-level spatial and temporal analyses have been completed. The mountain National Parks have proposed an Integrated Conservation Planning project that aims to substantively advance bat conservation actions within Parks Canada with partners across Alberta. 
+The objective of this work was to analyze and report on passive acoustic bat data collected as part of the North America Bat Monitoring Program (NABat) in Alberta from 2015-2020, within a provincial and landscape context. These results will inform the mountain National Parks about how to best align monitoring programs across Alberta to support landscape-level bat conservation. 
 
-```{r survey distance fig, fig.cap = "Mean distance (km) between bat survey locations within 100 km of one another.", echo=F}
-dist.mat.100km <- dist.mat.100km[order(dist.mat.100km$Mean),]
+This report summarises acoustic surveys spatially, temporally and by key landscape attributes providing insight in three main areas. The first section of this report contains summaries of bat survey locations and effort, highlighting where additional surveys could be implemented if the goal is for proportional survey representation provincially and/or across landscape attributes. The second section examines bat activity patterns by landscape attribute and temporal niche partitioning, overall and for focal species / species groups. The third section provides simultaneous statistical inferences at the bat community and species /species group level, accounting for species interactions in explaining species occurrences across the province and through time. 
 
-fsurvey.dist = ggplot(dist.mat.100km, aes(x = reorder(ORIGIN_Location.Name, Mean), Mean))+
-  geom_point(colour="white", shape=21, size=5,aes(fill=NP))+
-  scale_fill_manual(values=unique(sta$Cols)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  ylab(expression(paste("Mean ± 1 SE Distance (km)"))) +
-  geom_linerange(aes(ORIGIN_Location.Name, ymin = Mean-SE, ymax = Mean+SE)) +
-  theme(axis.title.x=element_blank(), axis.text.x=element_blank()) +
-  theme(axis.text.y = element_text(size=14))+
-  theme(axis.text.x = element_blank())+
-  theme(legend.position = "none") 
+### Methods - Sampling Design
 
-fsurvey.dist
-```
-* Green denotes bat survey locations within National Parks, and red denotes locations outside of parks.
-
-
-```{r Table 1 bat survey location, echo=F}
-sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
-sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
-sta.count2$GRTS.count <- 1
-sta.count3 <- sta.count2 %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% summarise(sum(GRTS.count))
-
-sta.NP <-sta %>% filter(NP=="In") %>% count(Land.Unit.Code)
-sta.NP$prop <- sta.NP$n / sum(sta.NP$n)
-
-sta.NR <-sta %>% count(Natural.Region)
-sta.NR$prop <- sta.NR$n / sum(sta.NR$n)
-
-sta.count$Count.Grid.Cells <- sta.count3[,4]
-colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Count Bat Survey Locations", "Count NABat Grid Cells")
-knitr::kable(sta.count, 
-             caption="The number of bat survey locations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.",
-             align = "lllrr")
-```
-
-Bat survey locations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figure 2). The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of bat survey locations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) survey lcoations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. National Parks deployed ARUs at an average of `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` locations; ranging from `r ARUs.by.NP[1,2]` locations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` locations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`. Considering the area of each National Park, BNP and JNP had proportional survey representation, i.e., `r round(sta.NP %>% filter(Land.Unit.Code=="BNP") %>% summarise(sum(prop))*100,0)`% and `r round(sta.NP %>% filter(Land.Unit.Code=="JNP") %>% summarise(sum(prop))*100,0)`% of Alberta's park area and proportion of bat survey locations within the parks. In contrast, WLNP and EINP were over-represented, and WBNP was under-represented, in terms of survey locations to park area. 
-
-Outside of National Parks, bat survey locations were within `r nrow(ARUs.by.LUC)` Land Units, with an average, 
-`r round(mean(ARUs.by.LUC$n),1)` ± `r round(se(ARUs.by.LUC$n),1)` bat survey locations within each Land Unit. Most (i.e., `r ARUs.by.LUC[1,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.LUC[1,1]` and only (i.e., `r ARUs.by.LUC[7,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.LUC[7,1]`. Bat survey locations were under-represented in LAR and LPR, over-represented in RDR and UPR and roughly proportional in the remaining Land Units. 
-
-Bat survey locations occurred within each of the six Natural Regions, with an average `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` of bat survey locations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) locations were within the `r ARUs.by.NR[1,1]` and only `r ARUs.by.NR[6,2]` (i.e., `r round(ARUs.by.NR[6,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`. For each Natural Region, bat survey locations were under-represented in the Boreal (i.e., `r round(sta.NR %>% filter(Natural.Region=="Boreal") %>% summarise(sum(prop))*100,0)`% of the survey locations) to Alberta's land area (58%).In contrast, bat survey locations were over-represented in the Foothills, Grassland and Rocky Mountain Natural Regions. The Canadian Shield and Parkland Natural Regions had roughly proportional survey to land area representation. 
-
-Land Use Type was derived from the Alberta Biodiversity Monitoring Institute (ABMI) Wall-to-wall Land Cover Map 2010 Version 1.0 (ABMIw2wLCV2010v1.0) with the following three deviations: 1) the three forest classes were consolidated into one "Forest" class; 2) exposed land was renamed as "Barren Land"; and 3) if any bat survey location was within 10 m of water the Land-use Type was changed to "Water". Bat survey locations can be grouped into `r nrow(ARUs.by.LUT)` Land Use Types. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) bat survey locations were within `r ARUs.by.LUT[1,1]` and the fewest (i.e., `r ARUs.by.LUT[7,2]` or `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) were within `r ARUs.by.LUT[7,1]`. Bat survey locations were under-represented in Agriculture, Forest and Shrubland, while being over-represented in Developed, Grassland and Water.
-
-```{r spatial representation fig, echo=F, fig.height=8.5, fig.width=6.5, fig.cap="Proportional representation of bat survey locations compared to land  area for Land Units, Natural Regions, and Land Use Types"}
-cov.prop <- cov.prop %>% arrange(Cov, NP, Name)
-cov.prop.hist.data <- gather(cov.prop,`prop.area`, `prop.stn`, key="Prop.Type", value="Proportion")
-cov.prop.hist.data$Prop.Type <- recode(cov.prop.hist.data$Prop.Type, prop.area = "Area", prop.stn = "Bat Survey Locations")
-cov.prop.hist.data$Cov2 <- ifelse(cov.prop.hist.data$Cov=="Land.Unit.Code" & cov.prop.hist.data$NP=="In", "Within National Park",
-                                  ifelse(cov.prop.hist.data$Cov=="Land.Unit.Code" & cov.prop.hist.data$NP=="Out", "Outside National Park",
-                                         ifelse(cov.prop.hist.data$Cov=="Natural.Region","Natural Region",
-                                                ifelse(cov.prop.hist.data$Cov=="Land.Use.Type", "Land Use Type",NA))))
-
-cov.prop.hist.data$Cov2 <- factor(cov.prop.hist.data$Cov2, levels=c("Within National Park", "Outside National Park", "Natural Region", "Land Use Type"))
-cov.prop.hist <- ggplot(cov.prop.hist.data %>% filter(!Name %in% c("Broadleaf Forest", "Coniferous Forest", "Mixed Forest")), 
-                        aes(fill=Prop.Type, y=Proportion, x=Name)) +
-  geom_bar(position="dodge", stat="identity") +
-  theme(legend.title = element_blank())+
-  theme(legend.position="bottom") +
-  theme(axis.title.y = element_text(size = 14)) +   
-  theme(axis.title.x = element_blank())+
-  facet_wrap(~Cov2, scales="free_x", ncol=1)
-cov.prop.hist
-```
-
+#### Bat Acoustic Survey Locations (i.e., Stations)
+The NABat sampling design consists of a grid-based finite-area sampling frame with 10 km by 10 km (100 km2) grid cell sample units (Loeb et al. 2015). All 100 km2 cells were assigned a spatially balanced and randomized ordering using a generalized random-tessellation stratified (GRTS) survey design algorithm, designed for flexibility and robustness to adding/dropping survey sites as resources and logistical conditions change over time. Alberta comprises 6422 full grid cells and 437 partial cells. Each full grid cell sampling unit is further broken down into four quadrants, identified by their cardinal direction (e.g., NE for north-east). This report follows the NABat hierarchical naming convention, assigning individual stations a name based on which GRTS grid cell and quadrant they fall within. For example, Jasper National Park's Tekarra Marsh acoustic survey station has been renamed as "23146_NE_01" as it falls within the north-east quadrant of GRTS grid cell 23146. The '01' refers to the station number as some quadrants contain more than one station and/or a survey location may be moved between years. 
 
 ```{r TerraSolis pdf map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap="Bat Survey Locations 2015-2020", echo=FALSE}
 knitr::include_graphics("./Input/Bats_finaldata.pdf")
 ```
 
-```{r map NP, echo=F, fig.cap="Distribution of bat survey locations in/out of National Parks"}
+##### Figure 1. Bats have been acoustically surveyed, following NABat protocols, at `r n.stat` stations across Alberta over 6 years (2015-2020).
 
-### Check distribution of sites and correct spatial assignment (NP, Natural Region, Land Use Type)
-#NP
-# mPA <- leaflet() %>%
-#   addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
-#   addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
-#   addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
-#                    color=sta$Cols,
-#                    popup=paste(sta$Deployment.ID, sta[,category])) %>%
-#  addLegend("bottomleft", colors = col.cat,  labels = levels(sta[,category]),
-#     title = category,
-#     labFormat = labelFormat(prefix = "$"),
-#     opacity = 1
-#   ) %>%
-#   # Layers control
-#   addLayersControl(
-#     baseGroups = c("Satellite", "Base"),
-#     options = layersControlOptions(collapsed = FALSE)
-#   )
-# 
-# mPA
-```
+#### Reporting Units / Groups 
+For analysis and reporting, stations and data have been grouped spatially and temporally. Spatial groups comprise stations grouped by 1) NABat grid cells (i.e., GRTS ID); 2) Land Use Type (Agriculture, Barren Land, Developed, Forest, Grassland, Shrubland, Urban, and Water) as recommended by NABat guidelines; 3) Land Unit (i.e., National Parks or Land-use Framework Regions) with abbreviations as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region; 4) Natural Region (Boreal, Canadian Shield, Foothills, Grassland, Parkland, Rocky Mountain); and 5) National Park (i.e., In or Out). Temporal groups comprise: 1) Year (2015, 2016, 2017, 2018, 2019, 2020); and 2) Volancy (Pre-volancy, Post-volancy), where post-volancy is set as on or after July 10 and the caveat that this is an oversimplification and generalization for analytical / reporting purposes.
 
+#### Analysis Covariates
+Analysis and grouping covariates were derived from either Geographical Information Systems (GIS) or Environment Canada. TerraSolis was commissioned to extract land use features from publicly available sources. Land Use Type was derived from the Alberta Biodiversity Monitoring Institute (ABMI) Wall-to-wall Land Cover Map 2010 Version 1.0 (ABMIw2wLCV2010v1.0) with the following three deviations: 1) the three forest classes were consolidated into one "Forest" class; 2) exposed land was renamed as "Barren Land" to be in line with NABat guidelines; and 3) if any station was within 10 m of water the Land-use Type was changed to "Water". Human Footprint was derived from ABMIs Human Footprint Inventory (2018). Government of Alberta road and hydrology layers provided the road and water data, respectively. For each station the distance (m) to the nearest feature was also calculated. Environment Canada weather data was extracted for the nearest Environment Canada weather station to each bat survey station based on its spatial coordinates. Where and when available mean, minimum, and maximum nightly (18:00 to 06:00) temperature (°C), relative humidity (%), and wind speed (km/hr) was extracted. 
 
-```{r map NR, echo=F, fig.cap="Distribution of bat survey locations by Natural Region"}
+### Methods - Analyses
 
-# # Natural Region
-# mNR <- leaflet() %>%
-#   addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
-#   addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
-#   addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
-#                    color=sta$ColsNR,
-#                    popup=paste(sta$Deployment.ID, sta[,"Natural.Region"])) %>%
-#  addLegend("bottomleft", colors = col.catNR,  labels = levels(sta[,"Natural.Region"]),
-#     title = "Natural Region",
-#     labFormat = labelFormat(prefix = "$"),
-#     opacity = 1
-#   ) %>%
-#   # Layers control
-#   addLayersControl(
-#     baseGroups = c("Satellite", "Base"),
-#     options = layersControlOptions(collapsed = FALSE)
-#   )
-# 
-# mNR
-```
+#### Data Processing and Cleaning
+All data were provided as raw acoustic recordings in either full-spectrum (wav) or zero-cross (zc or ZCA) format and processed in Alberta eBat for species identification. Alberta eBat (albertaebat.ca) is an online platform that automates bat species identification from acoustic records. The assumption was that each call file, regardless of call type (i.e., wav or zero-cross) contained one single bat call. For analysis and reporting purposes, one call is considered as a series of pulses, emanating from one bat and each call file was assumed to be an independent bat call. Due to the magnitude of recordings amassed over the 6 years of survey data, calls were not manually vetted to verify species identification. However, Alberta eBat species identification criteria is relatively conservative with species identification defaulting to "unknown" if certainty criteria were not met. Please see the Alberta eBat technical report for detailed methods (https://www.albertaebat.ca/static/doc/Alberta_e-bat_FinalReport.pdf). The exceptions were two 2020 surveys (stations 922_SE_01 and 922_SW_01), which were provided as Kaleidoscope output and re-formatted for inclusion, based on the certainty scores provided by Kaleidoscope.
 
-```{r map LUC, echo=F, fig.cap="Distribution of bat survey locations by Land Unit"}
+Data were cleaned to remove potentially erroneous recordings prior to analysis. Any recordings with dates before May 1 and after September 1 were removed. As well, some stations that were clearly not following NABat sampling guidelines were not included (e.g., opportunistic sampling for only 1 night at a location). Depending on the analyses, some data were not included if they did not meet certain criteria. For the nocturnal activity patterns, bat call time was extracted from recording filenames. In some instances, it was clear that the filenames did not contain accurate timestamps (e.g., bat call recorded during the middle of the day) and thus recordings from these surveys were excluded as there was uncertainty if any of the timestamps were correct. However, as these filenames accurately recorded survey dates, these recordings were included in all other analyses as aggregated nightly counts could be trusted. In the instances where dates seemed inaccurate (i.e., a recording in February) the dates were clarified with the biologist and revised, if possible. If clarification was not possible, these recordings were removed from analyses. If a station had recordings from two detectors for one night only one set of recordings was used. Lastly, EINP provided data in early 2021, after GIS covariates were extracted and the overall map was produced, and thus EINP data were not included in Figure 1 or the hierarchical analysis but were included in all other analyses.
 
-# Land Unit Code
-# mLUC <- leaflet() %>%
-#   addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
-#   addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
-#   addCircleMarkers(lng=sta$Longitude, lat=sta$Latitude,
-#                    color=sta$ColsLUC,
-#                    popup=paste(sta$Deployment.ID, sta[,"Land.Unit.Code"])) %>%
-#  addLegend("bottomleft", colors = col.catLUC,  labels = levels(sta[,"Land.Unit.Code"]),
-#     title = "Land Unit",
-#     labFormat = labelFormat(prefix = "$"),
-#     opacity = 1
-#   ) %>%
-#   # Layers control
-#   addLayersControl(
-#     baseGroups = c("Satellite", "Base"),
-#     options = layersControlOptions(collapsed = FALSE)
-#   )
-# 
-# mLUC
-```
-
-
-```{r hist LUT, echo=F, warning=F, fig.width=6.5, fig.cap="Representation of bat survey locations by Land Use Type in/out of National Parks (NP)"}
-
-# Land Use Type
-LUT.NP.hist <- sta %>% group_by(NP) %>% count(Land.Use.Type, sort=TRUE)
-LUT.NP.hist <- LUT.NP.hist[complete.cases(LUT.NP.hist),] # remove EINP which doesn't have associated LUT covariate
-
-LUT.hist <- ggplot(data = LUT.NP.hist, aes(x = reorder(Land.Use.Type, -n), y = n, fill= NP)) + 
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=unique(sta$Cols))+
-  theme_classic() + ylab("Number of Locations Surveyed") + 
-  theme(legend.position="bottom") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(axis.title.y = element_text(size = 14)) + theme(axis.title.x = element_blank())
-
-LUT.hist
-```
-
-### Bat Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
-
-Bat survey locations have been surveyed between `r min(sta$Yrs.Surveyed)` and `r max(sta$Yrs.Surveyed)` times (mean = `r round(mean(sta$Yrs.Surveyed),1)` ± `r round(se(sta$Yrs.Surveyed),1)`). 
-
-```{r annual survey effort hist, echo=F, fig.width=6.5, fig.cap="Annual bat survey effort by NABat grid cell in/out of National Parks (NP)"}
-Years.Surveyed <- eff %>% group_by(NP, Natural.Region, Land.Unit.Code,Deployment.ID) %>% count(GRTS.Cell.ID)
-
-Yr.GRTS.hist <- Years.Surveyed %>% group_by(NP) %>% count(Deployment.ID)
-
-Yr.hist <- ggplot(data = Yr.GRTS.hist, aes(x = as.factor(Deployment.ID), y = n, fill= NP)) + 
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=unique(sta$Cols))+
-  theme_classic() + xlab("Year") + ylab("Number of NABat Grid Cells Surveyed") + 
-  theme(legend.position="bottom") +
-  theme(axis.text.x = element_text(colour = "black")) +
-  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_text(size = 14))
-
-Yr.hist
-```
-
-### Nightly Acoustic Survey Effort (`r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)`)
-
-```{r nightly survey effort NP, echo=F, fig.height=8.5, fig.width=6.5, fig.cap="Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in/out of National Parks (NP)"}
-
-calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,NP, Natural.Region, Land.Unit.Code, Location.Name) %>%
-  filter(Classification!="noise") %>%
-  summarise(Call.Count =sum(Count))
-calls.per.night.locn$Night.Count <- 1
-
-NightPA.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=NP)) + 
-  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=unique(sta$Cols))+
-  scale_x_continuous(breaks = c(153, 183, 214, 245),
-  label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
-  theme_classic() + ylab("Number of Locations Surveyed") +
-  theme(legend.position="bottom") +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.title.y = element_text(size = 14))+
-  facet_wrap(~Year, ncol=1)
-
-NightPA.hist
-```
-
-```{r nightly survey effort NR, echo=F, fig.height=8.5, fig.width=6.5, fig.cap="Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in each Natural Region"}
-
-NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Natural.Region)) + 
-  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=unique(sta$ColsNR))+
-  scale_x_continuous(breaks = c(153, 183, 214, 245),
-  label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
-  theme_classic() + ylab("Number Locations Surveyed") +
-  theme(legend.position="bottom", legend.title = element_blank()) +
-  theme(axis.title.x = element_blank()) +
-  theme(axis.title.y = element_text(size = 14))+
-  facet_wrap(~Year, ncol=1)
-
-NightNR.hist
-```
-
-### Nightly Overall Bat Call Summaries
-Bat calls were analysed using Alberta eBat (albertaebat.ca) an online platfrom that automates bat species identification from acoustic records. The assumption was that each call file, regardless of call type (i.e., wav or zero-cross) contained one single bat call. For this report, one call is considered as a series of pulses, emanating from one bat and each call file was assumed to be an independent bat call. Due to the magnitude of recordings amassed over the 6 years of survey data, calls were not manually vetted to verify species identification. However, Alberta eBat species identification criteria is relatively conservative with species identification defaulting to "unknown" if certainty criteria were not met. Please see the Alberta eBat technical report for detailed methods (https://www.albertaebat.ca/static/doc/Alberta_e-bat_FinalReport.pdf).
-
-
-```{r mean nightly call by NR, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each Natural Region by year and volancy period."}
-call_count.NR <- call_count %>% group_by(Natural.Region, Deployment.ID, Volancy)
-
-# subset data for overall mean nightly bat calls by year for each Natural Region
-NR.Calls.Yr <- call_count.NR%>% group_by(Natural.Region, Deployment.ID, Volancy) %>% 
-  summarise(Mean = mean(Count), SE = se(Count))
-
-fcalls.NR <- NR.Calls.Yr %>%
-  ggplot(aes(x = Natural.Region, y = Mean, fill=Volancy))+
-  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
-  scale_fill_manual(values=unique(col.catVol)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-  ylim(c(0,60))+
-  geom_linerange(aes(Natural.Region, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
-  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(legend.position = "bottom", legend.title = element_blank()) +
-  facet_wrap(~Deployment.ID, ncol=1)
-fcalls.NR
-
-```
-
-
-```{r mean nightly call by LUT, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each Land Use Type in/out of National Parks by year and volancy period."}
-call_count.LUT <- call_count %>% group_by(NP, Land.Use.Type, Deployment.ID, Volancy)
-call_count.LUT <- call_count.LUT[complete.cases(call_count.LUT),]
-
-# subset data for overall mean nightly bat calls by year for each LUT
-LUT.Calls.Yr <- call_count.LUT %>% group_by(NP, Land.Use.Type, Deployment.ID, Volancy) %>% 
-  summarise(Mean = mean(Count), SE = se(Count))
-
-fcalls.LUT <- LUT.Calls.Yr %>%
-  ggplot(aes(x = Land.Use.Type, y = Mean, fill=NP))+
-  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
-  scale_fill_manual(values=unique(sta$Cols)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-  ylim(c(0,100))+
-  geom_linerange(aes(Land.Use.Type, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
-  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(legend.position = "bottom") +
-  facet_wrap(~Deployment.ID+Volancy, ncol=2, scales="free_y")
-fcalls.LUT
-
-```
-
-
-```{r mean nightly call by GRTS, echo=F, fig.height=9, fig.width=7, warning=FALSE, fig.cap="Mean nightly bat calls for each NABat grid cell by year."}
-call_count2 <- call_count %>% group_by(NP, Land.Unit.Code, Deployment.ID, GRTS.Cell.ID)
-
-# Reorder GRTS to be NP, Land.Unit.Code then GRTS
-GRTS.Order <- call_count %>% arrange(NP, Land.Unit.Code, GRTS.Cell.ID) %>% 
-  group_by(NP, Land.Unit.Code) %>% count(GRTS.Cell.ID)
-GRTS.Order$Order <- row.names(GRTS.Order)
-GRTS.Order <- fct_reorder(GRTS.Order$GRTS.Cell.ID, GRTS.Order$Order, min)
-
-# subset data for overall mean nightly bat calls by year for each GRTS
-GRTS.Calls.Yr <- call_count2 %>% group_by(NP, Land.Unit.Code, Deployment.ID, GRTS.Cell.ID) %>% 
-  summarise(Mean = mean(Count), SE = se(Count))
-
-GRTS.Calls.Yr$GRTS.Cell.ID <- factor(GRTS.Calls.Yr$GRTS.Cell.ID, levels = GRTS.Order)
-
-fcalls.GRTS <- GRTS.Calls.Yr %>%
-  ggplot(aes(x = GRTS.Cell.ID, Mean))+
-  geom_point(colour="white", shape=21, size=4,aes(fill=Land.Unit.Code))+
-  scale_fill_manual(values=unique(sta$ColsLUC)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-  ylim(c(0,150))+
-  xlab(expression("NABat GRTS Cell ID"))+
-  geom_linerange(aes(GRTS.Cell.ID, ymin = Mean-SE, ymax = Mean+SE)) +
-  theme(axis.text.y = element_text(size=12))+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8)) +
-  theme(legend.position = "bottom", legend.title=element_blank()) +
-  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
-
-fcalls.GRTS
-
-```
-
-``` {r annual mean nightly call by GRTS quadrant, echo=F, warning=FALSE, results='asis'}
-call_count$Quadrant <- as.factor(word(call_count$Location.Name,2,sep = "\\_"))
-call_count3 <- call_count %>% group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Quadrant) %>%
-  mutate(Nights.Surveyed=max(SurveyNight)-min(SurveyNight)+1)
-call_count3$Nights.Surveyed <- as.numeric(call_count3$Nights.Surveyed)
-
-call_count4 <- call_count3 %>% 
-  group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Quadrant, Nights.Surveyed) %>%
-  summarise(Mean=mean(Count), SE=se(Count)) 
-
-mean.quad.count <- call_count4  %>% select(-SE, -Nights.Surveyed) %>% 
-                               pivot_wider(names_from = c("Quadrant"),  values_from = c("Mean")) %>%
-                             rename(SE_mean=SE, SW_mean=SW, NE_mean=NE, NW_mean=NW )
-
-se.quad.count <- call_count4 %>% select(-Mean, -Nights.Surveyed) %>%
-                            pivot_wider(names_from = c("Quadrant"),  values_from = c("SE")) %>% 
-                           rename(SE_se=SE, SW_se=SW, NE_se=NE, NW_se=NW ) 
-
-srvynights.quad.count <- call_count4 %>% select(-Mean, -SE) %>%
-                            pivot_wider(names_from = c("Quadrant"),  values_from = c("Nights.Surveyed")) %>% 
-                           rename(SE_ns=SE, SW_ns=SW, NE_ns=NE, NW_ns=NW ) 
-
-mean.se.ns.quad.count <- cbind(mean.quad.count, se.quad.count, srvynights.quad.count) %>% select(-NP1:-Deployment.ID1, -NP2:-Deployment.ID2)
-
-# function to separate out into year tables for knitr:kable
-fn.mean.se.quad.count.YR <- function(year=year){
-  df.year <- mean.se.ns.quad.count %>% filter(Deployment.ID==year)
-  df.year <- df.year[c("Land.Unit.Code", "GRTS.Cell.ID",
-                                           "SE_mean", "SE_se", "SE_ns",
-                                           'SW_mean', "SW_se", "SW_ns",
-                                           'NE_mean', 'NE_se', "NE_ns",
-                                           "NW_mean", "NW_se", "NW_ns")]
-  
-  colnames(df.year) <- c("Land Unit", "GRTS ID","SE Mean", "SE", "# Nights", "SW Mean", "SE", "# Nights", "NE Mean", "SE", "# Nights", "NW Mean", "Se", "# Nights")
-  return(df.year)
-  }
-
-# create loop to run annual tables
-call_year <- unique(call_count4$Deployment.ID)
-for (i in 1:length(call_year)) {
-  opts <- options(knitr.kable.NA = "")
-  df.year <- fn.mean.se.quad.count.YR(year=call_year[i])
-  print(knitr::kable(df.year, 
-             caption = paste(call_year[i],"mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) surveyed. # Nights refers to the number of nights the quadrant was surveyed.", sep=" "), 
-             digits=1))
-  cat('\n\n')
-  options(opts)
-}
-
-```
-
-#### Nightly Bat Call Summaries by Species / Species Group
-There were `r sprintf("%.0f", sum(call_count$Count))` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`, over `r sum(as.numeric(total.effort$Diff))` survey nights. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
-
-``` {r overall call table, echo=F, results="asis"}
-# create a table for the paper
-# Determine call count overall, percentage and by effort for each species
-Table.Calls <- call_count %>% group_by(Classification) %>% summarise(Call.Count = sum(Count))
-Table.Calls$Per.Known <- as.data.frame(round(Table.Calls$Call.Count/sum(Table.Calls$Call.Count)*100,0))[,1]
-Table.Calls$Occupancy <- as.data.frame(round(Table.Calls$Call.Count/sum(as.numeric(total.effort$Diff)),2))[,1] 
-colnames(Table.Calls) <- c("Species / Species Group", "Call Count", "% of Calls","Calls per Night")
-
-knitr::kable(replace(Table.Calls, Table.Calls==0, ""), 
-             caption=paste("Overall bat calls and naive occupancy for ",n.stat," bat survey locations from ",min(eff$Deployment.ID),"-", max(eff$Deployment.ID),".", sep=""),
-             align = "lrrr")
-```
-
-
-```{r sp hist NR, echo=F, fig.height=8.5, fig.width=7, fig.cap="Total bat calls for species / species groups by year and Natural Region"}
-# Generate colours to display the species levels
-call_count$Classification <- droplevels(call_count$Classification)
-
-Sp.hist.data <- call_count %>% group_by(Deployment.ID, Natural.Region, Land.Use.Type) %>% count(Classification)
-
-Sp.hist.NR <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Natural.Region)) + 
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=col.catNR)+
-  theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
-  theme(legend.position="bottom", legend.title = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
-  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
-
-Sp.hist.NR
-
-```
-
-
-```{r sp hist LUT, echo=F, fig.height=8.5, fig.width=7, fig.cap="Total bat calls for species / species groups by year and Land Use Type"}
-
-Sp.hist.LUT <- ggplot(data = Sp.hist.data %>% filter(!is.na(Land.Use.Type)), aes(x = Classification, y = n, fill= Land.Use.Type)) + 
-  geom_bar(stat = "identity") + 
-  scale_fill_manual(values=col.catLUT)+
-  theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
-  theme(legend.position="bottom", legend.title = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
-  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
-
-Sp.hist.LUT
-```
-
-
-```{r mean species call by year and volancy, echo=F, fig.height=8.5, fig.width=7, warning=FALSE, fig.cap=" Mean nightly bat calls for each species / species group by year and volancy period."}
-call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
-
-# subset data for overall mean nightly bat calls by year for each Natural Region
-Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Volancy) %>% 
-  summarise(Mean = mean(Count), SE = se(Count))
-
-fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification!="unknown")%>%
-  ggplot(aes(x = Classification, y = Mean, fill=Volancy))+
-  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
-  scale_fill_manual(values=unique(col.catVol)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-  #ylim(c(0,60))+
-  geom_linerange(aes(Classification, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
-  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(legend.position = "bottom", legend.title = element_blank()) +
-  facet_wrap(~Deployment.ID, ncol=1)
-fcalls.Sp
-
-```
-
-``` {r mean species call for each year and volancy period by Land Unit, echo=F, warning=FALSE, results='asis'}
-call_count.LUC.Sp <- call_count %>% group_by(Land.Unit.Code, Deployment.ID, Volancy, Classification) %>% summarise(Mean=mean(Count), SE=se(Count)) 
-
-call_count.LUC.Sp$Deployment.ID <- factor(call_count.LUC.Sp$Deployment.ID, levels=c("2015", "2016", "2017", "2018", "2019", "2020"))
-levels(call_count.LUC.Sp$Deployment.ID)
-
-mean.LUCSp.count <- call_count.LUC.Sp  %>% arrange(Land.Unit.Code, Classification, Volancy) %>% select(-SE) %>% 
-                               pivot_wider(names_from = c("Deployment.ID"),  values_from = c("Mean")) %>%
-                             rename(mean2015=`2015`, mean2016=`2016`, mean2017=`2017`, mean2018=`2018`, mean2019=`2019`, mean2020=`2020`)
-
-se.LUCsp.count <- call_count.LUC.Sp %>% arrange(Land.Unit.Code, Classification, Volancy) %>% select(-Mean) %>%
-                            pivot_wider(names_from = c("Deployment.ID"),  values_from = c("SE")) %>%
-                             rename(se2015=`2015`, se2016=`2016`, se2017=`2017`, se2018=`2018`, se2019=`2019`, se2020=`2020`)
-
-mean.se.LUCsp.count <- cbind(mean.LUCSp.count, se.LUCsp.count) %>% select(-Land.Unit.Code1:-Classification1)
-mean.se.LUCsp.count$Volancy <- mean.se.LUCsp.count$Volancy %>% recode_factor("Pre-volancy" = "Pre", "Post-volancy"="Post")
-
-# function to separate out into year tables for knitr:kable
-fn.mean.se.Sp.count.LUC <- function(LUC=LUC){
-  
-  df.LUC <- mean.se.LUCsp.count %>% filter(Land.Unit.Code==LUC)
-  df.LUC <- df.LUC[c("Classification","Volancy",
-                     "mean2015", "se2015","mean2016", "se2016","mean2017", "se2017",
-                     "mean2018", "se2018","mean2019", "se2019","mean2020", "se2020")]
-  
-  colnames(df.LUC) <- c("Species", "Volancy","2015 Mean", "SE", "2016 Mean", "SE", "2017 Mean", "SE", "2018 Mean", "SE", "2019 Mean", "SE", "2020 Mean", "SE")
-  return(df.LUC)
-  
-}
-  
-# create loop to run annual tables
-call_LUC <- unique(call_count.LUC.Sp$Land.Unit.Code)
-for (i in 1:length(call_LUC)) {
-  opts <- options(knitr.kable.NA = "")
-  df.LUC <- fn.mean.se.Sp.count.LUC(LUC=call_LUC[i])
-  print(knitr::kable(df.LUC, 
-             caption = paste(call_LUC[i],"mean ± 1 SE nightly bat calls by species / species group for year and volancy period.", sep=" "), 
-             digits=1))
-  cat('\n\n')
-  options(opts)
-}
-
-```
+#### Summary Statistics
+All analyses were conducted in R (ver. 3.6.1; <www.r-project.org>), within RStudio (version xx) using Rmarkdwon (version xx) for reproducible results. Unless otherwise noted, results are reported as the mean ± 1 SE. 
 
 ``` {r temporal summaries, include=F}
 
@@ -840,10 +404,23 @@ dat_sum_sub <- dat_summaryT[c("GRTS.Cell.ID","Location.Name","SurveyNight","Year
 
 # the Whitemud files that came from Kaleidoscope don't have probabilities so exclude them from this analysis
 dat_sum_sub <- dat_sum_sub[complete.cases(dat_sum_sub$n_calls),] # now down to 285,596 files
+dat_sum_sub$Location.Name.Year <- paste(dat_sum_sub$Location.Name, dat_sum_sub$Year, sep="_")
+
+# check for erroneous time stamps and remove entire survey
+Timepdate <- date(Sys.time())
+Timepdatetime1 <- as.POSIXct(paste(Timepdate,"08:00:00"), tz)
+Timepdatetime2 <- as.POSIXct(paste(Timepdate,"18:00:00"),tz)
+
+# 21 stations and 39 surveys with calls between 8 am and 6 pm - remove these survey periods from the temporal analysis
+timestamp.error <- as.data.frame(dat_sum_sub %>% filter(Timep >Timepdatetime1 & Timep<Timepdatetime2) %>% filter(sp1!="noise") %>% group_by(Location.Name.Year) %>% summarise(min(SurveyNight), max(SurveyNight)))
+unique(timestamp.error$Location.Name.Year)
+
+# remove these 39 surveys from dat_sum_sub
+dat_sum_sub <- dat_sum_sub %>% filter(!Location.Name.Year %in% timestamp.error$Location.Name.Year)
 
 # subset data to one month pre and one month post volancy (July 10)
 dat_sum_sub <- dat_sum_sub %>% filter(between(jDay, 162,223))
-nrow(dat_sum_sub) # now down to 277,785
+nrow(dat_sum_sub) # now down to 188416
 
 # create thresholds for noise and bat classificaitons
 threshold_noise <- 0.8; threshold_bat <- 0.5
@@ -858,7 +435,7 @@ dat_sum_sub$category[index_noise] <- "noise"
 # Index the noise values to be filtered out
 index_remove_noise <- with(dat_sum_sub, (category == "unknown") & (sp1 == "noise")) 
 
-# Note that there are 76 `NA` values
+# Note that there are 55 `NA` values
 sum(is.na(index_remove_noise)) 
 # These `NA` values are due to an `NA` in the `sp1` column which is the result of a tie in the random forest probabilities
 dat_sum_sub[is.na(index_remove_noise),]
@@ -918,10 +495,11 @@ dat_sum_sub_df$category[EPFU.LANO_index] <- "EPFU.LANO"
 dat_sum_sub_df$category[My_40k_index] <- "My_40k"
 
 ###--- Visualization of overlapping species detection data
-# uses camtrapR and dependent packages (overlap and plotrix)
+# use overlap and circular R packages
+
 # create new df with select columns, remove noise files and add in some covariates
 dat_time <- dat_sum_sub_df %>% select(-Filename:-sp3) %>% filter(category!="noise")
-# now down to 204,452 files
+# now down to 167,319 files
 
 dat_time$Classification <- as.factor(dat_time$category %>% 
                                          recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
@@ -939,38 +517,20 @@ dat_time$NP <- sta$NP[match(dat_time$Location.Name, sta$Location.Name,)]
 dat_time$Land.Use.Type <- sta$Land.Use.Type[match(dat_time$Location.Name, sta$Location.Name,)]
 dat_time$Natural.Region <- sta$Natural.Region[match(dat_time$Location.Name, sta$Location.Name,)]
 
-# when graphing issues with time stamps in Barren Land and Grassland - need to remove these from the analyses
-dat_time <- dat_time %>% filter(Land.Use.Type!="Barren Land" & Land.Use.Type!="Grassland") 
-dat_time %>% count(Land.Use.Type)
-
 # create activity overlap plots for all bats in/out of parks 
-activityOverlap(recordTable = dat_time[dat_time$Volancy=="Post-volancy",],
-                                 speciesA = "In",
-                                 speciesB = "Out",
-                                 speciesCol = "NP",
-                                 recordDateTimeCol = "Time",
-                                 recordDateTimeFormat = "%H:%M:%S",
-                                 xcenter="midnight",
-                                 overlapEstimator = "Dhat4",
-                                 plotR = TRUE,
-                                 writePNG = TRUE,
-                                 plotDirectory = ("./Output"),
-                                 addLegend = TRUE,
-                                 legendPosition = "topleft",
-                                 pngMaxPix   = 1000,
-                                 linecol     = c("black", "blue"),
-                                 linewidth   = c(3,3),
-                                 linetype    = c(1, 2),
-                                 olapcol     = "darkgrey",
-                                 add.rug     = TRUE,
-                                 extend      = "lightgrey",
-                                # ylim = c(0,0.5),
-                                 main = "Overall post-volancy bat activity overlap in/out of National Parks")
 
+NP.inout <- activityOverlap(recordTable = dat_time, speciesA = "In", speciesB = "Out", speciesCol = "NP", recordDateTimeCol = "Time", recordDateTimeFormat = "%H:%M:%S",xcenter="midnight", overlapEstimator = "Dhat4",plotR = TRUE, writePNG = TRUE, plotDirectory = ("./Output"), addLegend = TRUE, legendPosition = "topleft", pngMaxPix   = 1000, linecol     = c("black", "blue"), linewidth   = c(3,3), linetype    = c(1, 2), olapcol     = "darkgrey", add.rug     = TRUE, extend      = "lightgrey", main = "Overall bat activity overlap in/out of National Parks")
+NP.WWT <- watson.wheeler.test(list(NP.inout$densityA, NP.inout$densityB))
+
+NP.postVol <- activityOverlap(recordTable = dat_time[dat_time$Volancy=="Post-volancy",], speciesA = "In", speciesB = "Out", speciesCol = "NP", recordDateTimeCol = "Time", recordDateTimeFormat = "%H:%M:%S",xcenter="midnight", overlapEstimator = "Dhat4",plotR = TRUE, writePNG = TRUE, plotDirectory = ("./Output"), addLegend = TRUE, legendPosition = "topleft", pngMaxPix   = 1000, linecol     = c("black", "blue"), linewidth   = c(3,3), linetype    = c(1, 2), olapcol     = "darkgrey", add.rug     = TRUE, extend      = "lightgrey", main = "Overall post-volancy bat activity overlap in/out of National Parks")
+NP.postVol.WWT <- watson.wheeler.test(list(NP.postVol$densityA, NP.postVol$densityB))
+
+NP.preVol <- activityOverlap(recordTable = dat_time[dat_time$Volancy=="Pre-volancy",], speciesA = "In", speciesB = "Out", speciesCol = "NP", recordDateTimeCol = "Time", recordDateTimeFormat = "%H:%M:%S",xcenter="midnight", overlapEstimator = "Dhat4",plotR = TRUE, writePNG = TRUE, plotDirectory = ("./Output"), addLegend = TRUE, legendPosition = "topleft", pngMaxPix   = 1000, linecol     = c("black", "blue"), linewidth   = c(3,3), linetype    = c(1, 2), olapcol     = "darkgrey", add.rug     = TRUE, extend      = "lightgrey", main = "Overall pre-volancy bat activity overlap in/out of National Parks")
+NP.pretVol.WWT <- watson.wheeler.test(list(NP.preVol$densityA, NP.preVol$densityB))
 
 # create function to produce activity overlap for all classifications pre and post volancy 
 volancy_overlap.fn <- function(Classification=Classification){
-  activityOverlap(recordTable = dat_time,
+  overlap <- activityOverlap(recordTable = dat_time,
                                  speciesA = paste(Classification,"Pre-volancy"),
                                  speciesB = paste(Classification,"Post-volancy"),
                                  speciesCol = "Classification_Volancy",
@@ -992,25 +552,36 @@ volancy_overlap.fn <- function(Classification=Classification){
                                  extend      = "lightgrey",
                                  ylim = c(0,0.35),
                                  main = paste(Classification,"Pre and Post Volancy"))
+  wwt <- watson.wheeler.test(list(overlap$densityA, overlap$densityB))
+  return(wwt)
 }
 
 # run through each classification, except "unknown" and any classification with <100 calls
 class.list <- as.data.frame(dat_time %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% 
   filter(n>100) %>% select(Classification))
-volancy.overlap <- volancy_overlap.fn(Classification=class.list[7,])
+LACI.WWT <- volancy_overlap.fn(Classification=class.list[1,])
+MYLU.WWT <- volancy_overlap.fn(Classification=class.list[2,])
+Myotis40k.WWT <- volancy_overlap.fn(Classification=class.list[3,])
+EPFU.LANO.WWT <- volancy_overlap.fn(Classification=class.list[4,])
+LANO.WWT <- volancy_overlap.fn(Classification=class.list[5,])
+LABO.MYLU.WWT <- volancy_overlap.fn(Classification=class.list[6,])
+EPFU.WWT <- volancy_overlap.fn(Classification=class.list[7,])
+LABO.WWT <- volancy_overlap.fn(Classification=class.list[8,])
+
+Sp.Vol.WWT <- cbind(LACI.WWT, MYLU.WWT,Myotis40k.WWT,EPFU.LANO.WWT,LANO.WWT,LABO.MYLU.WWT,EPFU.WWT,LABO.WWT)
+glimpse(Sp.Vol.WWT)
 
 # create function to produce activity overlap for all bats pre and post volancy by land use type
 dat_timeLUT <- dat_time[!is.na(dat_time$Land.Use.Type),]
 dat_timeLUT %>% group_by(Volancy) %>% count(Land.Use.Type)
 
 LUT.class <- c("EPFU", "LANO","LABO","LACI","MYLU") # too much to do LUT.class * LUT so stick with just LUT for now
-LUT <- c("Agriculture","Developed","Forest","Shrubland","Water" )
+LUT <- c("Agriculture","Barren Land", "Developed","Forest","Grassland","Shrubland","Water" )
 
 LUT_overlap.fn <- function(LUT=LUT){ 
-  activityOverlap(recordTable = dat_timeLUT[dat_timeLUT$Land.Use.Type==LUT,],
+  overlap <- activityOverlap(recordTable = dat_timeLUT[dat_timeLUT$Land.Use.Type==LUT,],
                                  speciesA = "Pre-volancy",
                                  speciesB = "Post-volancy",
-                                 #allSpecies = FALSE,
                                  speciesCol = "Volancy",
                                  recordDateTimeCol = "Time",
                                  recordDateTimeFormat = "%H:%M:%S",
@@ -1030,10 +601,19 @@ LUT_overlap.fn <- function(LUT=LUT){
                                  extend      = "lightgrey",
                                  #ylim = c(0,0.35),
                                  main = paste("Overall bat activity pre and post volancy overlap in",LUT))
+    wwt <- watson.wheeler.test(list(overlap$densityA, overlap$densityB))
+    return(wwt)
+
 }
 # run through each land use type
-
-LUT.overlap <- LUT_overlap.fn (LUT=LUT[3])
+LUT
+AG.WWT <- LUT_overlap.fn (LUT=LUT[1])
+BL.WWT <- LUT_overlap.fn (LUT=LUT[2])
+DV.WWT <- LUT_overlap.fn (LUT=LUT[3])
+FR.WWT <- LUT_overlap.fn (LUT=LUT[4])
+GR.WWT <- LUT_overlap.fn (LUT=LUT[5])
+SH.WWT <- LUT_overlap.fn (LUT=LUT[6])
+WT.WWT <- LUT_overlap.fn (LUT=LUT[7])
 
 # create function to produce activity overlap for all bats pre and post volancy by Natural Region type
 dat_time %>% group_by(Volancy) %>% count(Natural.Region)
@@ -1041,10 +621,9 @@ dat_time %>% group_by(Volancy) %>% count(Natural.Region)
 NR <- c("Boreal","Foothills","Grassland","Parkland","Rocky Mountain" )
 
 NR_overlap.fn <- function(NR=NR){ 
-  activityOverlap(recordTable = dat_time[dat_time$Natural.Region==NR,],
+  overlap <- activityOverlap(recordTable = dat_time[dat_time$Natural.Region==NR,],
                                  speciesA = "Pre-volancy",
                                  speciesB = "Post-volancy",
-                                 #allSpecies = FALSE,
                                  speciesCol = "Volancy",
                                  recordDateTimeCol = "Time",
                                  recordDateTimeFormat = "%H:%M:%S",
@@ -1062,14 +641,709 @@ NR_overlap.fn <- function(NR=NR){
                                  olapcol     = "darkgrey",
                                  add.rug     = TRUE,
                                  extend      = "lightgrey",
-                                 ylim = c(0,0.25),
+                                 #ylim = c(0,0.25),
                                  main = paste("Overall bat activity pre and post volancy overlap in",NR))
+  wwt <- watson.wheeler.test(list(overlap$densityA, overlap$densityB))
+    return(wwt)
 }
 # run through each land use type
 
-NR.overlap <- NR_overlap.fn (NR=NR[5])
+BO.WWT <- NR_overlap.fn (NR=NR[1])
+FO.WWT <- NR_overlap.fn (NR=NR[2])
+GA.WWT <- NR_overlap.fn (NR=NR[3])
+PA.WWT <- NR_overlap.fn (NR=NR[4])
+RM.WWT <- NR_overlap.fn (NR=NR[5])
 
 ```
+
+#### Spatial and Temporal Patterns 
+Nocturnal bat activity pattens were determined overall and for species / species groups pre- and post-volancy by pooling calls overall and within applicable grouping categories. A non-parametric kernel density estimation was applied to these pooled calls (Ridout and Linkie 2009) to generate activity curves using the R package overlap (Meredith and Ridout 2016). Density of activity (y-axis) uses a von Mises kernel and corresponds to the circular distribution of recorded capture times on the 24-h x-axis. Using the same kernel density approach, the amount of overlap between two activity curves was calculated. This overlap coefficient (Δ) represents the shared area under the two density functions and ranges from 0 (no overlap) to 1 (complete overlap). The Δ4 estimator was used, as sample sizes were >75, with a smoothing parameter of 1 (Ridout and Linkie 2009). The  nonparametric Mardia–Watson–Wheeler (MWW) test (Gill and Batschelet 1983) was used to compare the mean and variance of the two activity distributions, to determine whether observed activity shifts represented statistically significant differences, using the R package circular (Agostinelli and Lund 2013). 
+
+To examine species specific patterns, pre- and post-volancy activity patterns were created for each focal species / species group by pooling focal species / species group calls temporally (i.e., pre- versus post-volancy). In contrast, for spatial groups all bat calls were pooled (i.e., using all bat calls including those identified as ‘unknown’) temporally and then by each Land Use Type and Natural Region. For National Parks, activity patterns were created by first pooling all bat calls within and outside National Parks, and then splitting into pre- and post-volancy groups. Volancy was set at a julian day of 192 (July 10 for most years) with pre-volancy groups comprising calls recorded up to one month before July 10 (i.e., from a julian day of 162 to 191) and for one month on or after July 10 (i.e., from a julian day of 192 to 223).
+
+``` {r HMSC prep, include=F}
+# # Code to prepare data for HMSC analysis, do not include in rmarkdown output
+# # Objective: examine the data hierarchically.
+# 
+# # First an overall community composition analysis
+# 
+# # Data - use the call count data for aggregated nightly counts
+# glimpse(call_count)
+# dat <- call_count
+# 
+# # Exclude EINP as no station covariates
+# dat <- dat %>% filter(Land.Unit.Code!="EINP") 
+# dat %>% count(Location.Name) #113 stations, EINP has been removed
+# 
+# # Subset to the species / species groups with sufficient data (>100), exclude unknown
+# dat %>% count(Classification, sort=TRUE)
+# sp.to.include <- dat %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% filter(n>100) %>% select(Classification)
+# 
+# dat <- dat[dat$Classification %in% sp.to.include$Classification,]  
+# dat %>% count(Classification, sort=TRUE) # all here
+# dat$Species <- factor(dat$Classification)
+# 
+# # Effort data and covariates  
+# # Station (unique survey bat location) data
+# nrow(sta)
+# # remove EINP as doesn't have the GIS covaraites
+# sta <- sta %>% filter(Land.Unit.Code!="EINP") # now only 113 stations
+# nrow(sta) # EINP has been removed
+# 
+# plot(sta$Longitude , sta$Latitude, asp=1)
+# 
+# # modify the GIS covariates to suit the analysis
+# ### Road type and distance
+# sta %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
+# sta$Road.Type <- as.character(sta$Road.Type)
+# 
+# # if Road is within 100 m, keep as Road.Type.Ord but if >100 then change to 1, i.e., "No Road"
+# sta$Road.Type <- case_when(sta$Road.Distance > 100 ~ "No Road",
+#                                TRUE ~ as.character(sta$Road.Type))
+# # recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
+# sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
+#   recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4, 
+#          "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
+# 
+# hist(sta$Road.Type.Ord)
+# # recode distance to ordinal scale 1-10 for 0-100 m being 1, 100-200 being 2 and so on
+# max(sta$Road.Distance, na.rm=T) # 759 m, so max category is 9 for roads > 800 and those with NA (none within 1000 m)
+# sta$Road.Distance.Ord <- ifelse(sta$Road.Distance<100, 1, 
+#                                 ifelse(sta$Road.Distance<200, 2,
+#                                        ifelse(sta$Road.Distance<300, 3,
+#                                               ifelse(sta$Road.Distance<400, 4,
+#                                                      ifelse(sta$Road.Distance<500, 5,
+#                                                             ifelse(sta$Road.Distance<600, 6,
+#                                                                    ifelse(sta$Road.Distance<700, 7,
+#                                                                           ifelse(sta$Road.Distance<800, 8,
+#                                                                                  ifelse(sta$Road.Distance>800,9, NA)))))))))
+# 
+# sta$Road.Distance.Ord <- sta$Road.Distance.Ord %>% replace_na(9)
+# sta %>% group_by(Road.Distance.Ord) %>% summarise(min(Road.Distance), max(Road.Distance))
+# 
+# ### Water type and distance
+# sta %>% filter(is.na(Waterbody.Distance)) %>% count(Stream.Type)
+# # some streams are closer than waterbodies, perhaps change waterbody type to stream?
+# # yes - stream and water have similar features - consolidate into one called "Water" with the closest distance being the type/distance attributed
+# sta %>% filter(Stream.Distance<100 | Waterbody.Distance<100) %>% group_by(Stream.Type, Waterbody.Type) %>% 
+#   select(Location.Name, Stream.Distance, Waterbody.Distance, Stream.Type, Waterbody.Type)
+# 
+# sta$Water.Distance <- with(sta, pmin(Stream.Distance, Waterbody.Distance, na.rm=T))
+# # to remove NAs, will change this to ordinal scale later as actually >1000 but unknown
+# sta$Water.Distance <- replace_na(sta$Water.Distance, 1001) 
+# 
+# sta$Water.Type <- case_when(sta$Waterbody.Distance < sta$Stream.Distance ~ as.character(sta$Waterbody.Type), 
+#                             TRUE ~ as.character(sta$Stream.Type))
+# as.data.frame(sta %>% group_by(Water.Type) %>% select(Waterbody.Type, Stream.Type, Waterbody.Distance, Stream.Distance, Water.Distance))
+# 
+# max(sta$Water.Distance, na.rm=T) # 1001 m, so max category is 11 for water with 11 being >1000 m
+# 
+# # recode to ordinal scale, also changing NA to No Water as it meant no waterbody or stream within 1000 m
+# sta$Water.Type.Ord <- sta$Water.Type %>% replace_na("No Water") %>%
+#   recode("No Stream"=1, "No Water"=1, "DITCH"=2,"FLOW-ARB-DEM"=2,"STR-INDEF"=3, "STR-PER"=3, "STR-RECUR"=3, "OXBOW-RECUR"=3, 
+#          "WETLAND"=4, "RIV-MAJ"=5, "QUARRY"=6, "RESERVOIR"=6, "LAKE-PER"=7, "LAKE-RECUR"=7)
+# sta %>% group_by(Water.Type) %>% count(Water.Type.Ord)
+# hist(sta$Water.Type.Ord)
+# 
+# sta$Water.Distance.Ord <- ifelse(sta$Water.Distance<100, 1, 
+#                                 ifelse(sta$Water.Distance<200, 2,
+#                                        ifelse(sta$Water.Distance<300, 3,
+#                                               ifelse(sta$Water.Distance<400, 4,
+#                                                      ifelse(sta$Water.Distance<500, 5,
+#                                                             ifelse(sta$Water.Distance<600, 6,
+#                                                                    ifelse(sta$Water.Distance<700, 7,
+#                                                                           ifelse(sta$Water.Distance<800, 8,
+#                                                                                  ifelse(sta$Water.Distance<900,9, 
+#                                                                                         ifelse(sta$Water.Distance<1000,10,11))))))))))
+# 
+# sta %>% group_by(Water.Distance.Ord) %>% summarise(min(Water.Distance), max(Water.Distance))
+# hist(sta$Water.Distance.Ord)
+# 
+# ### Human Footprint type and distance
+# as.data.frame(sta %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report 
+# sta$Human.Footprint.Distance <- replace_na(sta$Human.Footprint.Distance, 1001)
+# sta$Human.Footprint.Sublayer <- ifelse(sta$Human.Footprint.Type %in% 
+#                                          c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
+#                                            "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
+#                                        ifelse(sta$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
+#                                               ifelse(sta$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
+#                                                      ifelse(sta$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
+#                                                             ifelse(sta$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
+#                                                                    ifelse(sta$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
+# 
+# sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 100 ~ "No Human Footprint", 
+#                             TRUE ~ as.character(sta$Human.Footprint.Sublayer))
+# 
+# sta %>% count(Human.Footprint.Sublayer)
+# as.data.frame(sta %>% group_by(Human.Footprint.Sublayer) %>% count(Human.Footprint.Type))
+# summary(sta$Human.Footprint.Distance) # 94 are within 100 m of site, so let's change to log for ordinal scale
+# sta$Human.Footprint.Distance.log <- log(sta$Human.Footprint.Distance+1)
+# summary(sta$Human.Footprint.Distance.log) # now values range from 0-6.9
+# # recode distance to ordinal scale 1-10 using log transformed distance values
+# sta$Human.Footprint.Distance.Ord <- ifelse(sta$Human.Footprint.Distance.log<1, 1, 
+#                                 ifelse(sta$Human.Footprint.Distance.log<2, 2,
+#                                        ifelse(sta$Human.Footprint.Distance.log<3, 3,
+#                                               ifelse(sta$Human.Footprint.Distance.log<4, 4,
+#                                                      ifelse(sta$Human.Footprint.Distance.log<5, 5,
+#                                                             ifelse(sta$Human.Footprint.Distance.log<6, 6,7))))))
+# 
+# sta %>% group_by(Human.Footprint.Distance.Ord) %>% summarise(min(Human.Footprint.Distance), max(Human.Footprint.Distance))
+# 
+# # need to change env covariates into weekly covariates
+# nightly.max.env.cov$Year <- lubridate::year(nightly.max.env.cov$SurveyNight)
+# nightly.max.env.cov$Week <- lubridate::week(nightly.max.env.cov$SurveyNight)
+# nightly.max.env.cov$Location.Name.Year <- as.factor(paste(nightly.max.env.cov$Location.Name, nightly.max.env.cov$Year,sep="_"))
+# 
+# weekly.max.env.cov <- nightly.max.env.cov %>% group_by(Location.Name.Year, Week) %>%
+#   summarise(Max.Temp = mean(Max.Temp, na.rm = T), Max.Wind = mean(Max.Wind, na.rm = T), Max.Hum = mean(Max.Hum, na.rm = T))
+# summary(weekly.max.env.cov)
+# 
+# # now have ordinal scales for road distance, road type, water distance, water type and human footprint distance
+# # categorical scale for human footprint (no footprint will be reference value)
+# # other categorical scale covariates = NP, Natural Region, Land.Use.Type
+# # final station covariates = Latitude and Longitude
+# # temporal covariates = Year, Volancy
+# # environmental covariates = max temp, max humidity, max wind (mean for the week)
+# 
+# # Need to determine lenght of surveys (effort) per location as not always what it says in eff df
+# dat %>% group_by(Deployment.ID) %>% summarise_at(c("SurveyNight"), list(min, mean, max))
+# # looks surveys started by June 9 (or earlier) most years, surveys ended by end of July or later
+# # go with June 9/10 - July 31 as the date range for HMSC
+# dat %>% group_by(Deployment.ID) %>% summarise_at(c("jDay"), list(min, mean, max))
+# # July 30 in julian day can be 211 or 212, go with 211 as some years only go till 211
+# # June 10 in julian day can be 161 or 162 depending on leap year so go with 162 to make even 7 weeks for weekly observations
+# # in the weekly obs, volancy will be considered as the start of week 28 (i.e., 190 days)
+# week("2020-07-10") # week 28 for all years (2015-2020)
+# yday("2020-07-10") # day 192 in 2020
+# 
+# dat <- dat %>% filter(between(jDay, 162, 211))
+# 
+# call_effort <- dat %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
+# call_effort$Location.Name.Year <- as.factor(paste(call_effort$Location.Name, call_effort$Deployment.ID,sep="_"))
+# 
+# call_effort_daily <- call_effort %>%
+#      # sequence of daily dates for each corresponding start, end elements
+#      transmute(Location.Name.Year, Date = map2(Min, Max, seq, by = "1 day")) %>%
+#      # unnest the list column
+#      unnest %>% 
+#      # remove any duplicate rows
+#      distinct
+# 
+# call_effort_daily$Year <- year(call_effort_daily$Date)
+# call_effort_daily %>% group_by(Year) %>% summarise(min(Date), max(Date))
+# call_effort_daily %>% group_by(Year) %>% count(Date)
+# call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
+# 
+# ##################################################################### 
+# # Build the analysis data      ######################################
+# #####################################################################
+# 
+# # Y data          
+# 
+# # Daily
+#   # Station / Date / Effort / Species      
+#     tmp <- call_effort_daily
+#     daily.obs <- tmp %>% 
+#       group_by(Location.Name,Date ) %>%
+#       summarise(Effort = n())
+#     
+#     daily.obs <- as.data.frame(daily.obs[!is.na(daily.obs$Date),]) # removing any NAs
+#     
+#     daily.obs[, levels(dat$Species)] <- NA
+#     i <-1
+#         for(i in 1:nrow(daily.obs)){
+#       tmp <- dat[dat$Location.Name==daily.obs$Location.Name[i] & dat$SurveyNight== daily.obs$Date[i],]
+#       for(j in 1:length(levels(dat$Species))){
+#         daily.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
+#       }
+#     }
+#         
+# 
+# # Weekly
+#   # Station / Month / Effort / Covariates / Species  
+#     dat$Location.Name_Yr <- paste(dat$Location.Name, dat$Year, sep="_")
+#     
+#     tmp <- call_effort_daily
+#     tmp$Week <- week(tmp$Date) 
+#     as.data.frame(tmp %>% group_by(Year, Week) %>% filter(Week == 24 |Week == 31) %>% summarise(min(Date), max(Date))) 
+#     # week 31 starts on July 29/30 so remove from df
+#     week.obs <- tmp %>% 
+#       filter(Week != 31) %>%
+#       group_by(Year, Location.Name, Week) %>%
+#       summarise(Effort = n())
+#     
+#     week.obs <- as.data.frame(week.obs)
+#     week.obs$Location.Name_Yr <- paste(week.obs$Location.Name, week.obs$Year, sep="_")
+#     
+#     week.obs[, levels(dat$Species)] <- NA
+#     i <-1
+#     for(i in 1:nrow(week.obs))
+#     {
+#       tmp <- dat[dat$Location.Name_Yr==week.obs$Location.Name_Yr[i] & week(dat$SurveyNight)== week.obs$Week[i],]
+#       for(j in 1:length(levels(dat$Species)))
+#       {
+#         week.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
+#       }
+#     }
+#  
+# # Save the Y data
+# write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )    
+# write.csv(week.obs %>% select(-Location.Name_Yr),"Output/week_observations.csv", row.names = F )    
+# write.csv(call_effort_daily,"Output/row_lookup.csv", row.names = F )    
+# 
+# # Make the Y matrix
+# # week
+# # add in temporal covariates (Volancy only as Year already included); volancy starts in week 28
+# week.obs$Volancy <- as.factor(ifelse(week.obs$Week<28, "Pre-volancy","Post-volancy"))
+# week.obs %>% group_by(Week) %>% count(Volancy)
+# 
+# # add in env covariates (need to match on Location.Name, Year and Week)
+# week.obs$Location.Name_Yr_Week <- paste(week.obs$Location.Name_Yr,week.obs$Week,sep="_")
+# weekly.max.env.cov$Location.Name_Yr_Week <- paste(weekly.max.env.cov$Location.Name.Year,weekly.max.env.cov$Week,sep="_")
+# week.obs <- left_join(week.obs, weekly.max.env.cov)
+# 
+# # Make the Y Matrix
+# Y <- week.obs[c(5:13)]
+# row.names(Y) <- Y$Location.Name_Yr_Week
+# 
+# #clean up the matrix
+# Y$Location.Name_Yr <-NULL; Y$Volancy <- NULL; Y$Location.Name_Yr_Week <- NULL
+# head(Y)
+# Y <- as.matrix(Y)
+# 
+# # Make the XData
+# sta.week  <- week.obs[,c("Location.Name", "Week","Year", "Volancy","Effort")]
+# head(sta.week)
+# sta.week <- left_join(sta %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Distance.Ord"), sta.week)
+# XData <- data.frame(sta.week)
+# 
+# names(XData)
+# #relevel categorical covariates
+# XData$Natural.Region <- relevel(XData$Natural.Region, ref="Rocky Mountain")
+# XData$Land.Unit.Code <- XData$Land.Unit.Code %>% droplevels() %>% relevel("WBNP")
+# XData$Land.Use.Type <- relevel(XData$Land.Use.Type, ref="Forest")
+# XData$Volancy <- relevel(XData$Volancy, ref="Pre-volancy")
+# 
+# #standardize ordinal/continuous variables
+# XData$Latitude <- stdize(XData$Latitude)
+# XData$Longitude <- stdize(XData$Longitude)
+# XData$Effort <- stdize(XData$Effort)
+# XData$Max.Temp <- stdize(XData$Max.Temp_Mean)
+# XData$Max.Hum <- stdize(XData$Max.Hum_Mean)
+# XData$Max.Wind <- stdize(XData$Max.Hum_Mean)
+# XData$Road.Type <- stdize(XData$Road.Type.Ord)
+# XData$Road.Distance <- stdize(XData$Road.Distance.Ord)
+# XData$Water.Type <- stdize(XData$Water.Type.Ord)
+# XData$Water.Distance <- stdize(XData$Water.Distance.Ord)
+# XData$Human.Footprint.Distance <- stdize(XData$Human.Footprint.Distance.Ord)
+# 
+# XData <- XData %>% select(-Max.Temp_Mean, -Max.Hum_Mean, -Max.Wind_Mean)
+# 
+# summary(XData)
+# # remove the two surveys done outside the temporal window: 171651_NW_01 and 171651_NW_02
+# XData <- XData %>% filter(Location.Name!="171651_NW_01" & Location.Name!="171651_NW_02")
+# XData <- XData %>% select(-Max.Temp, -Max.Hum, -Max.Wind) # need to figure out the NAs before using
+# summary(XData)
+# # Responses
+# tmp <- cor(Y)
+# corrplot.mixed(tmp)
+# 
+# # Predictors
+# # need to relevel categorical factors and standardize ordinal/continuous variables
+# XData.predictors <- c("Latitude","Longitude","Road.Type","Road.Distance","Water.Type","Water.Distance","Human.Footprint.Distance")
+# tmp <- cor(XData[,c(XData.predictors)])
+# corrplot.mixed(tmp) 
+# 
+# nChains   = 3 # Ultimately use 4
+# thin      = 1000 # build up from 100
+# samples   = 1000 # #1000
+# transient = 100*thin
+# verbose   = T
+# 
+# # just under 3 hours to run first model with 1000 samples and 13 covariates (need to add in curvilinear dist to water covariate? and latitude)
+# 
+# # Add a station-level random effect (for the covariances)
+# studyDesign = data.frame(srvy.location = as.character(week.obs$Location.Name), srvy.location.yr = as.character(week.obs$Location.Name_Yr))
+# 
+# rL = HmscRandomLevel(units = studyDesign$srvy.location)
+# # Added poisson distributed
+# 
+# m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
+#            NP + Natural.Region + Latitude + Longitude + Land.Use.Type +
+#            Road.Type + Road.Type^2 + Water.Type + Water.Type^2 + Road.Distance + Water.Distance,
+#            #Max.Temp + Max.Wind + Max.Hum, # can't have NAs will need to fill in weather data
+#          studyDesign = studyDesign, ranLevels = list(srvy.location = rL), distr="poisson")
+# 
+# m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+#                nChains = nChains, verbose = verbose, nParallel = 3)
+# 
+# 
+# saveRDS(m,file="Output/MultiSpeciesHMSC.RData") 
+# #m <- readRDS("Output/MultiSpeciesHMSC.RData")
+```
+
+#### Hierarchical modelling of species communities (HMSC)
+
+HMSC provides simultaneous inferences at the bat community and species /species group level, accounting for species interactions in explaining and predicting species occurrences across the province (e.g., Ovaskainen et al. 2017). HMSC uses a joint species distribution modelling approach implemented in the Bayesian ‘Hierarchical Modelling of Species Communities’ (HMSC) package v3.0 (Tikhonov et al. 2020). Joint species distribution models relate multivariate response terms (here bat call counts in a week time interval) to hypothesized predictors through a regression framework while quantifying species co-occurrences through random effects. It facilitates the modelling of multiple species of a given community simultaneously in what is essentially a multispecies generalized linear mixed effects model. The estimated species-level co-occurrences are not interpreted as species interactions (see Blanchet et al., 2020), rather they represent systematic covariance in station-level counts between species that is not explained by the predictors in the model (Ovaskainen et al. 2017). Species interactions are one such process contributing to this variation, but it could also reflect between-species correlations in responses to unmeasured covariates.  
+
+The response term in the model was a site-time-by-species matrix, where each row specified the number of bat calls within a given week for a given station. Only species / species groups with sufficient observations (>100) were included in the species model. and The fixed effects were composed of a linear effect of year (allowing temporal trends in detections), a binary factor capturing reproductive state (pre-volancy for detections before the week of July 10 and post-volancy for detections the week of or after July 10), three factors describing the landscape (National Park, Natural Region, and Land Use Type), three continuous predictor terms describing the influence of roads (ordinal scale of road type, and then both linear and curvilinear distance to road), three continuous predictor terms describing the influence of water (ordinal scale of water type, linear and curvilinear distance to water), two linear spatial terms (latitude and longitude), three linear weather terms (mean maximum temperature, mean maximum humidity and mean maximum wind speed), and one linear offset reflecting sampling effort (days detectors were operating within each given week).
+
+#### Data Limitations
+The provincial NABat program has seen an incredible increase in effort over the past 6 years. As some stations have been surveyed since the inception of NABat, this means incredible power and strength in some aspects of analysis, but also the challenges associated with initial logistic bumps along the way. One of the major achievements of provincial monitoring is its decentralised nature, but this is also one of the key limitations. Surveys have been conducted by multiple people using a variety of equipment, often different people and equipment at the same stations between years. While each group has been monitoring to their own standards and needs, these may not be the same across groups. As not all acoustic data was provided with associated metadata this report relies entirely on metadata that could be extracted from the recordings themselves and station spatial coordinates. The quality and type of recording equipment has not been included in the analyses, despite their importance in capturing bat calls acoustically. In addition, some stations were surveyed using full spectrum recorders but converted to zero-cross for ease of electronic data transfer and upload to Alberta eBat (AlbertaeBat.ca). While all efforts were made to ensure the same settings were used while converting data, it cannot be guaranteed. In addition, different versions of software were likely used for conversion. Nevertheless, this analysis and report provides an overview of bat monitoring in Alberta with insightful findings, despite these data limitations.
+
+### Results – Survey Representation
+To date there have been passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Within 10 km of a station, there were an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` neighbouring stations. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` stations where the next nearest station was >10 km away (Figure 2). While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window).
+
+```{r survey distance fig, fig.cap = "Mean distance (km) between stations within 100 km of one another.", echo=F}
+dist.mat.100km <- dist.mat.100km[order(dist.mat.100km$Mean),]
+
+fsurvey.dist = ggplot(dist.mat.100km, aes(x = reorder(ORIGIN_Location.Name, Mean), Mean))+
+  geom_point(colour="white", shape=21, size=5,aes(fill=NP))+
+  scale_fill_manual(values=unique(sta$Cols)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Distance (km)"))) +
+  geom_linerange(aes(ORIGIN_Location.Name, ymin = Mean-SE, ymax = Mean+SE)) +
+  theme(axis.title.x=element_blank(), axis.text.x=element_blank()) +
+  theme(axis.text.y = element_text(size=14))+
+  theme(axis.text.x = element_blank())+
+  theme(legend.position = "none") 
+
+fsurvey.dist
+```
+
+##### Figure 2. Mean distance (km) between stations within 100 km of one another. Green denotes stations within National Parks, while red denotes stations outside of parks.
+
+##### Table 1. The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
+```{r Table 1 bat survey location, echo=F}
+sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
+sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
+sta.count2$GRTS.count <- 1
+sta.count3 <- sta.count2 %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% summarise(sum(GRTS.count))
+
+sta.NP <-sta %>% filter(NP=="In") %>% count(Land.Unit.Code)
+sta.NP$prop <- sta.NP$n / sum(sta.NP$n)
+
+sta.NR <-sta %>% count(Natural.Region)
+sta.NR$prop <- sta.NR$n / sum(sta.NR$n)
+
+sta.count$Count.Grid.Cells <- sta.count3[,4]
+colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Count Bat Survey Locations", "Count NABat Grid Cells")
+knitr::kable(sta.count, 
+             caption="The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.",
+             align = "lllrr")
+```
+
+Stations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figure 1). The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of stations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) stations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. On average, there were `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` stations within each National Park; ranging from `r ARUs.by.NP[1,2]` stations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` stations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`. Considering the area of each National Park, BNP and JNP had proportional survey representation, i.e., `r round(sta.NP %>% filter(Land.Unit.Code=="BNP") %>% summarise(sum(prop))*100,0)`% and `r round(sta.NP %>% filter(Land.Unit.Code=="JNP") %>% summarise(sum(prop))*100,0)`% of Alberta's park area and proportion of stations within the parks. In contrast, WLNP and EINP were over-represented, and WBNP was under-represented, in terms of number of stations to park area. 
+
+Outside of National Parks, stations were within `r nrow(ARUs.by.LUC)` Land Units, with an average of `r round(mean(ARUs.by.LUC$n),1)` ± `r round(se(ARUs.by.LUC$n),1)` stations within each Land Unit. Most (i.e., `r ARUs.by.LUC[1,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) stations were within the `r ARUs.by.LUC[1,1]` and only (i.e., `r ARUs.by.LUC[7,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.LUC[7,1]`. Stations were under-represented in LAR and LPR, over-represented in RDR and UPR and roughly proportional in the remaining Land Units. 
+
+Stations occurred within each of the six Natural Regions, with an average of `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` stations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) stations were within the `r ARUs.by.NR[1,1]` and only `r ARUs.by.NR[6,2]` (i.e., `r round(ARUs.by.NR[6,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`. For each Natural Region, stations were under-represented in the Boreal (i.e., `r round(sta.NR %>% filter(Natural.Region=="Boreal") %>% summarise(sum(prop))*100,0)`% of the stations) compared to Alberta's land area (58%). In contrast, stations were over-represented in the Foothills, Grassland and Rocky Mountain Natural Regions. The Canadian Shield and Parkland Natural Regions had roughly proportional station to land area representation. 
+
+Stations were grouped into `r nrow(ARUs.by.LUT)` Land Use Types. Most (i.e., `r ARUs.by.LUT[1,2]` or  `r round(ARUs.by.LUT[1,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) stations were within `r ARUs.by.LUT[1,1]` and the fewest (i.e., `r ARUs.by.LUT[7,2]` or `r round(ARUs.by.LUT[7,2]/sum(ARUs.by.LUT[complete.cases(ARUs.by.LUT),]$n)*100,0)`%) were within `r ARUs.by.LUT[7,1]`. Stations were under-represented in Agriculture, Forest and Shrubland, while being over-represented in Developed, Grassland and Water (Figure 3).
+
+```{r spatial representation fig, echo=F, fig.height=8.5, fig.width=6.5, fig.cap="Proportional representation of bat survey locations compared to land  area for Land Units, Natural Regions, and Land Use Types"}
+cov.prop <- cov.prop %>% arrange(Cov, NP, Name)
+cov.prop.hist.data <- gather(cov.prop,`prop.area`, `prop.stn`, key="Prop.Type", value="Proportion")
+cov.prop.hist.data$Prop.Type <- recode(cov.prop.hist.data$Prop.Type, prop.area = "Area", prop.stn = "Stations")
+cov.prop.hist.data$Cov2 <- ifelse(cov.prop.hist.data$Cov=="Land.Unit.Code" & cov.prop.hist.data$NP=="In", "Within National Park",
+                                  ifelse(cov.prop.hist.data$Cov=="Land.Unit.Code" & cov.prop.hist.data$NP=="Out", "Outside National Park",
+                                         ifelse(cov.prop.hist.data$Cov=="Natural.Region","Natural Region",
+                                                ifelse(cov.prop.hist.data$Cov=="Land.Use.Type", "Land Use Type",NA))))
+
+cov.prop.hist.data$Cov2 <- factor(cov.prop.hist.data$Cov2, levels=c("Within National Park", "Outside National Park", "Natural Region", "Land Use Type"))
+
+cov.prop.hist <- ggplot(cov.prop.hist.data %>% filter(!Name %in% c("Broadleaf Forest", "Coniferous Forest", "Mixed Forest")), 
+                        aes(fill=Prop.Type, y=Proportion, x=Name)) +
+  geom_bar(position="dodge", stat="identity") +
+  theme(legend.title = element_blank())+
+  theme(legend.position="bottom") +
+  theme(axis.title.y = element_text(size = 14)) +   
+  theme(axis.title.x = element_blank())+
+  facet_wrap(~Cov2, scales="free_x", ncol=1)
+cov.prop.hist
+```
+
+##### Figure 3. Proportional representation of stations compared to land area for Land Units, Natural Regions, and Land Use Types.
+
+```{r hist LUT, echo=F, warning=F, fig.width=6.5, fig.cap="Representation of bat survey locations by Land Use Type in/out of National Parks (NP)"}
+
+# Land Use Type
+LUT.NP.hist <- sta %>% group_by(NP) %>% count(Land.Use.Type, sort=TRUE)
+LUT.NP.hist <- LUT.NP.hist[complete.cases(LUT.NP.hist),] # remove EINP which doesn't have associated LUT covariate
+
+LUT.hist <- ggplot(data = LUT.NP.hist, aes(x = reorder(Land.Use.Type, -n), y = n, fill= NP)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(sta$Cols))+
+  theme_classic() + ylab("Number of Stations Surveyed") + 
+  theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) + theme(axis.title.x = element_blank())
+
+LUT.hist
+```
+
+##### Figure 4. Representation of stations by Land Use Type within and outside of National Parks (NP).
+
+#### Survey Effort
+Stations have been surveyed between `r min(sta$Yrs.Surveyed)` and `r max(sta$Yrs.Surveyed)` times (mean = `r round(mean(sta$Yrs.Surveyed),1)` ± `r round(se(sta$Yrs.Surveyed),1)`) between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`. 
+
+```{r annual survey effort hist, echo=F, fig.width=6.5}
+Years.Surveyed <- eff %>% group_by(NP, Natural.Region, Land.Unit.Code,Deployment.ID) %>% count(GRTS.Cell.ID)
+
+Yr.GRTS.hist <- Years.Surveyed %>% group_by(NP) %>% count(Deployment.ID)
+
+Yr.hist <- ggplot(data = Yr.GRTS.hist, aes(x = as.factor(Deployment.ID), y = n, fill= NP)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(sta$Cols))+
+  theme_classic() + xlab("Year") + ylab("Number of NABat Grid Cells Surveyed") + 
+  theme(legend.position="bottom") +
+  theme(axis.text.x = element_text(colour = "black")) +
+  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_text(size = 14))
+
+Yr.hist
+```
+
+##### Figure 5. Annual bat survey effort by NABat grid cell within and outside of National Parks (NP).
+
+```{r nightly survey effort NP, echo=F, fig.height=8.5, fig.width=6.5}
+
+calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,NP, Natural.Region, Land.Unit.Code, Location.Name) %>%
+  filter(Classification!="noise") %>%
+  summarise(Call.Count =sum(Count))
+calls.per.night.locn$Night.Count <- 1
+
+NightPA.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=NP)) + 
+  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(sta$Cols))+
+  scale_x_continuous(breaks = c(153, 183, 214, 245),
+  label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
+  theme_classic() + ylab("Number of Stations Surveyed") +
+  theme(legend.position="bottom") +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_text(size = 14))+
+  facet_wrap(~Year, ncol=1)
+
+NightPA.hist
+```
+
+###### Figure 6. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year within and outside of National Parks (NP).
+
+```{r nightly survey effort NR, echo=F, fig.height=8.5, fig.width=6.5}
+
+NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Natural.Region)) + 
+  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=unique(sta$ColsNR))+
+  scale_x_continuous(breaks = c(153, 183, 214, 245),
+  label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
+  theme_classic() + ylab("Number Stations Surveyed") +
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.title.y = element_text(size = 14))+
+  facet_wrap(~Year, ncol=1)
+
+NightNR.hist
+```
+
+###### Figure 7. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in each Natural Region.
+
+#### Nightly Overall Bat Call Summaries
+NEED TO ADD IN OVERALL FINDINGS
+
+```{r mean nightly call by NR, echo=F, fig.height=8.5, fig.width=7, warning=FALSE}
+call_count.NR <- call_count %>% group_by(Natural.Region, Deployment.ID, Volancy)
+
+# subset data for overall mean nightly bat calls by year for each Natural Region
+NR.Calls.Yr <- call_count.NR%>% group_by(Natural.Region, Deployment.ID, Volancy) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.NR <- NR.Calls.Yr %>%
+  ggplot(aes(x = Natural.Region, y = Mean, fill=Volancy))+
+  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
+  scale_fill_manual(values=unique(col.catVol)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  ylim(c(0,60))+
+  geom_linerange(aes(Natural.Region, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  facet_wrap(~Deployment.ID, ncol=1)
+fcalls.NR
+
+```
+##### Figure 8. Mean nightly bat calls for each Natural Region, by year and volancy period.
+
+```{r mean nightly call by LUT, echo=F, fig.height=8.5, fig.width=7, warning=FALSE}
+call_count.LUT <- call_count %>% group_by(NP, Land.Use.Type, Deployment.ID, Volancy)
+call_count.LUT <- call_count.LUT[complete.cases(call_count.LUT),]
+
+# subset data for overall mean nightly bat calls by year for each LUT
+LUT.Calls.Yr <- call_count.LUT %>% group_by(NP, Land.Use.Type, Deployment.ID, Volancy) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.LUT <- LUT.Calls.Yr %>%
+  ggplot(aes(x = Land.Use.Type, y = Mean, fill=NP))+
+  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
+  scale_fill_manual(values=unique(sta$Cols)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  ylim(c(0,100))+
+  geom_linerange(aes(Land.Use.Type, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(legend.position = "bottom") +
+  facet_wrap(~Deployment.ID+Volancy, ncol=2, scales="free_y")
+fcalls.LUT
+
+```
+##### Figure 9. Mean nightly bat calls for each Land Use Type within and outside of National Parks, by year and volancy period.
+
+```{r mean nightly call by GRTS, echo=F, fig.height=9, fig.width=7, warning=FALSE}
+call_count2 <- call_count %>% group_by(NP, Land.Unit.Code, Deployment.ID, GRTS.Cell.ID)
+
+# Reorder GRTS to be NP, Land.Unit.Code then GRTS
+GRTS.Order <- call_count %>% arrange(NP, Land.Unit.Code, GRTS.Cell.ID) %>% 
+  group_by(NP, Land.Unit.Code) %>% count(GRTS.Cell.ID)
+GRTS.Order$Order <- row.names(GRTS.Order)
+GRTS.Order <- fct_reorder(GRTS.Order$GRTS.Cell.ID, GRTS.Order$Order, min)
+
+# subset data for overall mean nightly bat calls by year for each GRTS
+GRTS.Calls.Yr <- call_count2 %>% group_by(NP, Land.Unit.Code, Deployment.ID, GRTS.Cell.ID) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+GRTS.Calls.Yr$GRTS.Cell.ID <- factor(GRTS.Calls.Yr$GRTS.Cell.ID, levels = GRTS.Order)
+
+fcalls.GRTS <- GRTS.Calls.Yr %>%
+  ggplot(aes(x = GRTS.Cell.ID, Mean))+
+  geom_point(colour="white", shape=21, size=4,aes(fill=Land.Unit.Code))+
+  scale_fill_manual(values=unique(sta$ColsLUC)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  ylim(c(0,150))+
+  xlab(expression("NABat GRTS Cell ID"))+
+  geom_linerange(aes(GRTS.Cell.ID, ymin = Mean-SE, ymax = Mean+SE)) +
+  theme(axis.text.y = element_text(size=12))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8)) +
+  theme(legend.position = "bottom", legend.title=element_blank()) +
+  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
+
+fcalls.GRTS
+
+```
+
+##### Figure 10. Mean nightly bat calls for each NABat grid cell by year.
+
+See Appendix A for overall mean nightly call summaries by NABat grid cell. 
+
+#### Nightly Bat Call Summaries by Species / Species Group
+There were `r sprintf("%.0f", sum(call_count$Count))` bat calls recorded at `r n.stat` bat survey locations between `r min(eff$Deployment.ID)` and `r max(eff$Deployment.ID)`, over `r sum(as.numeric(total.effort$Diff))` survey nights. Of these calls, `r round(unknown.calls*100,0)`% were classified as unknown.
+
+##### Table 2. Bat call count
+``` {r overall call table, echo=F, results="asis"}
+# create a table for the paper
+# Determine call count overall, percentage and by effort for each species
+Table.Calls <- call_count %>% group_by(Classification) %>% summarise(Call.Count = sum(Count))
+Table.Calls$Per.Known <- as.data.frame(round(Table.Calls$Call.Count/sum(Table.Calls$Call.Count)*100,0))[,1]
+Table.Calls$Occupancy <- as.data.frame(round(Table.Calls$Call.Count/sum(as.numeric(total.effort$Diff)),2))[,1] 
+colnames(Table.Calls) <- c("Species / Species Group", "Call Count", "% of Calls","Calls per Night")
+
+knitr::kable(replace(Table.Calls, Table.Calls==0, ""), 
+             caption=paste("Overall bat call count, percentage and call per night for ",n.stat," stations surveyed from ",min(eff$Deployment.ID),"-", max(eff$Deployment.ID),".", sep=""),
+             align = "lrrr")
+```
+
+
+```{r sp hist NR, echo=F, fig.height=8.5, fig.width=7}
+# Generate colours to display the species levels
+call_count$Classification <- droplevels(call_count$Classification)
+
+Sp.hist.data <- call_count %>% group_by(Deployment.ID, Natural.Region, Land.Use.Type) %>% count(Classification)
+
+Sp.hist.NR <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Natural.Region)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=col.catNR)+
+  theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
+  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
+
+Sp.hist.NR
+
+```
+
+##### Figure 11. Total bat calls for species / species groups by year and Natural Region
+
+```{r sp hist LUT, echo=F, fig.height=8.5, fig.width=7}
+
+Sp.hist.LUT <- ggplot(data = Sp.hist.data %>% filter(!is.na(Land.Use.Type)), aes(x = Classification, y = n, fill= Land.Use.Type)) + 
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values=col.catLUT)+
+  theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
+  facet_wrap(~Deployment.ID, ncol=1, scales="free_y")
+
+Sp.hist.LUT
+```
+
+##### Figure 12. Total bat calls for species / species groups by year and Land Use Type.
+
+```{r mean species call by year and volancy, echo=F, fig.height=8.5, fig.width=7, warning=FALSE}
+call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
+
+# subset data for overall mean nightly bat calls by year for each Natural Region
+Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Volancy) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification!="unknown")%>%
+  ggplot(aes(x = Classification, y = Mean, fill=Volancy))+
+  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
+  scale_fill_manual(values=unique(col.catVol)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  #ylim(c(0,60))+
+  geom_linerange(aes(Classification, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  facet_wrap(~Deployment.ID, ncol=1)
+fcalls.Sp
+
+```
+
+##### Figure 13. Mean nightly bat calls for each species / species group by year and volancy period.
+
+See Appendix A for detailed mean nightly call counts for species /species groups by Land Unit.
+
+#### Nocturnal Activity Results
+
+At first glance nocturnal activity appeared similar for bats within and outside of National Parks; however, activity differed when separated into pre- and post-volancy periods (Figure 14). Within parks pre-volancy activity had a steep peak just after sunset, a trough in the early morning and another small peak just before sunrise. Nocturnal activity outside of parks was much more muted with a peak after sunset but no trough or second peak. The exact opposite activity patterns were observed in the post-volancy period: a steep post sunset peak, early morning trough and smaller pre-sunrise peak for nocturnal activity outside of parks compared to a muted, consistent level of activity post-volancy in parks. This may suggest that parks are surveying near maternity roosts where reproductive females are taking shorter, more frequent foraging trips during the start of the night during the pre-volancy period, when they are tending to the pups, and then foraging more evenly throughout the night once the pups are volant. In contrast bats outside of parks are active more evenly throughout the night during the pre-volancy period but with focused activity post-volancy.
+
+Nocturnal activity patterns were typically consistent within a species, although the magnitude and timing may differ based on volancy period. Species with a bi-modal pattern (i.e., two distinct activity phases) were EPFU, LANO, and MYLU. LABO exhibited a clearly unimodal pattern with a single steep peak, while LACI had a higher initial activity peak and a more gradual levelling off of activity as the night progressed. Unsurprisingly the combined species groups were less distinct in their activity patterns as they comprise two or more species with contrasting activity patterns (Figures 15 to 17).
+
+Figures show the kernel density estimates representing nocturnal activity curves and temporal overlap of all bats, and eight bat species / species groups. Periods of activity overlap is represented by the coefficient of overlap (Δ; denoted in grey) accompanied by the 95 % confidence intervals in parentheses; Δ = 1 represents no activity shift while Δ = 0 represents complete activity shift. Bat nocturnal activity patterns generally overlapped with Δ ranging from a low of 0.72 to a high of 0.92.
+
+``` {r Nocturnal activity WWT output as table}
+
+
+opts <- options(knitr.kable.NA = "")
+knitr::kable(df.LUC, 
+             caption = paste(call_LUC[i],"mean ± 1 SE nightly bat calls by species / species group for year and volancy period.", sep=" "), 
+             digits=1))
+options(opts)
+
+```
+
+See Appendix B for overall bat activity patterns pre- and post-volancy in each of the Natural Regions and Land Use Types.
 
 ```{r NP activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
@@ -1077,16 +1351,835 @@ knitr::include_graphics(c("./Output/activity_overlap_In-Out_NP.png",
                           "./Output/activity_overlap_In-Out_NP_pre.png",
                           "./Output/activity_overlap_In-Out_NP_post.png"))
 ``` 
+##### Figure 14. Nightly activity overlap one month pre and post volancy within and outside of National Parks.
 
-```{r LUT activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
+Species / species group specific 
 
-knitr::include_graphics(c("./Output/activity_overlap_Agriculture.png",
-                          "./Output/activity_overlap_Developed.png",
-                          "./Output/activity_overlap_Forest.png",
-                          "./Output/activity_overlap_Shrubland.png",
-                          "./Output/activity_overlap_Water.png"))
+```{r EFPU-LANO activity overlap, out.width="33%", out.height="20%", fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_EPFU Pre-volancy-EPFU Post-volancy.png",
+                          "./Output/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy.png",
+                          "./Output/activity_overlap_LANO Pre-volancy-LANO Post-volancy.png"))
 ``` 
 
+##### Figure 15. Nightly activity overlap one month pre and post volancy for EPFU, LANO and EPFU-LANO.
+
+```{r LABO-MYLU activity overlap, out.width="33%", out.height="20%", fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_LABO Pre-volancy-LABO Post-volancy.png",
+                          "./Output/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy.png",
+                          "./Output/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy.png"))
+``` 
+
+##### Figure 16. Nightly activity overlap one month pre and post volancy for LABO, MYLU and LABO-MYLU. 
+
+```{r LACO-Myotis 40k activity overlap, out.width="33%", out.height="20%", fig.show='hold', fig.align='center', echo=FALSE}
+
+knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy.png",
+                          "./Output/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy.png"))
+``` 
+
+##### Figure 17. Nightly activity overlap one month pre and post volancy for LACI and Myotis 40k.
+
+
+#### Hierarchical Modelling of Species Communities
+
+Bat species were positively associated with one another, unsurprising as bat species tend to select for the same broad landsacpe features, which were modelled here.
+
+``` {r HMSC results, echo=F} 
+# # 1st step - check for convergence
+# mpost = convertToCodaObject(m)
+# 
+# ESS <- as.data.frame(effectiveSize(mpost$Beta))
+# lst <- strsplit(row.names(ESS)," ")
+# ESS$Species <- sapply(lst, '[[', 3) 
+# ESS$Covariate <- sapply(lst, '[[', 1) 
+# tmp <- aggregate(ESS$`effectiveSize(mpost$Beta)`, by=c(list(ESS$Species)), FUN=mean)
+# table1 <- Table.Calls
+# colnames(table1) <- c("Species","Call.Count","Perc.Calls","Nightly.Calls")
+# table1 <- left_join(table1,tmp, by=c("Species"="Group.1"))
+# table1$Eff <- round(table1$x/4,1)
+# table1$x <- NULL
+# 
+# # Second step, check Potential Scale Reduction Factors - They should all be close to one
+# GSRF <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
+# # Take the mean and the maximum
+# lst <- strsplit(row.names(GSRF)," ")
+# GSRF <- as.data.frame(GSRF)
+# GSRF$Species <- sapply(lst, '[[', 3) 
+# GSRF$Covariate <- sapply(lst, '[[', 1) 
+# tmp <- aggregate(GSRF$`Point est.`, by=c(list(GSRF$Species)), FUN=mean)
+# colnames(tmp)[2] <- "GSRF.Mean" 
+# tmp$GSRF.Max <- aggregate(GSRF$`Point est.`, by=c(list(GSRF$Species)), FUN=max)[,2]
+# table1 <- left_join(table1,tmp, by=c("Species"="Group.1"))
+# 
+# write.csv(table1, "Output//Table1_All_Species.csv", row.names=F )
+# 
+# # Explore these graphically
+# par(mfrow=c(2,2))
+# # Fixed Effects
+# hist(effectiveSize(mpost$Beta), main="ess(beta)") # We definately have a lack of covergence here!!!
+# hist(gelman.diag(mpost$Beta,multivariate=FALSE)$psrf, main="psrf(beta)") # Looks okay
+# # Random
+# hist(effectiveSize(mpost$Omega[[1]]), main="ess(omega)")
+# hist(gelman.diag(mpost$Omega[[1]],multivariate=FALSE)$psrf, main="psrf(omega)")
+# 
+# # Assess the models explantory power
+# preds = computePredictedValues(m)
+# #?computePredictedValues
+# 
+# mod.eval <- evaluateModelFit(hM = m, predY = preds)
+# mod.eval$SR2
+# # All measures of model fit are given as vectors with one value for each species.t
+# 
+# #For Poisson models, a pseudo-R2 is computed as squared spearman correlation
+# #between observed and predicted values, times the sign of the correlation (SR2).
+# #For Poisson models, the observed and predicted data are also truncated to
+# #occurrences (presence-absences), for which the same measures are given as for
+# #the probit models (O.RMSE, O.AUC and O.TjurR2). For Poisson models, the
+# #observed and predicted data are also subsetted to conditional on presence,
+# #for which the root-mean-square error and pseudo-R2 based on squared spearman
+# #correlation are computed (C.RMSE, C.SR2).
+# 
+# ## Check predictions with two fold cross validation, takes a VERY long time >1 hr for 1 chain
+# #partition = createPartition(m, nfolds = 2)
+# #preds = computePredictedValues(m, partition = partition)
+# #evaluateModelFit(hM = m, predY = preds)
+# 
+# # Estimated species-species associations
+# # ?computeAssociations = Computes the species association matrices associated with each random level
+# OmegaCor = computeAssociations(m)
+# plotOrder = corrMatOrder(OmegaCor[[1]]$mean,order="AOE")
+# 
+# # Plot Betas
+# par(mfrow=c(1,1))
+# par(mar=c(10,10,1,1))
+# postBeta = getPostEstimate(m, parName = "Beta")
+# plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95, SpeciesOrder = "Original",SpVector = rev(plotOrder), mar=c(10,10,1,1) )
+# 
+# # another plot option, based on correlation "AOE" or angular order of the eigenvectors (where 1 and 2 are the two largest eigenvalues of the matrix corr)
+# # plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95, SpeciesOrder = "Original",SpVector = rev(plotOrder), mar=c(10,10,1,1) )
+# 
+# ci95 <- getPostEstimate(m, parName = "Beta", q=c(0.05, 0.95))
+# #means
+# 
+# rownames(ci95$mean) <- m$covNames
+# tmp1 <- as.data.frame.table(ci95$mean)
+# colnames(tmp1) <- c("Var2", "Var3", "Freq")
+# tmp1$Var1 <- "Mean"
+# tmp1 <- tmp1[,c(4,1,2,3)]
+# 
+# # Confidence intervals
+# 
+# # Specify the names
+# column.names <- m$covNames
+# row.names <- c("5%",  "95%")
+# matrix.names <- m$spNames
+# 
+# dimnames(ci95$q) <- list(row.names, column.names, matrix.names)
+# tmp2 <- as.data.frame.table(ci95$q)
+# 
+# tmp <- rbind(tmp1,tmp2)
+# 
+# df1 <- spread(data = tmp, key = Var1, value = Freq)
+# 
+# par(mfrow=c(1,3))
+# par(mar=c(10,4,2,1))
+# i <- 1
+# for(i in 2:length(unique(df1$Var2)))
+# {
+#   logic <- (df1$Var2 == unique(df1$Var2)[i])
+# 
+#   plotCI(plotOrder, df1$Mean[logic],
+#          li=df1$`5%`[logic], ui=df1$`95%`[logic],
+#          pch=19, sfrac=0.000, xaxt="n",las=1,
+#          ylab="B-Coefficient", xlab="",
+#          main=unique(df1$Var2)[i]
+#   )
+#   axis(1, at=plotOrder,
+#        labels=gsub("."," ",df1[logic,]$Var3, fixed=T), font=3, las=2 )
+# 
+#   abline(h=0, lty=2)
+# }
+# 
+# supportLevel = 0
+# toPlot = ((OmegaCor[[1]]$support>supportLevel)
+#           + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+# 
+# 
+# 
+# 
+# par(mfrow=c(1,1))
+# corrplot(toPlot[plotOrder,plotOrder], method = "color",
+#          col=colorRampPalette(c("blue","white","red"))(200),
+#          title=paste("random effect level:",m$rLNames[1]), mar=c(0,0,1,0), type="lower")
+# 
+# # XFormula
+# # XFormula = ~Year + Volancy + Effort +
+# #            NP + Natural.Region + Latitude + Land.Use.Type + Human.Footprint.Sublayer +
+# #            Road.Type.Ord + Water.Type.Ord + Road.Distance.Ord + Water.Distance.Ord + Human.Footprint.Distance.Ord
+# VP = computeVariancePartitioning(m, group = c(1,2,6,5,4,3,5,5,5,4,5,4,5), groupnames=c("Temporal", "Reproductive","Spatial", "NaturalFeature", "HumanDisturbance", "Effort"))
+# 
+# #?computeVariancePartitioning()
+# plotVariancePartitioning(m, VP = VP, las=2)
+# 
+# column.names <- m$spNames
+# row.names <- c("Temporal", "Reproductive","Spatial", "Natural Feature", "Human Disturbance", "Effort", "Random")
+# VP$groupnames
+# glimpse(VP)
+# 
+# #m$spNames
+# mod.eval$SR2[order(mod.eval$SR2, decreasing=T)]
+# 
+# 
+# # Make a two tier plot of R2 on the top, and variance partiioning on the bottom
+# #pdf(width=7, height=7, "figures//Varience partioning_6month_NoOffline_noGT_COMMON.pdf")
+# layout(matrix(c(1,2,2), 3, 1, byrow = TRUE))
+# par(mar=c(1,4,2,2))
+# barplot(mod.eval$SR2[order(mod.eval$SR2, decreasing=T)], las=1,
+#         ylim=c(0,max(mod.eval$SR2)+0.1), xlim=c(0,length(column.names)+6.5), ylab="Pseudo R-squared")
+# 
+# par(mar=c(12,4,0,2))
+# labels <- data.frame("Species"=colnames(VP[,order(mod.eval$SR2, decreasing=T)]))
+# # Read in the key
+# barplot(VP[,order(mod.eval$SR2, decreasing=T)], col=brewer.pal(n = 6, name = "Set2"), las=2,
+#         #names.arg=labels$Common,
+#         xlim=c(0,length(column.names)+6.5), main="",
+#         ylab="Variation partitioning")
+# legend(14.6, 1, legend=rev(row.names), fill= rev(brewer.pal(n = 6, name = "Set2")))
+# #dev.off()
+# ?barplot
+# # Scale Line characteristics by R2
+# 
+# 
+# line.VP <- VP$vals[VP$groupnames %in% c("HumanDisturbance","Spatial"),]
+# # 
+# # line.VP <- VP$vals[VP$groupnames %in% c("Land.Use.Type","Human.Footprint.Sublayer", "Road.Type.Ord", "Road.Distance.Ord", "Human.Footprint.Distance.Ord"),]
+# 
+# rowSums(line.VP)/8
+# colSums(line.VP)
+# 
+# i <- 1
+# for(i in 1:ncol(line.VP))
+# {
+#   line.VP[,i] <- line.VP[,i]*mod.eval$SR2[i]
+# }
+# 
+# par(mfrow=c(1,1))
+# 
+# 
+# colnames(line.VP) <- gsub('\\.', ' ', colnames(line.VP))
+# 
+# #pdf(height=7, width=7, "figures//Line Characteristics_6month_NoOffline_COMMON.pdf")
+# par(mar=c(12,4,1,2))
+# labels <- data.frame("Species"=colnames(line.VP[,order(colSums(line.VP), decreasing=T)]))
+# #labels <- left_join(labels, common)
+# barplot(line.VP[,order(colSums(line.VP), decreasing =T)]
+#         , las=2, col=brewer.pal(n = 5, name = "Set2"), ylab="Total variation explained %", ylim=c(0,max(colSums(line.VP))+0.02 ))#,
+#        # names.arg=labels$Common)
+# 
+# #rev(row.names(line.VP))
+# # Offline
+# #legend(11, 0.12, legend=c("Offline/Online", "Mound Height", "Line width", "Line of sight", "Line density" ), fill= rev(brewer.pal(n = 5, name = "Set2")))
+# # No offline
+# legend(10, 0.10, legend=c("Mound height", "Line width", "Line of sight", "Line density" ), fill= rev(brewer.pal(n = 4, name = "Set2")))
+# #dev.off()
+# 
+# 
+# 
+# ##########################
+# # Custom plot
+# 
+# #pdf(width=10, height=6, "figures//Covariance_figure_no_offline_COMMON.pdf")
+# par(mfrow=c(1,1))
+# layout(matrix(c(2,2,4,4,
+#                 1,1,3,3,
+#                 1,1,3,3,
+#                 1,1,3,3,
+#                 1,1,3,3,
+#                 1,1,3,3,
+#                 1,1,3,3,
+#                 1,1,3,3
+# ), 8, 4, byrow = TRUE))
+# 
+# 
+# 
+# par(mar=c(10,2,1,10))
+# 
+# 
+# # Covariances
+# tmp <- toPlot[plotOrder,plotOrder]
+# logi <-lower.tri(tmp, diag = F)
+# 
+# tmp[logi] <- NA
+# 
+# cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+# ColorRamp <- colorRampPalette(colors = cln)
+# 
+# colorInterpolate <- function(val, color=cln, valRange=range(val)){
+#   appx <- approx(valRange, seq(0, 1, length.out = length(valRange)), val, yleft = 0, yright = 1)
+#   cc <- colorRamp(color)(appx$y)
+#   cc <- rgb2hex(floor(cc))
+#   cc
+# }
+# 
+# 
+# length(tmp)
+# 
+# ncol(tmp)
+# nrow(tmp)
+# 
+# tmp2<- cbind(tmp, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, c(rep(NA, times=ncol(tmp)-2),1,-1))
+# 
+# #Covariance plot
+# 
+# 
+# #image(tmp, asp=1, col=ColorRamp(50))
+# #image(tmp2, col=ColorRamp(50), xlim=c(0,1.05), ylim=c(-0.05, 0.85), las=1, xaxt="n", yaxt="n")
+# 
+# image(1:ncol(tmp2), 1:nrow(tmp2), t(tmp2),xlim=c(0,length(m$spNames)+0.5),
+#       col=ColorRamp(50), las=1, xaxt="n", yaxt="n", xlab="",
+#       axes=F)
+# 
+# 
+# for(i in 0:nrow(tmp2))
+# {
+#   lines(c(i-0.5, i-0.5), c(-10, 100), col=rgb(1,1,1,0.5))
+# }
+# 
+# for(i in 0:nrow(tmp2))
+# {
+#   lines(c(-10, 100), c(i-0.5, i-0.5), col=rgb(1,1,1,0.5))
+# }
+# 
+# 
+# tmp3 <- gsub('\\.', ' ', m$spNames[plotOrder])
+# tmp4 <- data.frame(Species=tmp3)
+# tmp4 <- left_join(tmp4, common)
+# 
+# axis(1, at=c(1:(nrow(tmp2))), labels= tmp4$Common, las=2, cex.axis=0.9 )
+# axis(4, at=c(1:(nrow(tmp2))), labels= tmp4$Common, las=2, cex.axis=0.9 )
+# 
+# par(xpd=T)
+# lines(c(0.5,0.5), c(0,8.5), lty=2)
+# lines(c(0.5,150), c(8.5,8.5), lty=2)
+# lines(c(0.5,150), c(0.5,0.5), lty=2)
+# 
+# lines(c(0.5,0.5), c(8.5,11.5), lty=2)
+# lines(c(0.5,150), c(11.5,11.5), lty=2)
+# 
+# lines(c(0.5,0.5), c(11.5,12.5), lty=2)
+# lines(c(0.5,150), c(12.5,12.5), lty=2)
+# 
+# text(2.0, 11, "Group 1")
+# text(2.0, 12, "Group 2")
+# text(2.0, 8, "Group 3")
+# par(xpd=F)
+# 
+# 
+# 
+# par(mar=c(0,4,4.5,11))
+# 
+# cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+# ColorRamp2 <- colorInterpolate(1:length(tmp2), color = cln)
+# Colorcovs <- seq(-1,1 , length=length(ColorRamp2))
+# cln2 <- colorInterpolate(1:200)
+# 
+# image(Colorcovs, 1,
+#       matrix(data=Colorcovs, ncol=1,nrow=length(Colorcovs)),
+#       col=cln2,ylab="",xaxt="n",yaxt="n", las = 1)
+# 
+# axis(3, at=c(seq(-1,1,0.5)),labels=c(seq(-1,1,0.5)) , las=1)
+# #axis(4, 1, "Covariance score", las=1)
+# axis(1, at=c(-100, 100))
+# axis(2, at=c(-100, 100))
+# axis(4, at=c(-100, 100))
+# mtext("Covariance score", side = 3, line = 2, cex=0.7)
+# 
+# ############################
+# # Fixed effects
+# 
+# ######################
+# # B estimate plots
+# #creating new data
+# 
+# newdata <- t(postBeta$mean)
+# newdata <- newdata[, 2:ncol(newdata)]
+# 
+# # # Set min and max values
+# min <- -1
+# min(newdata, na.rm=T)
+# max <- 1 #
+# max(newdata, na.rm=T)
+# #creating new data
+# 
+# newdata[newdata>1] <- 1
+# newdata[newdata<(-1)] <- (-1)
+# 
+# source("NUNEZ.FNS.NEW.R")
+# # Create x and y labels
+# yLabels <- m$spNames
+# xLabels <-m$covNames[2:length(m$covNames)]
+# #new.data <- as.matrix(newdata)
+# 
+# #setting the color palette
+# cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+# ColorRamp <- colorInterpolate(1:length(newdata), color = cln)
+# ColorLevels <- seq(min, max, length=length(ColorRamp))
+# 
+# newdata <- newdata[plotOrder,]
+# 
+# par(mar=c(10,0,1,2))
+# 
+# m$XFormula
+# 
+# colnames(newdata) <- c("Year", "Volancy", "NP", "Natural.Region", "Latitude", "Land.Use.Type", "Human.Footprint.Sublayer", "Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Distance.Ord")
+# 
+# newdata <- newdata[,c("LOS", "LD500", "LineWidth", "MoundingHt", "WAT500", "z.NDVIseas","Season", "Year", "Effort")]
+# #pdf("SpecModTable.pdf", width = 9, height = 8)
+# # Set layout.  We are going to include a colorbar next to plot.
+# #layout(matrix(data=c(1,2), nrow=1, ncol=2), widths=c(4,1),
+# #       heights=c(1,1))
+# #par(mar = c(5,11,5,2))
+# #par(mfrow=c(1,1))
+# image(1:ncol(newdata), 1:nrow(newdata), t(newdata),
+#       col=ColorRamp, xlab="", ylab="",
+#       axes=FALSE, zlim=c(min,max),
+#       main= "")
+# #abline(v=1.5)
+# #abline(v=5.5)
+# 
+# 
+# # Now annotate the plot
+# box()
+# 
+# colnames(newdata)
+# 
+# axis(side = 1, at=seq(1,length(xLabels),1),
+#      labels=c("Line of sight", "Line density", "Line width", "Mound height", "Water table\ndistance", "NDVI", "Winter", "Year", "Effort"), 
+#      cex.axis=1, las=2)
+# 
+# par(xpd=F)
+# 
+# abline(v=4.5, lty=1)
+# abline(v=6.5, lty=1)
+# abline(v=7.5, lty=1)
+# abline(v=8.5, lty=1)
+# 
+# par(xpd=T)
+# lines(c(0.9,4.1), c(-2.5,-2.5)); lines(c(0.9,0.9), c(-2.5,-2.3)); lines(c(4.1,4.1), c(-2.5,-2.3))
+# lines(c(4.9,6.1), c(-2.5,-2.5)); lines(c(4.9,4.9), c(-2.5,-2.3)); lines(c(6.1,6.1), c(-2.5,-2.3))
+# lines(c(6.9,7.1), c(-2.5,-2.5)); lines(c(6.9,6.9), c(-2.5,-2.3)); lines(c(7.1,7.1), c(-2.5,-2.3))
+# lines(c(7.9,8.1), c(-2.5,-2.5)); lines(c(7.9,7.9), c(-2.5,-2.3)); lines(c(8.1,8.1), c(-2.5,-2.3))
+# 
+# lines(c(0,9.8),c(0.5,0.5), lty=2)
+# lines(c(0,9.8),c(8.5,8.5), lty=2)
+# lines(c(0,9.8),c(11.5,11.5), lty=2)
+# lines(c(0,9.8),c(12.5,12.5), lty=2)
+# lines(c(9.8,9.8),c(12.5,0.5), lty=2)
+# 
+# text(2.5,-3, "Line characteristics")
+# text(5.5,-3, "Habitat")
+# text(7,-3, "Season")
+# text(8,-3, "Trend")
+# 
+# par(xpd=F)
+# 
+# 
+# #axis(side = 2, at=seq(1,length(yLabels),1), labels=yLabels, las= 1,
+# #     cex.axis=0.9)
+# 
+# #now adding "significant" marks on image
+# spp <- rownames(newdata)
+# # The support column is separate for negative and positive
+# pos  <- postBeta$support[2:nrow(postBeta$support),]
+# pos <-  pos[,plotOrder]
+# row.names(pos) <- c("Year", "Season", "z.NDVIseas", "WAT500", "LD500", "LOS", "LineWidth", "MoundingHt", "Effort")
+# 
+# neg  <- postBeta$supportNeg[2:nrow(postBeta$supportNeg),]
+# neg  <- neg[,plotOrder]
+# row.names(neg) <- c("Year", "Season", "z.NDVIseas", "WAT500", "LD500", "LOS", "LineWidth", "MoundingHt", "Effort")
+# 
+# # Put them in the right order
+# pos <- pos[c("LOS", "LD500", "LineWidth", "MoundingHt", "WAT500", "z.NDVIseas","Season", "Year", "Effort"),]
+# neg <- neg[c("LOS", "LD500", "LineWidth", "MoundingHt", "WAT500", "z.NDVIseas","Season", "Year", "Effort"),]
+# 
+# 
+# 
+# for(i in 1:nrow(pos))
+# {
+#   for(j in 1:ncol(pos))
+#   {
+#     if(pos[i,j]>0.95)
+#     {
+#       text(i,j, "+")
+#     }
+#     if(neg[i,j]>0.95)
+#     {
+#       text(i,j, "-")
+#     }
+#   }
+# }
+# 
+# 
+# axis(1, at=c(-100, 100))
+# axis(2, at=c(-100, 100))
+# axis(3, at=c(-100, 100))
+# axis(4, at=c(-100, 100))
+# 
+# # Add colorbar to second plot region
+# cln2 <- colorInterpolate(1:10000, color = cln)
+# #par(mar = c(3,2.5,2.5,2))
+# par(mar=c(0,5,4.5,7))
+# 
+# image(ColorLevels,1,
+#       matrix(data=ColorLevels, ncol=1, nrow=length(ColorLevels)),
+#       col=cln2,xlab="",ylab="",xaxt="n",yaxt="n", las = 1)
+# 
+# axis(3, at=seq(-5,5,1),labels=c("<-5", seq(-4,4,1), ">5") , cex.axis=0.9, las=1)
+# mtext("Effects size", side = 3, line = 2, cex=0.7)
+# box()
+# 
+# #dev.off()
+# 
+# #####################################
+# # Plot 2
+# 
+# ##########################
+# # Custom plot
+# 
+# #pdf(width=7, height=10, "figures//Covariance_figure_no_offline_HIGH.pdf")
+# par(mfrow=c(1,1))
+# layout(matrix(c(4,3,3,3,3,3,3,3,
+#                 4,3,3,3,3,3,3,3,
+#                 2,1,1,1,1,1,1,1,
+#                 2,1,1,1,1,1,1,1
+# ), 4, 8, byrow = TRUE))
+# 
+# 
+# 
+# par(mar=c(13,2,1.5,13))
+# 
+# 
+# # Covariances
+# tmp <- toPlot[plotOrder,plotOrder]
+# logi <-lower.tri(tmp, diag = F)
+# 
+# tmp[logi] <- NA
+# 
+# cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+# ColorRamp <- colorRampPalette(colors = cln)
+# 
+# colorInterpolate <- function(val, color=cln, valRange=range(val)){
+#   appx <- approx(valRange, seq(0, 1, length.out = length(valRange)), val, yleft = 0, yright = 1)
+#   cc <- colorRamp(color)(appx$y)
+#   cc <- rgb2hex(floor(cc))
+#   cc
+# }
+# 
+# tmp2<- cbind(tmp, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, rep(NA, times=ncol(tmp)))
+# tmp2<- cbind(tmp2, c(rep(NA, times=ncol(tmp)-2),1,-1))
+# 
+# #Covariance plot
+# 
+# 
+# #image(tmp, asp=1, col=ColorRamp(50))
+# #image(tmp2, col=ColorRamp(50), xlim=c(0,1.05), ylim=c(-0.05, 0.85), las=1, xaxt="n", yaxt="n")
+# 
+# image(1:ncol(tmp2), 1:nrow(tmp2), t(tmp2),xlim=c(0+0.5,length(m$spNames)+0.5),
+#       col=ColorRamp(50), las=1, xaxt="n", yaxt="n", xlab="",
+#       axes=F)
+# 
+# 
+# for(i in 0:nrow(tmp2))
+# {
+#   lines(c(i-0.5, i-0.5), c(-10, 100), col=rgb(1,1,1,0.5))
+# }
+# 
+# for(i in 0:nrow(tmp2))
+# {
+#   lines(c(-10, 100), c(i-0.5, i-0.5), col=rgb(1,1,1,0.5))
+# }
+# 
+# 
+# axis(1, at=c(1:(nrow(tmp2))), labels= m$spNames[plotOrder], las=2, cex.axis=0.9 )
+# axis(4, at=c(1:(nrow(tmp2))), labels= m$spNames[plotOrder], las=2, cex.axis=0.9 )
+# 
+# par(mar=c(13,4,1,1))
+# 
+# cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+# ColorRamp2 <- colorInterpolate(1:length(tmp2), color = cln)
+# Colorcovs <- seq(-1,1 , length=length(ColorRamp2))
+# cln2 <- colorInterpolate(1:200)
+# 
+# image(1, Colorcovs,
+#       matrix(data=Colorcovs, ncol=length(Colorcovs),nrow=1),
+#       col=cln2,ylab="",xaxt="n",yaxt="n", las = 1, xlab="")
+# 
+# axis(2, at=c(seq(-1,1,0.5)),labels=c(seq(-1,1,0.5)) , las=1)
+# #axis(4, 1, "Covariance score", las=1)
+# axis(1, at=c(-100, 100))
+# axis(4, at=c(-100, 100))
+# axis(3, at=c(-100, 100))
+# mtext("Covariance score", side = 3, line = 1, cex=0.7)
+# 
+# ############################
+# # Fixed effects
+# 
+# ######################
+# # B estimate plots
+# #creating new data
+# 
+# newdata <- t(postBeta$mean)
+# newdata <- newdata[, 2:ncol(newdata)]
+# 
+# # # Set min and max values
+# min <- -1
+# min(newdata, na.rm=T)
+# max <- 1 #
+# max(newdata, na.rm=T)
+# #creating new data
+# 
+# newdata[newdata>1] <- 1
+# newdata[newdata<(-1)] <- (-1)
+# 
+# 
+# source("NUNEZ.FNS.NEW.R")
+# # Create x and y labels
+# yLabels <- m$spNames
+# xLabels <-m$covNames[2:length(m$covNames)]
+# #new.data <- as.matrix(newdata)
+# 
+# #setting the color palette
+# cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+# ColorRamp <- colorInterpolate(1:length(newdata), color = cln)
+# ColorLevels <- seq(min, max, length=length(ColorRamp))
+# 
+# newdata <- newdata[plotOrder,]
+# 
+# 
+# 
+# 
+# par(mar=c(1.5,2,13,13))
+# 
+# effdata <- newdata
+# effdata[effdata<0]<- effdata[effdata<0]*-1 # Make everything postive
+# # Then sum the rows
+# ranked <- colSums(effdata)
+# order(ranked)
+# 
+# 
+# #pdf("SpecModTable.pdf", width = 9, height = 8)
+# # Set layout.  We are going to include a colorbar next to plot.
+# #layout(matrix(data=c(1,2), nrow=1, ncol=2), widths=c(4,1),
+# #       heights=c(1,1))
+# #par(mar = c(5,11,5,2))
+# #par(mfrow=c(1,1))
+# image( 1:nrow(newdata),1:ncol(newdata), newdata[,order(ranked)],xlim=c(0+0.5,length(m$spNames)+0.5),
+#       col=ColorRamp, xlab="", ylab="",
+#       axes=FALSE, zlim=c(min,max),
+#       main= "")
+# #abline(v=1.5)
+# #abline(v=5.5)
+# 
+# 
+# newdata[,order(ranked)]
+# 
+# # Now annotate the plot
+# box()
+# 
+# 
+# axis(side = 4, at=seq(1,length(xLabels),1), labels=xLabels[order(ranked)], cex.axis=1, las=2)
+# #axis(side = 2, at=seq(1,length(yLabels),1), labels=yLabels, las= 1,
+# #     cex.axis=0.9)
+# axis(3, at=c(1:(nrow(tmp2))), labels= m$spNames[plotOrder], las=2, cex.axis=0.9 )
+# 
+# 
+# #now adding "significant" marks on image
+# spp <- rownames(newdata)
+# # The support column is separate for negative and positive
+# pos  <- postBeta$support[2:nrow(postBeta$support),]
+# pos <-  pos[,plotOrder]
+# pos <- pos[order(ranked),]
+# 
+# 
+# neg  <- postBeta$supportNeg[2:nrow(postBeta$supportNeg),]
+# neg  <- neg[,plotOrder]
+# neg <- neg[order(ranked),]
+# 
+# i <- 1
+# j <- 2
+# 
+# for(i in 1:ncol(pos))
+# {
+#   for(j in 1:nrow(pos))
+#   {
+#     if(pos[j,i]>0.95)
+#     {
+#       text(i,j, "*")
+#     }
+#     if(neg[j,i]>0.95)
+#     {
+#       text(i,j, "*")
+#     }
+#   }
+# }
+# 
+# 
+# axis(1, at=c(-100, 100))
+# axis(2, at=c(-100, 100))
+# axis(3, at=c(-100, 100))
+# axis(4, at=c(-100, 100))
+# 
+# # Add colorbar to second plot region
+# cln2 <- colorInterpolate(1:10000, color = cln)
+# #par(mar = c(3,2.5,2.5,2))
+# #par(mar=c(0,0,4.5,2))
+# 
+# par(mar=c(1.5,4,13,1))
+# 
+# 
+# image(1,ColorLevels,
+#       matrix(data=ColorLevels, ncol=length(ColorLevels), nrow=1),
+#       col=cln2,xlab="",ylab="",xaxt="n",yaxt="n", las = 1)
+# 
+# axis(2, at=seq(-5,5,1),labels=c("<-5", seq(-4,4,1), ">5") , cex.axis=0.9, las=1)
+# mtext("Effects size", side = 3, line = 1, cex=0.7)
+# box()
+# 
+# #dev.off()
+############################
+```
+
+### Acknowledgements
+
+Thank you to Lisa Wilkinson for having the foresight and enthusiasm to start NABat monitoring in Alberta and her continued support of the program, to Jason Headley for providing the cover photo, and to all of the biologists who generously provided their time and energy in gathering and providing bat acoustic data: Agnieszka Sztaba, Barb Johnston, Brenda Shepard, Brett Sarchuk, Cory Olson, Courtney Hughes, David Bruinsma, Erin Bayne, Greg Brooke, Greg Horne, Geoffrey Prophet, Helena Mahoney, Jason Unruh, Jennifer Carpenter, Lisa Wilkinson, Matina Kalcounis-Rueppell, Natalka Melnycky, Rolanda Steenweg, Saakje Hazenberg, Sandi Robertson, and Sharon Irwin. Thank you also to Sandra Frey and Chris Beirne for providing extremely helpful R code and advice on temporal niche partitioning and HMSC, respectively. Lastly, thanks to Alex MacPhail, Cami Hurtado, and Monica Kohler for providing access to ABMIs data, to Rhonda Connors (TerraSolis Inc.) for answering mapping and GIS questions, and to Brandon Aubie for responding so quickly to, and troubleshooting any, issues with Alberta eBat.
+
+### References
+
+Alberta Biodiversity Monitoring Institute. 2018. ABMI Human Footprint Inventory: Wall-to-Wall Human Footprint Inventory. Edmonton, Alberta, Canada.
+Blanchet, F. G., K. Cazelles, and D. Gravel. 2020. Co‐occurrence is not evidence of ecological interactions. Ecology Letters:ele.13525.
+Burgar, J. M. 2017. Alberta eBat - Version 1.0 Technical Report. Edmonton, Alberta, Canada.
+Gill, C., and E. Batschelet. 1983. Circular Statistics in Biology. Journal of the Royal Statistical Society. Series A (General).
+Loeb, S. C., T. J. Rodhouse, L. E. Ellison, C. L. Lausen, J. D. Reichard, K. M. Irvine, T. E. Ingersoll, J. T. H. Coleman, W. E. Thogmartin, J. R. Sauer, C. M. Francis, M. L. Bayless, T. R. Stanley, and D. H. Johnson. 2015. A plan for the North American Bat Monitoring Program (NABat). General Technical Report SRS-208. Asheville, NC.
+Meredith, M., and M. Ridout. 2016. Package ‘ overlap ’. Estimates of Coefficient of Overlapping for Animal Activity Patterns.
+Ovaskainen, O., G. Tikhonov, A. Norberg, F. Guillaume Blanchet, L. Duan, D. Dunson, T. Roslin, and N. Abrego. 2017. How to make more out of community data? A conceptual framework and its implementation as models and software. Ecology Letters 20:561–576.
+Ridout, M. S., and M. Linkie. 2009. Estimating overlap of daily activity patterns from camera trap data. Journal of Agricultural, Biological, and Environmental Statistics 14:322–337.
+Tikhonov, G., O. Opedal, N. Abrego, A. Lehikoinen, O. Ovaskainen, Ø. H. Opedal, N. Abrego, A. Lehikoinen, M. M. J. De Jonge, J. Oksanen, and O. Ovaskainen. 2020. Joint species distribution modelling with the r-package Hmsc. Methods in Ecology and Evolution 11:442–447.
+
+### Appendix A – Spatial Call Summaries – Extended Results
+
+#### Mean annual overall nightly bat call by GRTS quadrant.
+
+``` {r annual mean nightly call by GRTS quadrant, echo=F, warning=FALSE, results='asis'}
+call_count$Quadrant <- as.factor(word(call_count$Location.Name,2,sep = "\\_"))
+call_count3 <- call_count %>% group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Quadrant) %>%
+  mutate(Nights.Surveyed=max(SurveyNight)-min(SurveyNight)+1)
+call_count3$Nights.Surveyed <- as.numeric(call_count3$Nights.Surveyed)
+
+call_count4 <- call_count3 %>% 
+  group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Quadrant, Nights.Surveyed) %>%
+  summarise(Mean=mean(Count), SE=se(Count)) 
+
+mean.quad.count <- call_count4  %>% select(-SE, -Nights.Surveyed) %>% 
+                               pivot_wider(names_from = c("Quadrant"),  values_from = c("Mean")) %>%
+                             rename(SE_mean=SE, SW_mean=SW, NE_mean=NE, NW_mean=NW )
+
+se.quad.count <- call_count4 %>% select(-Mean, -Nights.Surveyed) %>%
+                            pivot_wider(names_from = c("Quadrant"),  values_from = c("SE")) %>% 
+                           rename(SE_se=SE, SW_se=SW, NE_se=NE, NW_se=NW ) 
+
+srvynights.quad.count <- call_count4 %>% select(-Mean, -SE) %>%
+                            pivot_wider(names_from = c("Quadrant"),  values_from = c("Nights.Surveyed")) %>% 
+                           rename(SE_ns=SE, SW_ns=SW, NE_ns=NE, NW_ns=NW ) 
+
+mean.se.ns.quad.count <- cbind(mean.quad.count, se.quad.count, srvynights.quad.count) %>% select(-NP1:-Deployment.ID1, -NP2:-Deployment.ID2)
+
+# function to separate out into year tables for knitr:kable
+fn.mean.se.quad.count.YR <- function(year=year){
+  df.year <- mean.se.ns.quad.count %>% filter(Deployment.ID==year)
+  df.year <- df.year[c("Land.Unit.Code", "GRTS.Cell.ID",
+                                           "SE_mean", "SE_se", "SE_ns",
+                                           'SW_mean', "SW_se", "SW_ns",
+                                           'NE_mean', 'NE_se', "NE_ns",
+                                           "NW_mean", "NW_se", "NW_ns")]
+  
+  colnames(df.year) <- c("Land Unit", "GRTS ID","SE Mean", "SE", "# Nights", "SW Mean", "SE", "# Nights", "NE Mean", "SE", "# Nights", "NW Mean", "Se", "# Nights")
+  return(df.year)
+  }
+
+# create loop to run annual tables
+call_year <- unique(call_count4$Deployment.ID)
+for (i in 1:length(call_year)) {
+  opts <- options(knitr.kable.NA = "")
+  df.year <- fn.mean.se.quad.count.YR(year=call_year[i])
+  print(knitr::kable(df.year, 
+             caption = paste(call_year[i],"mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) surveyed. # Nights refers to the number of nights the quadrant was surveyed.", sep=" "), 
+             digits=1))
+  cat('\n\n')
+  options(opts)
+}
+
+```
+
+#### Mean species / species group calls for each year and volancy period by Land Unit
+
+``` {r mean species call for each year and volancy period by Land Unit, echo=F, warning=FALSE, results='asis'}
+call_count.LUC.Sp <- call_count %>% group_by(Land.Unit.Code, Deployment.ID, Volancy, Classification) %>% summarise(Mean=mean(Count), SE=se(Count)) 
+
+call_count.LUC.Sp$Deployment.ID <- factor(call_count.LUC.Sp$Deployment.ID, levels=c("2015", "2016", "2017", "2018", "2019", "2020"))
+levels(call_count.LUC.Sp$Deployment.ID)
+
+mean.LUCSp.count <- call_count.LUC.Sp  %>% arrange(Land.Unit.Code, Classification, Volancy) %>% select(-SE) %>% 
+                               pivot_wider(names_from = c("Deployment.ID"),  values_from = c("Mean")) %>%
+                             rename(mean2015=`2015`, mean2016=`2016`, mean2017=`2017`, mean2018=`2018`, mean2019=`2019`, mean2020=`2020`)
+
+se.LUCsp.count <- call_count.LUC.Sp %>% arrange(Land.Unit.Code, Classification, Volancy) %>% select(-Mean) %>%
+                            pivot_wider(names_from = c("Deployment.ID"),  values_from = c("SE")) %>%
+                             rename(se2015=`2015`, se2016=`2016`, se2017=`2017`, se2018=`2018`, se2019=`2019`, se2020=`2020`)
+
+mean.se.LUCsp.count <- cbind(mean.LUCSp.count, se.LUCsp.count) %>% select(-Land.Unit.Code1:-Classification1)
+mean.se.LUCsp.count$Volancy <- mean.se.LUCsp.count$Volancy %>% recode_factor("Pre-volancy" = "Pre", "Post-volancy"="Post")
+
+# function to separate out into year tables for knitr:kable
+fn.mean.se.Sp.count.LUC <- function(LUC=LUC){
+  
+  df.LUC <- mean.se.LUCsp.count %>% filter(Land.Unit.Code==LUC)
+  df.LUC <- df.LUC[c("Classification","Volancy",
+                     "mean2015", "se2015","mean2016", "se2016","mean2017", "se2017",
+                     "mean2018", "se2018","mean2019", "se2019","mean2020", "se2020")]
+  
+  colnames(df.LUC) <- c("Species", "Volancy","2015 Mean", "SE", "2016 Mean", "SE", "2017 Mean", "SE", "2018 Mean", "SE", "2019 Mean", "SE", "2020 Mean", "SE")
+  return(df.LUC)
+  
+}
+  
+# create loop to run annual tables
+call_LUC <- unique(call_count.LUC.Sp$Land.Unit.Code)
+for (i in 1:length(call_LUC)) {
+  opts <- options(knitr.kable.NA = "")
+  df.LUC <- fn.mean.se.Sp.count.LUC(LUC=call_LUC[i])
+  print(knitr::kable(df.LUC, 
+             caption = paste(call_LUC[i],"mean ± 1 SE nightly bat calls by species / species group for year and volancy period.", sep=" "), 
+             digits=1))
+  cat('\n\n')
+  options(opts)
+}
+
+```
+
+### Appendix B – Temporal Call Summaries – Extended Results
+
+#### Nocturnal activity patterns for all bat calls pooled as pre- or post-volancy for each Natural Region
 ```{r NR activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
 knitr::include_graphics(c("./Output/activity_overlap_Boreal.png",
@@ -1096,309 +2189,21 @@ knitr::include_graphics(c("./Output/activity_overlap_Boreal.png",
                           "./Output/activity_overlap_Rocky Mountain.png"))
 ``` 
 
-```{r EFPU-LANO activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for EPFU, LANO and EPFU-LANO", fig.show='hold', fig.align='center', echo=FALSE}
+#### Nocturnal activity patterns for all bat calls pooled as pre- or post-volancy for each Land Use Type
+```{r LUT activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_EPFU Pre-volancy-EPFU Post-volancy.png",
-                          "./Output/activity_overlap_EPFU-LANO Pre-volancy-EPFU-LANO Post-volancy.png",
-                          "./Output/activity_overlap_LANO Pre-volancy-LANO Post-volancy.png"))
+knitr::include_graphics(c("./Output/activity_overlap_Agriculture.png",
+                          "./Output/activity_overlap_Developed.png",
+                          "./Output/activity_overlap_Forest.png",
+                          "./Output/activity_overlap_Shrubland.png",
+                          "./Output/activity_overlap_Water.png"))
 ``` 
 
 
-```{r LABO-MYLU activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LABO, MYLU and LABO-MYLU", fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_LABO Pre-volancy-LABO Post-volancy.png",
-                          "./Output/activity_overlap_LABO-MYLU Pre-volancy-LABO-MYLU Post-volancy.png",
-                          "./Output/activity_overlap_MYLU Pre-volancy-MYLU Post-volancy.png"))
-``` 
+### Appendix C – Hierarchical Community and Focal Species / Species Group Inferences – Extended Results
 
-
-```{r LACO-Myotis 40k activity overlap, out.width="33%", out.height="20%", fig.cap="Nightly activity overlap one month pre and post volancy for LACI and Myotis 40k", fig.show='hold', fig.align='center', echo=FALSE}
-
-knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy.png",
-                          "./Output/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy.png"))
-``` 
-
-``` {r HMSC prep, include=F}
-# Code to prepare data for HMSC analysis, do not include in rmarkdown output
-# Objective: examine the data hierarchically.
-
-# First an overall community composition analysis
-
-# Data - use the call count data for aggregated nightly counts
-glimpse(call_count)
-dat <- call_count
-
-# Exclude EINP as no station covariates
-dat <- dat %>% filter(Land.Unit.Code!="EINP") 
-dat %>% count(Location.Name) #113 stations, EINP has been removed
-
-# Subset to the species / species groups with sufficient data (>100), exclude unknown
-dat %>% count(Classification, sort=TRUE)
-sp.to.include <- dat %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% filter(n>100) %>% select(Classification)
-
-dat <- dat[dat$Classification %in% sp.to.include$Classification,]  
-dat %>% count(Classification, sort=TRUE) # all here
-dat$Species <- factor(dat$Classification)
-
-# Effort data and covariates  
-# Station (unique survey bat location) data
-nrow(sta)
-# remove EINP as doesn't have the GIS covaraites
-sta <- sta %>% filter(Land.Unit.Code!="EINP") # now only 113 stations
-nrow(sta) # EINP has been removed
-
-plot(sta$Longitude , sta$Latitude, asp=1)
-
-# modify the GIS covariates to suit the analysis
-### Road type and distance
-sta %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
-sta$Road.Type <- as.character(sta$Road.Type)
-
-# if Road is within 100 m, keep as Road.Type.Ord but if >100 then change to 1, i.e., "No Road"
-sta$Road.Type <- case_when(sta$Road.Distance > 100 ~ "No Road",
-                               TRUE ~ as.character(sta$Road.Type))
-# recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
-sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
-  recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4, 
-         "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
-
-hist(sta$Road.Type.Ord)
-# recode distance to ordinal scale 1-10 for 0-100 m being 1, 100-200 being 2 and so on
-max(sta$Road.Distance, na.rm=T) # 759 m, so max category is 9 for roads > 800 and those with NA (none within 1000 m)
-sta$Road.Distance.Ord <- ifelse(sta$Road.Distance<100, 1, 
-                                ifelse(sta$Road.Distance<200, 2,
-                                       ifelse(sta$Road.Distance<300, 3,
-                                              ifelse(sta$Road.Distance<400, 4,
-                                                     ifelse(sta$Road.Distance<500, 5,
-                                                            ifelse(sta$Road.Distance<600, 6,
-                                                                   ifelse(sta$Road.Distance<700, 7,
-                                                                          ifelse(sta$Road.Distance<800, 8,
-                                                                                 ifelse(sta$Road.Distance>800,9, NA)))))))))
-
-sta$Road.Distance.Ord <- sta$Road.Distance.Ord %>% replace_na(9)
-sta %>% group_by(Road.Distance.Ord) %>% summarise(min(Road.Distance), max(Road.Distance))
-
-### Water type and distance
-sta %>% filter(is.na(Waterbody.Distance)) %>% count(Stream.Type)
-# some streams are closer than waterbodies, perhaps change waterbody type to stream?
-# yes - stream and water have similar features - consolidate into one called "Water" with the closest distance being the type/distance attributed
-sta %>% filter(Stream.Distance<100 | Waterbody.Distance<100) %>% group_by(Stream.Type, Waterbody.Type) %>% 
-  select(Location.Name, Stream.Distance, Waterbody.Distance, Stream.Type, Waterbody.Type)
-
-sta$Water.Distance <- with(sta, pmin(Stream.Distance, Waterbody.Distance, na.rm=T))
-# to remove NAs, will change this to ordinal scale later as actually >1000 but unknown
-sta$Water.Distance <- replace_na(sta$Water.Distance, 1001) 
-
-sta$Water.Type <- case_when(sta$Waterbody.Distance < sta$Stream.Distance ~ as.character(sta$Waterbody.Type), 
-                            TRUE ~ as.character(sta$Stream.Type))
-as.data.frame(sta %>% group_by(Water.Type) %>% select(Waterbody.Type, Stream.Type, Waterbody.Distance, Stream.Distance, Water.Distance))
-
-max(sta$Water.Distance, na.rm=T) # 1001 m, so max category is 11 for water with 11 being >1000 m
-
-# recode to ordinal scale, also changing NA to No Water as it meant no waterbody or stream within 1000 m
-sta$Water.Type.Ord <- sta$Water.Type %>% replace_na("No Water") %>%
-  recode("No Stream"=1, "No Water"=1, "DITCH"=2,"FLOW-ARB-DEM"=2,"STR-INDEF"=3, "STR-PER"=3, "STR-RECUR"=3, "OXBOW-RECUR"=3, 
-         "WETLAND"=4, "RIV-MAJ"=5, "QUARRY"=6, "RESERVOIR"=6, "LAKE-PER"=7, "LAKE-RECUR"=7)
-sta %>% group_by(Water.Type) %>% count(Water.Type.Ord)
-hist(sta$Water.Type.Ord)
-
-sta$Water.Distance.Ord <- ifelse(sta$Water.Distance<100, 1, 
-                                ifelse(sta$Water.Distance<200, 2,
-                                       ifelse(sta$Water.Distance<300, 3,
-                                              ifelse(sta$Water.Distance<400, 4,
-                                                     ifelse(sta$Water.Distance<500, 5,
-                                                            ifelse(sta$Water.Distance<600, 6,
-                                                                   ifelse(sta$Water.Distance<700, 7,
-                                                                          ifelse(sta$Water.Distance<800, 8,
-                                                                                 ifelse(sta$Water.Distance<900,9, 
-                                                                                        ifelse(sta$Water.Distance<1000,10,11))))))))))
-
-sta %>% group_by(Water.Distance.Ord) %>% summarise(min(Water.Distance), max(Water.Distance))
-hist(sta$Water.Distance.Ord)
-
-### Human Footprint type and distance
-as.data.frame(sta %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report 
-sta$Human.Footprint.Distance <- replace_na(sta$Human.Footprint.Distance, 1001)
-sta$Human.Footprint.Sublayer <- ifelse(sta$Human.Footprint.Type %in% 
-                                         c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
-                                           "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
-                                       ifelse(sta$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
-                                              ifelse(sta$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
-                                                     ifelse(sta$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
-                                                            ifelse(sta$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
-                                                                   ifelse(sta$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
-
-sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 100 ~ "No Human Footprint", 
-                            TRUE ~ as.character(sta$Human.Footprint.Sublayer))
-
-sta %>% count(Human.Footprint.Sublayer)
-as.data.frame(sta %>% group_by(Human.Footprint.Sublayer) %>% count(Human.Footprint.Type))
-summary(sta$Human.Footprint.Distance) # 94 are within 100 m of site, so let's change to log for ordinal scale
-sta$Human.Footprint.Distance.log <- log(sta$Human.Footprint.Distance+1)
-summary(sta$Human.Footprint.Distance.log) # now values range from 0-6.9
-# recode distance to ordinal scale 1-10 using log transformed distance values
-sta$Human.Footprint.Distance.Ord <- ifelse(sta$Human.Footprint.Distance.log<1, 1, 
-                                ifelse(sta$Human.Footprint.Distance.log<2, 2,
-                                       ifelse(sta$Human.Footprint.Distance.log<3, 3,
-                                              ifelse(sta$Human.Footprint.Distance.log<4, 4,
-                                                     ifelse(sta$Human.Footprint.Distance.log<5, 5,
-                                                            ifelse(sta$Human.Footprint.Distance.log<6, 6,7))))))
-
-sta %>% group_by(Human.Footprint.Distance.Ord) %>% summarise(min(Human.Footprint.Distance), max(Human.Footprint.Distance))
-
-# now have ordinal scales for road distance, road type, water distance, water type and human footprint distance
-# categorical scale for human footprint (no footprint will be reference value)
-# other categorical scale covariates = NP, Natural Region, Land.Use.Type
-# final station covariates = Latitude and Longitude
-# temporal covariates = Year, Volancy
-# environmental covariates = max temp, max humidity
-
-# Need to determine lenght of surveys (effort) per location as not always what it says in eff df
-dat %>% group_by(Deployment.ID) %>% summarise_at(c("SurveyNight"), list(min, mean, max))
-# looks surveys started by June 9 (or earlier) most years, surveys ended by end of July or later
-# go with June 9/10 - July 31 as the date range for HMSC
-dat %>% group_by(Deployment.ID) %>% summarise_at(c("jDay"), list(min, mean, max))
-# July 30 in julian day can be 211 or 212, go with 211 as some years only go till 211
-# June 10 in julian day can be 161 or 162 depending on leap year so go with 162 to make even 7 weeks for weekly observations
-# in the weekly obs, volancy will be considered as the start of week 28 (i.e., 190 days)
-week("2020-07-10") # week 28 for all years (2015-2020)
-yday("2020-07-10") # day 192 in 2020
-
-dat <- dat %>% filter(between(jDay, 162, 211))
-
-call_effort <- dat %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
-call_effort$Location.Name.Year <- as.factor(paste(call_effort$Location.Name, call_effort$Deployment.ID,sep="_"))
-
-call_effort_daily <- call_effort %>%
-     # sequence of daily dates for each corresponding start, end elements
-     transmute(Location.Name.Year, Date = map2(Min, Max, seq, by = "1 day")) %>%
-     # unnest the list column
-     unnest %>% 
-     # remove any duplicate rows
-     distinct
-
-call_effort_daily$Year <- year(call_effort_daily$Date)
-call_effort_daily %>% group_by(Year) %>% summarise(min(Date), max(Date))
-call_effort_daily %>% group_by(Year) %>% count(Date)
-call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
-
-##################################################################### 
-# Build the analysis data      ######################################
-#####################################################################
-
-# Y data          
-
-# Daily
-  # Station / Date / Effort / Species      
-    tmp <- call_effort_daily
-    daily.obs <- tmp %>% 
-      group_by(Location.Name,Date ) %>%
-      summarise(Effort = n())
-    
-    daily.obs <- as.data.frame(daily.obs[!is.na(daily.obs$Date),]) # removing any NAs
-    
-    daily.obs[, levels(dat$Species)] <- NA
-    i <-1
-        for(i in 1:nrow(daily.obs)){
-      tmp <- dat[dat$Location.Name==daily.obs$Location.Name[i] & dat$SurveyNight== daily.obs$Date[i],]
-      for(j in 1:length(levels(dat$Species))){
-        daily.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
-      }
-    }
-        
-
-# Weekly
-  # Station / Month / Effort / Covariates / Species  
-    dat$Location.Name_Yr <- paste(dat$Location.Name, dat$Year, sep="_")
-    
-    tmp <- call_effort_daily
-    tmp$Week <- week(tmp$Date) 
-    as.data.frame(tmp %>% group_by(Year, Week) %>% filter(Week == 24 |Week == 31) %>% summarise(min(Date), max(Date))) 
-    # week 31 starts on July 29/30 so remove from df
-    week.obs <- tmp %>% 
-      filter(Week != 31) %>%
-      group_by(Year, Location.Name, Week) %>%
-      summarise(Effort = n())
-    
-    week.obs <- as.data.frame(week.obs)
-    week.obs$Location.Name_Yr <- paste(week.obs$Location.Name, week.obs$Year, sep="_")
-    
-    week.obs[, levels(dat$Species)] <- NA
-    i <-1
-    for(i in 1:nrow(week.obs))
-    {
-      tmp <- dat[dat$Location.Name_Yr==week.obs$Location.Name_Yr[i] & week(dat$SurveyNight)== week.obs$Week[i],]
-      for(j in 1:length(levels(dat$Species)))
-      {
-        week.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
-      }
-    }
- 
-# Save the Y data
-write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )    
-write.csv(week.obs %>% select(-Location.Name_Yr),"Output/week_observations.csv", row.names = F )    
-write.csv(call_effort_daily,"Output/row_lookup.csv", row.names = F )    
-
-# Make the Y matrix
-# week
-# add in temporal covariates (Volancy only as Year already included); volancy starts in week 28
-week.obs$Volancy <- as.factor(ifelse(week.obs$Week<28, "Pre-volancy","Post-volancy"))
-week.obs %>% group_by(Week) %>% count(Volancy)
-
-# Make the Y Matrix
-Y <- week.obs
-row.names(Y) <- paste(as.character(week.obs$Location.Name),week.obs$Week,week.obs$Year,sep="_") 
-head(Y)
-
-# clean up the matrix
-Y$Location.Name <- NULL; Y$Effort <- NULL; Y$Location.Name_Yr <- NULL; Y$Year <- NULL ; Y$Volancy <- NULL; Y$Week <- NULL
-head(Y)
-
-Y <- as.matrix(Y)
-
-# Make the XData
-sta.week  <- week.obs[,c("Location.Name", "Week","Year", "Volancy","Effort")]
-head(sta.week)
-sta.week <- left_join(sta %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Sublayer","Human.Footprint.Distance.Ord"), sta.week)
-
-XData <- data.frame(sta.week)
-# remove the two surveys done outside the temporal window: 171651_NW_01 and 171651_NW_02
-XData <- XData %>% filter(Location.Name!="171651_NW_01" & Location.Name!="171651_NW_02")
-
-# Responses
-tmp <- cor(Y)
-corrplot.mixed(tmp)
-
-# Predictors
-tmp <- cor(XData[,c("Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Distance.Ord")])
-corrplot.mixed(tmp)
-
-nChains   = 2 # Ultimately use 4
-thin      = 100 # build up from 100
-samples   = 100 # #1000
-transient = 100*thin
-verbose   = T
-
-
-# Add a station-level random effect (for the covariances)
-studyDesign = data.frame(station = as.character(week.obs$Location.Name))
-
-rL = HmscRandomLevel(units = studyDesign$station)
-
-# Added poisson distributed
-
-# No offline - Season as NDVI
-m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
-           NP + Natural.Region + Land.Unit.Code + Land.Use.Type + Human.Footprint.Sublayer +
-           Road.Type.Ord + Water.Type.Ord + Road.Distance.Ord + Water.Distance.Ord + Human.Footprint.Distance.Ord,
-         studyDesign = studyDesign, ranLevels = list(station = rL), distr="poisson")
-
-m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, verbose = verbose, nParallel = 2)
-
-
-saveRDS(m,file="Output/MultiSpeciesHMSC.RData") 
-#m <- readRDS("Output/MultiSpeciesHMSC.RData")
-
+```{r HMSC covariate table,  cap= "HMSC model inputs", echo=F}
+#sta %>% select()
 ```
 
