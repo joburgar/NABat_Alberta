@@ -21,8 +21,6 @@ Prepared by: Joanna M. Burgar, PhD RPBio
 Prepared for: Parks Canada
 Jasper National Park, P.O. Box 10, Jasper AB T0E 1E0 
 
-
-
 Suggested Citation: Burgar, J.M. 2021. North American Bat Monitoring Program Multi-year Acoustic Data Analysis and Reporting. Parks Canada, Alberta, Canada. 
 
 Cover Illustration: Lasiurus cinereus © Jason Headley
@@ -30,7 +28,7 @@ Cover Illustration: Lasiurus cinereus © Jason Headley
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "overlap", "circular", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "camtrapR", "circular", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -570,12 +568,8 @@ LABO.MYLU.WWT <- volancy_overlap.fn(Classification=class.list[6,])
 EPFU.WWT <- volancy_overlap.fn(Classification=class.list[7,])
 LABO.WWT <- volancy_overlap.fn(Classification=class.list[8,])
 
-Sp.Vol.WWT <- cbind(LACI.WWT, MYLU.WWT,Myotis40k.WWT,EPFU.LANO.WWT,LANO.WWT,LABO.MYLU.WWT,EPFU.WWT,LABO.WWT)
-glimpse(Sp.Vol.WWT)
-
 # create function to produce activity overlap for all bats pre and post volancy by land use type
 dat_timeLUT <- dat_time[!is.na(dat_time$Land.Use.Type),]
-dat_timeLUT %>% group_by(Volancy) %>% count(Land.Use.Type)
 
 LUT.class <- c("EPFU", "LANO","LABO","LACI","MYLU") # too much to do LUT.class * LUT so stick with just LUT for now
 LUT <- c("Agriculture","Barren Land", "Developed","Forest","Grassland","Shrubland","Water" )
@@ -608,7 +602,6 @@ LUT_overlap.fn <- function(LUT=LUT){
 
 }
 # run through each land use type
-LUT
 AG.WWT <- LUT_overlap.fn (LUT=LUT[1])
 BL.WWT <- LUT_overlap.fn (LUT=LUT[2])
 DV.WWT <- LUT_overlap.fn (LUT=LUT[3])
@@ -617,11 +610,8 @@ GR.WWT <- LUT_overlap.fn (LUT=LUT[5])
 SH.WWT <- LUT_overlap.fn (LUT=LUT[6])
 WT.WWT <- LUT_overlap.fn (LUT=LUT[7])
 
-LUT.WWT <- cbind(AG.WWT, BO.WWT, DV.WWT, FR.WWT, GR.WWT, SH.WWT, WT.WWT)
 
 # create function to produce activity overlap for all bats pre and post volancy by Natural Region type
-dat_time %>% group_by(Volancy) %>% count(Natural.Region)
-
 NR <- c("Boreal","Foothills","Grassland","Parkland","Rocky Mountain" )
 
 NR_overlap.fn <- function(NR=NR){ 
@@ -658,7 +648,6 @@ GA.WWT <- NR_overlap.fn (NR=NR[3])
 PA.WWT <- NR_overlap.fn (NR=NR[4])
 RM.WWT <- NR_overlap.fn (NR=NR[5])
 
-NR.WWT <- cbind(BO.WWT, FO.WWT, GA.WWT, PA.WWT, RM.WWT)
 ```
 
 #### Spatial and Temporal Patterns 
@@ -667,297 +656,295 @@ Nocturnal bat activity pattens were determined overall and for species / species
 To examine species specific patterns, pre- and post-volancy activity patterns were created for each focal species / species group by pooling focal species / species group calls temporally (i.e., pre- versus post-volancy). In contrast, for spatial groups all bat calls were pooled (i.e., using all bat calls including those identified as ‘unknown’) temporally and then by each Land Use Type and Natural Region. For National Parks, activity patterns were created by first pooling all bat calls within and outside National Parks, and then splitting into pre- and post-volancy groups. Volancy was set at a julian day of 192 (July 10 for most years) with pre-volancy groups comprising calls recorded up to one month before July 10 (i.e., from a julian day of 162 to 191) and for one month on or after July 10 (i.e., from a julian day of 192 to 223).
 
 ``` {r HMSC prep, include=F}
-# # Code to prepare data for HMSC analysis, do not include in rmarkdown output
-# # Objective: examine the data hierarchically.
-# 
-# # First an overall community composition analysis
-# 
-# # Data - use the call count data for aggregated nightly counts
-# glimpse(call_count)
-# dat <- call_count
-# 
-# # Exclude EINP as no station covariates
-# dat <- dat %>% filter(Land.Unit.Code!="EINP") 
-# dat %>% count(Location.Name) #113 stations, EINP has been removed
-# 
-# # Subset to the species / species groups with sufficient data (>100), exclude unknown
-# dat %>% count(Classification, sort=TRUE)
-# sp.to.include <- dat %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% filter(n>100) %>% select(Classification)
-# 
-# dat <- dat[dat$Classification %in% sp.to.include$Classification,]  
-# dat %>% count(Classification, sort=TRUE) # all here
-# dat$Species <- factor(dat$Classification)
-# 
-# # Effort data and covariates  
-# # Station (unique survey bat location) data
-# nrow(sta)
-# # remove EINP as doesn't have the GIS covaraites
-# sta <- sta %>% filter(Land.Unit.Code!="EINP") # now only 113 stations
-# nrow(sta) # EINP has been removed
-# 
-# plot(sta$Longitude , sta$Latitude, asp=1)
-# 
-# # modify the GIS covariates to suit the analysis
-# ### Road type and distance
-# sta %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
-# sta$Road.Type <- as.character(sta$Road.Type)
-# 
-# # if Road is within 100 m, keep as Road.Type.Ord but if >100 then change to 1, i.e., "No Road"
-# sta$Road.Type <- case_when(sta$Road.Distance > 100 ~ "No Road",
-#                                TRUE ~ as.character(sta$Road.Type))
-# # recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
-# sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
-#   recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4, 
-#          "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
-# 
-# hist(sta$Road.Type.Ord)
-# # recode distance to ordinal scale 1-10 for 0-100 m being 1, 100-200 being 2 and so on
-# max(sta$Road.Distance, na.rm=T) # 759 m, so max category is 9 for roads > 800 and those with NA (none within 1000 m)
-# sta$Road.Distance.Ord <- ifelse(sta$Road.Distance<100, 1, 
-#                                 ifelse(sta$Road.Distance<200, 2,
-#                                        ifelse(sta$Road.Distance<300, 3,
-#                                               ifelse(sta$Road.Distance<400, 4,
-#                                                      ifelse(sta$Road.Distance<500, 5,
-#                                                             ifelse(sta$Road.Distance<600, 6,
-#                                                                    ifelse(sta$Road.Distance<700, 7,
-#                                                                           ifelse(sta$Road.Distance<800, 8,
-#                                                                                  ifelse(sta$Road.Distance>800,9, NA)))))))))
-# 
-# sta$Road.Distance.Ord <- sta$Road.Distance.Ord %>% replace_na(9)
-# sta %>% group_by(Road.Distance.Ord) %>% summarise(min(Road.Distance), max(Road.Distance))
-# 
-# ### Water type and distance
-# sta %>% filter(is.na(Waterbody.Distance)) %>% count(Stream.Type)
-# # some streams are closer than waterbodies, perhaps change waterbody type to stream?
-# # yes - stream and water have similar features - consolidate into one called "Water" with the closest distance being the type/distance attributed
-# sta %>% filter(Stream.Distance<100 | Waterbody.Distance<100) %>% group_by(Stream.Type, Waterbody.Type) %>% 
-#   select(Location.Name, Stream.Distance, Waterbody.Distance, Stream.Type, Waterbody.Type)
-# 
-# sta$Water.Distance <- with(sta, pmin(Stream.Distance, Waterbody.Distance, na.rm=T))
-# # to remove NAs, will change this to ordinal scale later as actually >1000 but unknown
-# sta$Water.Distance <- replace_na(sta$Water.Distance, 1001) 
-# 
-# sta$Water.Type <- case_when(sta$Waterbody.Distance < sta$Stream.Distance ~ as.character(sta$Waterbody.Type), 
-#                             TRUE ~ as.character(sta$Stream.Type))
-# as.data.frame(sta %>% group_by(Water.Type) %>% select(Waterbody.Type, Stream.Type, Waterbody.Distance, Stream.Distance, Water.Distance))
-# 
-# max(sta$Water.Distance, na.rm=T) # 1001 m, so max category is 11 for water with 11 being >1000 m
-# 
-# # recode to ordinal scale, also changing NA to No Water as it meant no waterbody or stream within 1000 m
-# sta$Water.Type.Ord <- sta$Water.Type %>% replace_na("No Water") %>%
-#   recode("No Stream"=1, "No Water"=1, "DITCH"=2,"FLOW-ARB-DEM"=2,"STR-INDEF"=3, "STR-PER"=3, "STR-RECUR"=3, "OXBOW-RECUR"=3, 
-#          "WETLAND"=4, "RIV-MAJ"=5, "QUARRY"=6, "RESERVOIR"=6, "LAKE-PER"=7, "LAKE-RECUR"=7)
-# sta %>% group_by(Water.Type) %>% count(Water.Type.Ord)
-# hist(sta$Water.Type.Ord)
-# 
-# sta$Water.Distance.Ord <- ifelse(sta$Water.Distance<100, 1, 
-#                                 ifelse(sta$Water.Distance<200, 2,
-#                                        ifelse(sta$Water.Distance<300, 3,
-#                                               ifelse(sta$Water.Distance<400, 4,
-#                                                      ifelse(sta$Water.Distance<500, 5,
-#                                                             ifelse(sta$Water.Distance<600, 6,
-#                                                                    ifelse(sta$Water.Distance<700, 7,
-#                                                                           ifelse(sta$Water.Distance<800, 8,
-#                                                                                  ifelse(sta$Water.Distance<900,9, 
-#                                                                                         ifelse(sta$Water.Distance<1000,10,11))))))))))
-# 
-# sta %>% group_by(Water.Distance.Ord) %>% summarise(min(Water.Distance), max(Water.Distance))
-# hist(sta$Water.Distance.Ord)
-# 
-# ### Human Footprint type and distance
-# as.data.frame(sta %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report 
-# sta$Human.Footprint.Distance <- replace_na(sta$Human.Footprint.Distance, 1001)
-# sta$Human.Footprint.Sublayer <- ifelse(sta$Human.Footprint.Type %in% 
-#                                          c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
-#                                            "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
-#                                        ifelse(sta$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
-#                                               ifelse(sta$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
-#                                                      ifelse(sta$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
-#                                                             ifelse(sta$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
-#                                                                    ifelse(sta$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
-# 
-# sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 100 ~ "No Human Footprint", 
-#                             TRUE ~ as.character(sta$Human.Footprint.Sublayer))
-# 
-# sta %>% count(Human.Footprint.Sublayer)
-# as.data.frame(sta %>% group_by(Human.Footprint.Sublayer) %>% count(Human.Footprint.Type))
-# summary(sta$Human.Footprint.Distance) # 94 are within 100 m of site, so let's change to log for ordinal scale
-# sta$Human.Footprint.Distance.log <- log(sta$Human.Footprint.Distance+1)
-# summary(sta$Human.Footprint.Distance.log) # now values range from 0-6.9
-# # recode distance to ordinal scale 1-10 using log transformed distance values
-# sta$Human.Footprint.Distance.Ord <- ifelse(sta$Human.Footprint.Distance.log<1, 1, 
-#                                 ifelse(sta$Human.Footprint.Distance.log<2, 2,
-#                                        ifelse(sta$Human.Footprint.Distance.log<3, 3,
-#                                               ifelse(sta$Human.Footprint.Distance.log<4, 4,
-#                                                      ifelse(sta$Human.Footprint.Distance.log<5, 5,
-#                                                             ifelse(sta$Human.Footprint.Distance.log<6, 6,7))))))
-# 
-# sta %>% group_by(Human.Footprint.Distance.Ord) %>% summarise(min(Human.Footprint.Distance), max(Human.Footprint.Distance))
-# 
-# # need to change env covariates into weekly covariates
-# nightly.max.env.cov$Year <- lubridate::year(nightly.max.env.cov$SurveyNight)
-# nightly.max.env.cov$Week <- lubridate::week(nightly.max.env.cov$SurveyNight)
-# nightly.max.env.cov$Location.Name.Year <- as.factor(paste(nightly.max.env.cov$Location.Name, nightly.max.env.cov$Year,sep="_"))
-# 
-# weekly.max.env.cov <- nightly.max.env.cov %>% group_by(Location.Name.Year, Week) %>%
-#   summarise(Max.Temp = mean(Max.Temp, na.rm = T), Max.Wind = mean(Max.Wind, na.rm = T), Max.Hum = mean(Max.Hum, na.rm = T))
-# summary(weekly.max.env.cov)
-# 
-# # now have ordinal scales for road distance, road type, water distance, water type and human footprint distance
-# # categorical scale for human footprint (no footprint will be reference value)
-# # other categorical scale covariates = NP, Natural Region, Land.Use.Type
-# # final station covariates = Latitude and Longitude
-# # temporal covariates = Year, Volancy
-# # environmental covariates = max temp, max humidity, max wind (mean for the week)
-# 
-# # Need to determine lenght of surveys (effort) per location as not always what it says in eff df
-# dat %>% group_by(Deployment.ID) %>% summarise_at(c("SurveyNight"), list(min, mean, max))
-# # looks surveys started by June 9 (or earlier) most years, surveys ended by end of July or later
-# # go with June 9/10 - July 31 as the date range for HMSC
-# dat %>% group_by(Deployment.ID) %>% summarise_at(c("jDay"), list(min, mean, max))
-# # July 30 in julian day can be 211 or 212, go with 211 as some years only go till 211
-# # June 10 in julian day can be 161 or 162 depending on leap year so go with 162 to make even 7 weeks for weekly observations
-# # in the weekly obs, volancy will be considered as the start of week 28 (i.e., 190 days)
-# week("2020-07-10") # week 28 for all years (2015-2020)
-# yday("2020-07-10") # day 192 in 2020
-# 
-# dat <- dat %>% filter(between(jDay, 162, 211))
-# 
-# call_effort <- dat %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
-# call_effort$Location.Name.Year <- as.factor(paste(call_effort$Location.Name, call_effort$Deployment.ID,sep="_"))
-# 
-# call_effort_daily <- call_effort %>%
-#      # sequence of daily dates for each corresponding start, end elements
-#      transmute(Location.Name.Year, Date = map2(Min, Max, seq, by = "1 day")) %>%
-#      # unnest the list column
-#      unnest %>% 
-#      # remove any duplicate rows
-#      distinct
-# 
-# call_effort_daily$Year <- year(call_effort_daily$Date)
-# call_effort_daily %>% group_by(Year) %>% summarise(min(Date), max(Date))
-# call_effort_daily %>% group_by(Year) %>% count(Date)
-# call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
-# 
-# ##################################################################### 
-# # Build the analysis data      ######################################
-# #####################################################################
-# 
-# # Y data          
-# 
-# # Daily
-#   # Station / Date / Effort / Species      
-#     tmp <- call_effort_daily
-#     daily.obs <- tmp %>% 
-#       group_by(Location.Name,Date ) %>%
-#       summarise(Effort = n())
-#     
-#     daily.obs <- as.data.frame(daily.obs[!is.na(daily.obs$Date),]) # removing any NAs
-#     
-#     daily.obs[, levels(dat$Species)] <- NA
-#     i <-1
-#         for(i in 1:nrow(daily.obs)){
-#       tmp <- dat[dat$Location.Name==daily.obs$Location.Name[i] & dat$SurveyNight== daily.obs$Date[i],]
-#       for(j in 1:length(levels(dat$Species))){
-#         daily.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
-#       }
-#     }
-#         
-# 
-# # Weekly
-#   # Station / Month / Effort / Covariates / Species  
-#     dat$Location.Name_Yr <- paste(dat$Location.Name, dat$Year, sep="_")
-#     
-#     tmp <- call_effort_daily
-#     tmp$Week <- week(tmp$Date) 
-#     as.data.frame(tmp %>% group_by(Year, Week) %>% filter(Week == 24 |Week == 31) %>% summarise(min(Date), max(Date))) 
-#     # week 31 starts on July 29/30 so remove from df
-#     week.obs <- tmp %>% 
-#       filter(Week != 31) %>%
-#       group_by(Year, Location.Name, Week) %>%
-#       summarise(Effort = n())
-#     
-#     week.obs <- as.data.frame(week.obs)
-#     week.obs$Location.Name_Yr <- paste(week.obs$Location.Name, week.obs$Year, sep="_")
-#     
-#     week.obs[, levels(dat$Species)] <- NA
-#     i <-1
-#     for(i in 1:nrow(week.obs))
-#     {
-#       tmp <- dat[dat$Location.Name_Yr==week.obs$Location.Name_Yr[i] & week(dat$SurveyNight)== week.obs$Week[i],]
-#       for(j in 1:length(levels(dat$Species)))
-#       {
-#         week.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
-#       }
-#     }
-#  
-# # Save the Y data
-# write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )    
-# write.csv(week.obs %>% select(-Location.Name_Yr),"Output/week_observations.csv", row.names = F )    
-# write.csv(call_effort_daily,"Output/row_lookup.csv", row.names = F )    
-# 
-# # Make the Y matrix
-# # week
-# # add in temporal covariates (Volancy only as Year already included); volancy starts in week 28
-# week.obs$Volancy <- as.factor(ifelse(week.obs$Week<28, "Pre-volancy","Post-volancy"))
-# week.obs %>% group_by(Week) %>% count(Volancy)
-# 
-# # add in env covariates (need to match on Location.Name, Year and Week)
-# week.obs$Location.Name_Yr_Week <- paste(week.obs$Location.Name_Yr,week.obs$Week,sep="_")
-# weekly.max.env.cov$Location.Name_Yr_Week <- paste(weekly.max.env.cov$Location.Name.Year,weekly.max.env.cov$Week,sep="_")
-# week.obs <- left_join(week.obs, weekly.max.env.cov)
-# 
-# # Make the Y Matrix
-# Y <- week.obs[c(5:13)]
-# row.names(Y) <- Y$Location.Name_Yr_Week
-# 
-# #clean up the matrix
-# Y$Location.Name_Yr <-NULL; Y$Volancy <- NULL; Y$Location.Name_Yr_Week <- NULL
-# head(Y)
-# Y <- as.matrix(Y)
-# 
-# # Make the XData
-# sta.week  <- week.obs[,c("Location.Name", "Week","Year", "Volancy","Effort")]
-# head(sta.week)
-# sta.week <- left_join(sta %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Distance.Ord"), sta.week)
-# XData <- data.frame(sta.week)
-# 
-# names(XData)
-# #relevel categorical covariates
-# XData$Natural.Region <- relevel(XData$Natural.Region, ref="Rocky Mountain")
-# XData$Land.Unit.Code <- XData$Land.Unit.Code %>% droplevels() %>% relevel("WBNP")
-# XData$Land.Use.Type <- relevel(XData$Land.Use.Type, ref="Forest")
-# XData$Volancy <- relevel(XData$Volancy, ref="Pre-volancy")
-# 
-# #standardize ordinal/continuous variables
-# XData$Latitude <- stdize(XData$Latitude)
-# XData$Longitude <- stdize(XData$Longitude)
-# XData$Effort <- stdize(XData$Effort)
+# Code to prepare data for HMSC analysis, do not include in rmarkdown output
+# Objective: examine the data hierarchically.
+
+# First an overall community composition analysis
+
+# Data - use the call count data for aggregated nightly counts
+glimpse(call_count)
+dat <- call_count
+
+# Exclude EINP as no station covariates
+dat <- dat %>% filter(Land.Unit.Code!="EINP")
+dat %>% count(Location.Name) #113 stations, EINP has been removed
+
+# Subset to the species / species groups with sufficient data (>100), exclude unknown
+dat %>% count(Classification, sort=TRUE)
+sp.to.include <- dat %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% filter(n>100) %>% select(Classification)
+
+dat <- dat[dat$Classification %in% sp.to.include$Classification,]
+dat %>% count(Classification, sort=TRUE) # all here
+dat$Species <- factor(dat$Classification)
+
+# Effort data and covariates
+# Station (unique survey bat location) data
+nrow(sta)
+# remove EINP as doesn't have the GIS covaraites
+sta2 <- sta %>% filter(Land.Unit.Code!="EINP") # now only 113 stations
+nrow(sta2) # EINP has been removed
+
+plot(sta2$Longitude , sta2$Latitude, asp=1)
+
+# modify the GIS covariates to suit the analysis
+### Road type and distance
+sta2 %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
+sta2$Road.Type <- as.character(sta2$Road.Type)
+
+# if Road is within 100 m, keep as Road.Type.Ord but if >100 then change to 1, i.e., "No Road"
+sta2$Road.Type <- case_when(sta2$Road.Distance > 100 ~ "No Road",
+                               TRUE ~ as.character(sta2$Road.Type))
+# recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
+sta2$Road.Type.Ord <- sta2$Road.Type %>% replace_na("No Road") %>%
+  recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4,
+         "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
+
+hist(sta2$Road.Type.Ord)
+# recode distance to ordinal scale 1-10 for 0-100 m being 1, 100-200 being 2 and so on
+max(sta2$Road.Distance, na.rm=T) # 759 m, so max category is 9 for roads > 800 and those with NA (none within 1000 m)
+sta2$Road.Distance.Ord <- ifelse(sta2$Road.Distance<100, 1,
+                                ifelse(sta2$Road.Distance<200, 2,
+                                       ifelse(sta2$Road.Distance<300, 3,
+                                              ifelse(sta2$Road.Distance<400, 4,
+                                                     ifelse(sta2$Road.Distance<500, 5,
+                                                            ifelse(sta2$Road.Distance<600, 6,
+                                                                   ifelse(sta2$Road.Distance<700, 7,
+                                                                          ifelse(sta2$Road.Distance<800, 8,
+                                                                                 ifelse(sta2$Road.Distance>800,9, NA)))))))))
+
+sta2$Road.Distance.Ord <- sta2$Road.Distance.Ord %>% replace_na(9)
+sta2 %>% group_by(Road.Distance.Ord) %>% summarise(min(Road.Distance), max(Road.Distance))
+
+### Water type and distance
+sta2 %>% filter(is.na(Waterbody.Distance)) %>% count(Stream.Type)
+# some streams are closer than waterbodies, perhaps change waterbody type to stream?
+# yes - stream and water have similar features - consolidate into one called "Water" with the closest distance being the type/distance attributed
+sta2 %>% filter(Stream.Distance<100 | Waterbody.Distance<100) %>% group_by(Stream.Type, Waterbody.Type) %>%
+  select(Location.Name, Stream.Distance, Waterbody.Distance, Stream.Type, Waterbody.Type)
+
+sta2$Water.Distance <- with(sta2, pmin(Stream.Distance, Waterbody.Distance, na.rm=T))
+# to remove NAs, will change this to ordinal scale later as actually >1000 but unknown
+sta2$Water.Distance <- replace_na(sta2$Water.Distance, 1001)
+
+sta2$Water.Type <- case_when(sta2$Waterbody.Distance < sta2$Stream.Distance ~ as.character(sta2$Waterbody.Type),
+                            TRUE ~ as.character(sta2$Stream.Type))
+as.data.frame(sta2 %>% group_by(Water.Type) %>% select(Waterbody.Type, Stream.Type, Waterbody.Distance, Stream.Distance, Water.Distance))
+
+max(sta2$Water.Distance, na.rm=T) # 1001 m, so max category is 11 for water with 11 being >1000 m
+
+# recode to ordinal scale, also changing NA to No Water as it meant no waterbody or stream within 1000 m
+sta2$Water.Type.Ord <- sta2$Water.Type %>% replace_na("No Water") %>%
+  recode("No Stream"=1, "No Water"=1, "DITCH"=2,"FLOW-ARB-DEM"=2,"STR-INDEF"=3, "STR-PER"=3, "STR-RECUR"=3, "OXBOW-RECUR"=3,
+         "WETLAND"=4, "RIV-MAJ"=5, "QUARRY"=6, "RESERVOIR"=6, "LAKE-PER"=7, "LAKE-RECUR"=7)
+sta2 %>% group_by(Water.Type) %>% count(Water.Type.Ord)
+hist(sta2$Water.Type.Ord)
+
+sta2$Water.Distance.Ord <- ifelse(sta2$Water.Distance<100, 1,
+                                ifelse(sta2$Water.Distance<200, 2,
+                                       ifelse(sta2$Water.Distance<300, 3,
+                                              ifelse(sta2$Water.Distance<400, 4,
+                                                     ifelse(sta2$Water.Distance<500, 5,
+                                                            ifelse(sta2$Water.Distance<600, 6,
+                                                                   ifelse(sta2$Water.Distance<700, 7,
+                                                                          ifelse(sta2$Water.Distance<800, 8,
+                                                                                 ifelse(sta2$Water.Distance<900,9,
+                                                                                        ifelse(sta2$Water.Distance<1000,10,11))))))))))
+
+sta2 %>% group_by(Water.Distance.Ord) %>% summarise(min(Water.Distance), max(Water.Distance))
+hist(sta2$Water.Distance.Ord)
+
+### Human Footprint type and distance
+as.data.frame(sta2 %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report
+sta2$Human.Footprint.Distance <- replace_na(sta2$Human.Footprint.Distance, 1001)
+sta2$Human.Footprint.Sublayer <- ifelse(sta2$Human.Footprint.Type %in%
+                                         c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
+                                           "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
+                                       ifelse(sta2$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
+                                              ifelse(sta2$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
+                                                     ifelse(sta2$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
+                                                            ifelse(sta2$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
+                                                                   ifelse(sta2$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
+
+sta2$Human.Footprint.Sublayer <- case_when(sta2$Human.Footprint.Distance > 100 ~ "No Human Footprint",
+                            TRUE ~ as.character(sta2$Human.Footprint.Sublayer))
+
+sta2 %>% count(Human.Footprint.Sublayer)
+as.data.frame(sta2 %>% group_by(Human.Footprint.Sublayer) %>% count(Human.Footprint.Type))
+summary(sta2$Human.Footprint.Distance) # 94 are within 100 m of site, so let's change to log for ordinal scale
+sta2$Human.Footprint.Distance.log <- log(sta2$Human.Footprint.Distance+1)
+summary(sta2$Human.Footprint.Distance.log) # now values range from 0-6.9
+# recode distance to ordinal scale 1-10 using log transformed distance values
+sta2$Human.Footprint.Distance.Ord <- ifelse(sta2$Human.Footprint.Distance.log<1, 1,
+                                ifelse(sta2$Human.Footprint.Distance.log<2, 2,
+                                       ifelse(sta2$Human.Footprint.Distance.log<3, 3,
+                                              ifelse(sta2$Human.Footprint.Distance.log<4, 4,
+                                                     ifelse(sta2$Human.Footprint.Distance.log<5, 5,
+                                                            ifelse(sta2$Human.Footprint.Distance.log<6, 6,7))))))
+
+sta2 %>% group_by(Human.Footprint.Distance.Ord) %>% summarise(min(Human.Footprint.Distance), max(Human.Footprint.Distance))
+
+# need to change env covariates into weekly covariates
+nightly.max.env.cov$Year <- lubridate::year(nightly.max.env.cov$SurveyNight)
+nightly.max.env.cov$Week <- lubridate::week(nightly.max.env.cov$SurveyNight)
+nightly.max.env.cov$Location.Name.Year <- as.factor(paste(nightly.max.env.cov$Location.Name, nightly.max.env.cov$Year,sep="_"))
+
+weekly.max.env.cov <- nightly.max.env.cov %>% group_by(Location.Name.Year, Week) %>%
+  summarise(Max.Temp = mean(Max.Temp, na.rm = T), Max.Wind = mean(Max.Wind, na.rm = T), Max.Hum = mean(Max.Hum, na.rm = T))
+summary(weekly.max.env.cov)
+
+# now have ordinal scales for road distance, road type, water distance, water type and human footprint distance
+# categorical scale for human footprint (no footprint will be reference value)
+# other categorical scale covariates = NP, Natural Region, Land.Use.Type
+# final station covariates = Latitude and Longitude
+# temporal covariates = Year, Volancy
+# environmental covariates = max temp, max humidity, max wind (mean for the week)
+
+# Need to determine lenght of surveys (effort) per location as not always what it says in eff df
+dat %>% group_by(Deployment.ID) %>% summarise_at(c("SurveyNight"), list(min, mean, max))
+# looks surveys started by June 9 (or earlier) most years, surveys ended by end of July or later
+# go with June 9/10 - July 31 as the date range for HMSC
+dat %>% group_by(Deployment.ID) %>% summarise_at(c("jDay"), list(min, mean, max))
+# July 30 in julian day can be 211 or 212, go with 211 as some years only go till 211
+# June 10 in julian day can be 161 or 162 depending on leap year so go with 162 to make even 7 weeks for weekly observations
+# in the weekly obs, volancy will be considered as the start of week 28 (i.e., 190 days)
+week("2020-07-10") # week 28 for all years (2015-2020)
+yday("2020-07-10") # day 192 in 2020
+
+dat <- dat %>% filter(between(jDay, 162, 211))
+
+call_effort <- dat %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
+call_effort$Location.Name.Year <- as.factor(paste(call_effort$Location.Name, call_effort$Deployment.ID,sep="_"))
+
+call_effort_daily <- call_effort %>%
+     # sequence of daily dates for each corresponding start, end elements
+     transmute(Location.Name.Year, Date = map2(Min, Max, seq, by = "1 day")) %>%
+     # unnest the list column
+     unnest %>%
+     # remove any duplicate rows
+     distinct
+
+call_effort_daily$Year <- year(call_effort_daily$Date)
+call_effort_daily %>% group_by(Year) %>% summarise(min(Date), max(Date))
+call_effort_daily %>% group_by(Year) %>% count(Date)
+call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
+
+#####################################################################
+# Build the analysis data      ######################################
+#####################################################################
+
+# Y data
+
+# Daily
+  # Station / Date / Effort / Species
+    tmp <- call_effort_daily
+    daily.obs <- tmp %>%
+      group_by(Location.Name,Date ) %>%
+      summarise(Effort = n())
+
+    daily.obs <- as.data.frame(daily.obs[!is.na(daily.obs$Date),]) # removing any NAs
+
+    daily.obs[, levels(dat$Species)] <- NA
+    i <-1
+        for(i in 1:nrow(daily.obs)){
+      tmp <- dat[dat$Location.Name==daily.obs$Location.Name[i] & dat$SurveyNight== daily.obs$Date[i],]
+      for(j in 1:length(levels(dat$Species))){
+        daily.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
+      }
+    }
+
+
+# Weekly
+  # Station / Month / Effort / Covariates / Species
+    dat$Location.Name_Yr <- paste(dat$Location.Name, dat$Year, sep="_")
+
+    tmp <- call_effort_daily
+    tmp$Week <- week(tmp$Date)
+    as.data.frame(tmp %>% group_by(Year, Week) %>% filter(Week == 24 |Week == 31) %>% summarise(min(Date), max(Date)))
+    # week 31 starts on July 29/30 so remove from df
+    week.obs <- tmp %>%
+      filter(Week != 31) %>%
+      group_by(Year, Location.Name, Week) %>%
+      summarise(Effort = n())
+
+    week.obs <- as.data.frame(week.obs)
+    week.obs$Location.Name_Yr <- paste(week.obs$Location.Name, week.obs$Year, sep="_")
+
+    week.obs[, levels(dat$Species)] <- NA
+    i <-1
+    for(i in 1:nrow(week.obs))
+    {
+      tmp <- dat[dat$Location.Name_Yr==week.obs$Location.Name_Yr[i] & week(dat$SurveyNight)== week.obs$Week[i],]
+      for(j in 1:length(levels(dat$Species)))
+      {
+        week.obs[i,levels(dat$Species)[j]] <- length(tmp$Species[tmp$Species==levels(dat$Species)[j]])
+      }
+    }
+
+# Save the Y data
+write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )
+write.csv(week.obs %>% select(-Location.Name_Yr),"Output/week_observations.csv", row.names = F )
+write.csv(call_effort_daily,"Output/row_lookup.csv", row.names = F )
+
+# Make the Y matrix
+# week
+# add in temporal covariates (Volancy only as Year already included); volancy starts in week 28
+week.obs$Volancy <- as.factor(ifelse(week.obs$Week<28, "Pre-volancy","Post-volancy"))
+week.obs %>% group_by(Week) %>% count(Volancy)
+
+# add in env covariates (need to match on Location.Name, Year and Week)
+week.obs$Location.Name_Yr_Week <- paste(week.obs$Location.Name_Yr,week.obs$Week,sep="_")
+weekly.max.env.cov$Location.Name_Yr_Week <- paste(weekly.max.env.cov$Location.Name.Year,weekly.max.env.cov$Week,sep="_")
+week.obs <- left_join(week.obs, weekly.max.env.cov)
+
+# Make the Y Matrix
+Y <- week.obs[c(5:13)]
+row.names(Y) <- Y$Location.Name_Yr_Week
+
+#clean up the matrix
+Y$Location.Name_Yr <-NULL; Y$Volancy <- NULL; Y$Location.Name_Yr_Week <- NULL
+head(Y)
+Y <- as.matrix(Y)
+
+# Make the XData
+sta.week  <- week.obs[,c("Location.Name", "Week","Year", "Volancy","Effort")]
+head(sta.week)
+sta.week <- left_join(sta2 %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Distance.Ord","Water.Type.Ord","Water.Distance.Ord","Human.Footprint.Distance.Ord"), sta.week)
+XData <- data.frame(sta.week)
+
+names(XData)
+#relevel categorical covariates
+XData$Natural.Region <- relevel(XData$Natural.Region, ref="Rocky Mountain")
+XData$Land.Unit.Code <- XData$Land.Unit.Code %>% droplevels() %>% relevel("WBNP")
+XData$Land.Use.Type <- relevel(XData$Land.Use.Type, ref="Forest")
+XData$Volancy <- relevel(XData$Volancy, ref="Pre-volancy")
+
+#standardize ordinal/continuous variables
+XData$Latitude <- stdize(XData$Latitude)
+XData$Longitude <- stdize(XData$Longitude)
+XData$Effort <- stdize(XData$Effort)
 # XData$Max.Temp <- stdize(XData$Max.Temp_Mean)
 # XData$Max.Hum <- stdize(XData$Max.Hum_Mean)
 # XData$Max.Wind <- stdize(XData$Max.Hum_Mean)
-# XData$Road.Type <- stdize(XData$Road.Type.Ord)
-# XData$Road.Distance <- stdize(XData$Road.Distance.Ord)
-# XData$Water.Type <- stdize(XData$Water.Type.Ord)
-# XData$Water.Distance <- stdize(XData$Water.Distance.Ord)
-# XData$Human.Footprint.Distance <- stdize(XData$Human.Footprint.Distance.Ord)
-# 
-# XData <- XData %>% select(-Max.Temp_Mean, -Max.Hum_Mean, -Max.Wind_Mean)
-# 
-# summary(XData)
-# # remove the two surveys done outside the temporal window: 171651_NW_01 and 171651_NW_02
-# XData <- XData %>% filter(Location.Name!="171651_NW_01" & Location.Name!="171651_NW_02")
+XData$Road.Type <- stdize(XData$Road.Type.Ord)
+XData$Road.Distance <- stdize(XData$Road.Distance.Ord)
+XData$Water.Type <- stdize(XData$Water.Type.Ord)
+XData$Water.Distance <- stdize(XData$Water.Distance.Ord)
+XData$Human.Footprint.Distance <- stdize(XData$Human.Footprint.Distance.Ord)
+
+summary(XData)
+# remove the two surveys done outside the temporal window: 171651_NW_01 and 171651_NW_02
+XData <- XData %>% filter(Location.Name!="171651_NW_01" & Location.Name!="171651_NW_02")
 # XData <- XData %>% select(-Max.Temp, -Max.Hum, -Max.Wind) # need to figure out the NAs before using
-# summary(XData)
-# # Responses
-# tmp <- cor(Y)
-# corrplot.mixed(tmp)
-# 
-# # Predictors
-# # need to relevel categorical factors and standardize ordinal/continuous variables
-# XData.predictors <- c("Latitude","Longitude","Road.Type","Road.Distance","Water.Type","Water.Distance","Human.Footprint.Distance")
-# tmp <- cor(XData[,c(XData.predictors)])
-# corrplot.mixed(tmp) 
+summary(XData)
+# Responses
+tmp <- cor(Y)
+corrplot.mixed(tmp)
+
+# Predictors
+# need to relevel categorical factors and standardize ordinal/continuous variables
+XData.predictors <- c("Latitude","Longitude","Road.Type","Road.Distance","Water.Type","Water.Distance","Human.Footprint.Distance")
+tmp <- cor(XData[,c(XData.predictors)])
+corrplot.mixed(tmp)
 # 
 # nChains   = 3 # Ultimately use 4
 # thin      = 1000 # build up from 100
@@ -1332,9 +1319,9 @@ See Appendix A for detailed mean nightly call counts for species /species groups
 #### Nocturnal Activity Results
 Figures show the kernel density estimates representing nocturnal activity curves and temporal overlap of all bats, and eight bat species / species groups. Periods of activity overlap is represented by the coefficient of overlap (Δ; denoted in grey) accompanied by the 95 % confidence intervals in parentheses; Δ = 1 represents no activity shift while Δ = 0 represents complete activity shift.
 
-Nocturnal activity differed within and outside of National Parks (χ2 = `r round(as.numeric(NP.WWT[3]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[4]),3)`),) overall and within each volancy periods, although the difference was weaker in the post-volancy period (pre-volancy χ2 = `r round(as.numeric(NP.WWT[13]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[14]),3)` compared to χ2 = `r round(as.numeric(NP.WWT[8]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[9]),3)` post-volancy) (Figure 14). Within parks pre-volancy activity had a steep peak just after sunset, a trough in the early morning and another small peak just before sunrise. Nocturnal activity outside of parks was much more muted with a peak after sunset but no trough or second peak. The exact opposite activity patterns were observed in the post-volancy period: a steep post sunset peak, early morning trough and smaller pre-sunrise peak for nocturnal activity outside of parks compared to a muted, consistent level of activity post-volancy in parks. This may suggest that parks are surveying near maternity roosts where reproductive females are taking shorter, more frequent foraging trips during the start of the night during the pre-volancy period, when they are tending to the pups, and then foraging more evenly throughout the night once the pups are volant. In contrast bats outside of parks are active more evenly throughout the night during the pre-volancy period but with focused activity post-volancy.
+Nocturnal activity differed within and outside of National Parks (χ2 = `r round(as.numeric(NP.WWT[3]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[4]),3)`),) overall and within each volancy periods, although the difference was weaker in the post-volancy period (pre-volancy χ2 = `r round(as.numeric(NP.WWT[13]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[14]),3)` compared to χ2 = `r round(as.numeric(NP.WWT[8]),2)`, df = 2, p-value `r round(as.numeric(NP.WWT[9]),3)` post-volancy) (Figure 14). Within parks pre-volancy activity had a steep peak just after sunset, a trough in the early morning and another small peak just before sunrise. Nocturnal activity outside of parks was much more muted with a peak after sunset but no trough or second peak. The exact opposite activity patterns were observed in the post-volancy period: a steep post sunset peak, early morning trough and smaller pre-sunrise peak for nocturnal activity outside of parks compared to a muted, consistent level of activity post-volancy in parks. This may suggest that parks were surveying near maternity roosts where reproductive females were taking shorter, more frequent foraging trips during the start of the night during the pre-volancy period, when they were tending to the pups, and then foraging more evenly throughout the night once the pups were volant. In contrast bats outside of parks were active more evenly throughout the night during the pre-volancy period but with focused activity post-volancy.
 
-Nocturnal activity patterns were typically consistent within a species, although the magnitude and timing may differ based on volancy period. Species with a bi-modal pattern (i.e., two distinct activity phases) were EPFU, LANO, and MYLU. LABO exhibited a clearly unimodal pattern with a single steep peak, while LACI had a higher initial activity peak and a more gradual levelling off of activity as the night progressed. Species activity patterns were significantly different between volancy periods: EPFU χ2 `r round(EPFU.WWT$statistic,2)`, df = 2, p-value `r round(EPFU.WWT$p.value,3)`; LANO χ2 `r round(LANO.WWT$statistic,2)`, df = 2, p-value `r round(LANO.WWT$p.value),3)`; MYLU χ2 `r round(MYLU.WWT$statistic,2)`, df = 2, p-value `r round(MYLU.WWT$p.value,3)`;  LABO χ2 `r round(LABO.WWT$statistic,2)`, df = 2, p-value `r round(LABO.WWT$p.value,3)`; and LACI χ2 `r round(LACI.WWT$statistic,2)`, df = 2, p-value `r round(LACI.WWT$p.value,3)`. Unsurprisingly the combined species groups activity patterns were less distinct, and  non-signficant, as they comprise two or more species with potentially contrasting activity patterns (Figures 15 to 17).
+Nocturnal activity patterns were typically consistent within a species, although the magnitude and timing differed based on volancy period. Species with a bi-modal pattern (i.e., two distinct activity phases) were EPFU, LANO, and MYLU. LABO exhibited a clearly unimodal pattern with a single steep peak, while LACI had a higher initial activity peak and a more gradual levelling off of activity as the night progressed. Species activity patterns were significantly different between volancy periods: EPFU χ2 `r round(EPFU.WWT$statistic,2)`, df = 2, p-value `r round(EPFU.WWT$p.value,3)`; LANO χ2 `r round(LANO.WWT$statistic,2)`, df = 2, p-value `r round(LANO.WWT$p.value,3)`; MYLU χ2 `r round(MYLU.WWT$statistic,2)`, df = 2, p-value `r round(MYLU.WWT$p.value,3)`;  LABO χ2 `r round(LABO.WWT$statistic,2)`, df = 2, p-value `r round(LABO.WWT$p.value,3)`; and LACI χ2 `r round(LACI.WWT$statistic,2)`, df = 2, p-value `r round(LACI.WWT$p.value,3)`. Unsurprisingly the combined species groups activity patterns were less distinct, and  non-signficant, as they comprise two or more species with potentially contrasting activity patterns (Figures 15 to 17).
 
 Within Natural Regions, overall bat activity patterns only diverged between volancy periods in Grassland (χ2 `r round(GA.WWT$statistic,2)`, df = 2, p-value `r round(GA.WWT$p.value,3)`), Parkland (χ2 `r round(PA.WWT$statistic,2)`, df = 2, p-value `r round(PA.WWT$p.value,3)`), and to a lesser extent in the Foothills (χ2 `r round(FO.WWT$statistic,2)`, df = 2, p-value `r round(FO.WWT$p.value,3)`).  Land Use Types with significantly different activity patterns between volancy periods were Developed (χ2 `r round(DV.WWT$statistic,2)`, df = 2, p-value `r round(DV.WWT$p.value,3)`), Grassland (χ2 `r round(GR.WWT$statistic,2)`, df = 2, p-value `r round(GR.WWT$p.value,3)`), Shrubland (χ2 `r round(SH.WWT$statistic,2)`, df = 2, p-value `r round(SH.WWT$p.value,3)`), and Water (χ2 `r round(WT.WWT$statistic,2)`, df = 2, p-value `r round(WT.WWT$p.value,3)`). See Appendix B for overall bat activity patterns pre- and post-volancy in each of the Natural Regions and Land Use Types.
 
@@ -1381,144 +1368,97 @@ knitr::include_graphics(c("./Output/activity_overlap_LACI Pre-volancy-LACI Post-
 Bat species were positively associated with one another, unsurprising as bat species tend to select for the same broad landsacpe features, which were modelled here.
 
 ``` {r HMSC results, echo=F} 
-# # 1st step - check for convergence
-# mpost = convertToCodaObject(m)
-# 
+m <- readRDS("Output/MultiSpeciesHMSC.RData")
+
+# 1st step - check for convergence
+mpost = convertToCodaObject(m)
+
 # ESS <- as.data.frame(effectiveSize(mpost$Beta))
 # lst <- strsplit(row.names(ESS)," ")
-# ESS$Species <- sapply(lst, '[[', 3) 
-# ESS$Covariate <- sapply(lst, '[[', 1) 
+# ESS$Species <- sapply(lst, '[[', 3)
+# ESS$Covariate <- sapply(lst, '[[', 1)
 # tmp <- aggregate(ESS$`effectiveSize(mpost$Beta)`, by=c(list(ESS$Species)), FUN=mean)
-# table1 <- Table.Calls
-# colnames(table1) <- c("Species","Call.Count","Perc.Calls","Nightly.Calls")
-# table1 <- left_join(table1,tmp, by=c("Species"="Group.1"))
-# table1$Eff <- round(table1$x/4,1)
-# table1$x <- NULL
+# # table1 <- as.data.frame(Table.Calls)
+# # colnames(table1) <- c("Species","Call.Count","Perc.Calls","Nightly.Calls")
+# # table1 <- left_join(table1,tmp, by=c("Species"="Group.1"))
+# # table1$Eff <- round(table1$x/4,1)
+# # table1$x <- NULL
 # 
 # # Second step, check Potential Scale Reduction Factors - They should all be close to one
 # GSRF <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
 # # Take the mean and the maximum
 # lst <- strsplit(row.names(GSRF)," ")
 # GSRF <- as.data.frame(GSRF)
-# GSRF$Species <- sapply(lst, '[[', 3) 
-# GSRF$Covariate <- sapply(lst, '[[', 1) 
+# GSRF$Species <- sapply(lst, '[[', 3)
+# GSRF$Covariate <- sapply(lst, '[[', 1)
 # tmp <- aggregate(GSRF$`Point est.`, by=c(list(GSRF$Species)), FUN=mean)
-# colnames(tmp)[2] <- "GSRF.Mean" 
+# colnames(tmp)[2] <- "GSRF.Mean"
 # tmp$GSRF.Max <- aggregate(GSRF$`Point est.`, by=c(list(GSRF$Species)), FUN=max)[,2]
 # table1 <- left_join(table1,tmp, by=c("Species"="Group.1"))
 # 
 # write.csv(table1, "Output//Table1_All_Species.csv", row.names=F )
-# 
-# # Explore these graphically
+
+# Explore these graphically
 # par(mfrow=c(2,2))
-# # Fixed Effects
+# Fixed Effects
 # hist(effectiveSize(mpost$Beta), main="ess(beta)") # We definately have a lack of covergence here!!!
 # hist(gelman.diag(mpost$Beta,multivariate=FALSE)$psrf, main="psrf(beta)") # Looks okay
-# # Random
+# Random
 # hist(effectiveSize(mpost$Omega[[1]]), main="ess(omega)")
 # hist(gelman.diag(mpost$Omega[[1]],multivariate=FALSE)$psrf, main="psrf(omega)")
-# 
-# # Assess the models explantory power
-# preds = computePredictedValues(m)
-# #?computePredictedValues
-# 
-# mod.eval <- evaluateModelFit(hM = m, predY = preds)
-# mod.eval$SR2
-# # All measures of model fit are given as vectors with one value for each species.t
-# 
-# #For Poisson models, a pseudo-R2 is computed as squared spearman correlation
-# #between observed and predicted values, times the sign of the correlation (SR2).
-# #For Poisson models, the observed and predicted data are also truncated to
-# #occurrences (presence-absences), for which the same measures are given as for
-# #the probit models (O.RMSE, O.AUC and O.TjurR2). For Poisson models, the
-# #observed and predicted data are also subsetted to conditional on presence,
-# #for which the root-mean-square error and pseudo-R2 based on squared spearman
-# #correlation are computed (C.RMSE, C.SR2).
-# 
-# ## Check predictions with two fold cross validation, takes a VERY long time >1 hr for 1 chain
-# #partition = createPartition(m, nfolds = 2)
-# #preds = computePredictedValues(m, partition = partition)
-# #evaluateModelFit(hM = m, predY = preds)
-# 
-# # Estimated species-species associations
-# # ?computeAssociations = Computes the species association matrices associated with each random level
-# OmegaCor = computeAssociations(m)
-# plotOrder = corrMatOrder(OmegaCor[[1]]$mean,order="AOE")
-# 
-# # Plot Betas
-# par(mfrow=c(1,1))
-# par(mar=c(10,10,1,1))
-# postBeta = getPostEstimate(m, parName = "Beta")
-# plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95, SpeciesOrder = "Original",SpVector = rev(plotOrder), mar=c(10,10,1,1) )
-# 
-# # another plot option, based on correlation "AOE" or angular order of the eigenvectors (where 1 and 2 are the two largest eigenvalues of the matrix corr)
-# # plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95, SpeciesOrder = "Original",SpVector = rev(plotOrder), mar=c(10,10,1,1) )
-# 
-# ci95 <- getPostEstimate(m, parName = "Beta", q=c(0.05, 0.95))
-# #means
-# 
-# rownames(ci95$mean) <- m$covNames
-# tmp1 <- as.data.frame.table(ci95$mean)
-# colnames(tmp1) <- c("Var2", "Var3", "Freq")
-# tmp1$Var1 <- "Mean"
-# tmp1 <- tmp1[,c(4,1,2,3)]
-# 
-# # Confidence intervals
-# 
-# # Specify the names
-# column.names <- m$covNames
-# row.names <- c("5%",  "95%")
-# matrix.names <- m$spNames
-# 
-# dimnames(ci95$q) <- list(row.names, column.names, matrix.names)
-# tmp2 <- as.data.frame.table(ci95$q)
-# 
-# tmp <- rbind(tmp1,tmp2)
-# 
-# df1 <- spread(data = tmp, key = Var1, value = Freq)
-# 
-# par(mfrow=c(1,3))
-# par(mar=c(10,4,2,1))
-# i <- 1
-# for(i in 2:length(unique(df1$Var2)))
-# {
-#   logic <- (df1$Var2 == unique(df1$Var2)[i])
-# 
-#   plotCI(plotOrder, df1$Mean[logic],
-#          li=df1$`5%`[logic], ui=df1$`95%`[logic],
-#          pch=19, sfrac=0.000, xaxt="n",las=1,
-#          ylab="B-Coefficient", xlab="",
-#          main=unique(df1$Var2)[i]
-#   )
-#   axis(1, at=plotOrder,
-#        labels=gsub("."," ",df1[logic,]$Var3, fixed=T), font=3, las=2 )
-# 
-#   abline(h=0, lty=2)
-# }
-# 
-# supportLevel = 0
-# toPlot = ((OmegaCor[[1]]$support>supportLevel)
-#           + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
-# 
-# 
-# 
-# 
+
+# Assess the models explantory power
+preds = computePredictedValues(m)
+#?computePredictedValues
+
+mod.eval <- evaluateModelFit(hM = m, predY = preds)
+#mod.eval$SR2
+# All measures of model fit are given as vectors with one value for each species.t
+
+#For Poisson models, a pseudo-R2 is computed as squared spearman correlation
+#between observed and predicted values, times the sign of the correlation (SR2).
+#For Poisson models, the observed and predicted data are also truncated to
+#occurrences (presence-absences), for which the same measures are given as for
+#the probit models (O.RMSE, O.AUC and O.TjurR2). For Poisson models, the
+#observed and predicted data are also subsetted to conditional on presence,
+#for which the root-mean-square error and pseudo-R2 based on squared spearman
+#correlation are computed (C.RMSE, C.SR2).
+
+## Check predictions with two fold cross validation, takes a VERY long time >1 hr for 1 chain
+#partition = createPartition(m, nfolds = 2)
+#preds = computePredictedValues(m, partition = partition)
+#evaluateModelFit(hM = m, predY = preds)
+
+# Estimated species-species associations
+# ?computeAssociations = Computes the species association matrices associated with each random level
+OmegaCor = computeAssociations(m)
+plotOrder = corrMatOrder(OmegaCor[[1]]$mean,order="AOE")
+
+# Plot Betas
+# title="Heatmap depicting how species respond to predictors at the 95% CI"
+par(mfrow=c(1,1))
+par(mar=c(10,10,1,1))
+postBeta = getPostEstimate(m, parName = "Beta")
+plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95, SpeciesOrder = "Original",SpVector = rev(plotOrder), mar=c(10,10,1,1))
+
+
 # par(mfrow=c(1,1))
 # corrplot(toPlot[plotOrder,plotOrder], method = "color",
 #          col=colorRampPalette(c("blue","white","red"))(200),
-#          title=paste("random effect level:",m$rLNames[1]), mar=c(0,0,1,0), type="lower")
-# 
-# # XFormula
-# # XFormula = ~Year + Volancy + Effort +
-# #            NP + Natural.Region + Latitude + Land.Use.Type + Human.Footprint.Sublayer +
-# #            Road.Type.Ord + Water.Type.Ord + Road.Distance.Ord + Water.Distance.Ord + Human.Footprint.Distance.Ord
-# VP = computeVariancePartitioning(m, group = c(1,2,6,5,4,3,5,5,5,4,5,4,5), groupnames=c("Temporal", "Reproductive","Spatial", "NaturalFeature", "HumanDisturbance", "Effort"))
+#          title="Station Random Effect Level", mar=c(0,0,1,0), type="lower")
+
+
+# # m$XFormula
+# # XFormula = ~Year + Volancy + Effort + NP + Natural.Region + Latitude + Longitude + 
+# #     Land.Use.Type + Road.Type + Road.Type^2 + Water.Type + Water.Type^2 + 
+# #     Road.Distance + Water.Distance
+# VP = computeVariancePartitioning(m, group = c(1,2,5,3,3,3,3,3,4,4,4,4,4,4), groupnames=c("Temporal", "Reproductive","Landscape Scale", "Local Scale", "Effort"))
 # 
 # #?computeVariancePartitioning()
 # plotVariancePartitioning(m, VP = VP, las=2)
 # 
 # column.names <- m$spNames
-# row.names <- c("Temporal", "Reproductive","Spatial", "Natural Feature", "Human Disturbance", "Effort", "Random")
+# row.names <- c("Temporal", "Reproductive","Landscape Scale", "Local Scale", "Effort", "Random")
 # VP$groupnames
 # glimpse(VP)
 # 
@@ -1526,32 +1466,29 @@ Bat species were positively associated with one another, unsurprising as bat spe
 # mod.eval$SR2[order(mod.eval$SR2, decreasing=T)]
 # 
 # 
-# # Make a two tier plot of R2 on the top, and variance partiioning on the bottom
+# # # Make a two tier plot of R2 on the top, and variance partiioning on the bottom
 # #pdf(width=7, height=7, "figures//Varience partioning_6month_NoOffline_noGT_COMMON.pdf")
 # layout(matrix(c(1,2,2), 3, 1, byrow = TRUE))
 # par(mar=c(1,4,2,2))
 # barplot(mod.eval$SR2[order(mod.eval$SR2, decreasing=T)], las=1,
 #         ylim=c(0,max(mod.eval$SR2)+0.1), xlim=c(0,length(column.names)+6.5), ylab="Pseudo R-squared")
-# 
-# par(mar=c(12,4,0,2))
-# labels <- data.frame("Species"=colnames(VP[,order(mod.eval$SR2, decreasing=T)]))
-# # Read in the key
-# barplot(VP[,order(mod.eval$SR2, decreasing=T)], col=brewer.pal(n = 6, name = "Set2"), las=2,
-#         #names.arg=labels$Common,
-#         xlim=c(0,length(column.names)+6.5), main="",
-#         ylab="Variation partitioning")
-# legend(14.6, 1, legend=rev(row.names), fill= rev(brewer.pal(n = 6, name = "Set2")))
-# #dev.off()
-# ?barplot
-# # Scale Line characteristics by R2
-# 
-# 
-# line.VP <- VP$vals[VP$groupnames %in% c("HumanDisturbance","Spatial"),]
 # # 
-# # line.VP <- VP$vals[VP$groupnames %in% c("Land.Use.Type","Human.Footprint.Sublayer", "Road.Type.Ord", "Road.Distance.Ord", "Human.Footprint.Distance.Ord"),]
+# # par(mar=c(12,4,0,2))
+# # labels <- data.frame("Species"=colnames(VP[,order(mod.eval$SR2, decreasing=T),]))
+# # # Read in the key
+# # barplot(VP[,order(mod.eval$SR2, decreasing=T)], col=brewer.pal(n = 6, name = "Set2"), las=2,
+# #         #names.arg=labels$Common,
+# #         xlim=c(0,length(column.names)+6.5), main="",
+# #         ylab="Variation partitioning")
+# # legend(14.6, 1, legend=rev(row.names), fill= rev(brewer.pal(n = 6, name = "Set2")))
+# # #dev.off()
+# # ?barplot
+# # # Scale Line characteristics by R2
 # 
-# rowSums(line.VP)/8
-# colSums(line.VP)
+# 
+# line.VP <- VP$vals#[VP$groupnames %in% c("HumanDisturbance","Spatial"),]
+# #
+# # line.VP <- VP$vals[VP$groupnames %in% c("Land.Use.Type","Human.Footprint.Sublayer", "Road.Type.Ord", "Road.Distance.Ord", "Human.Footprint.Distance.Ord"),]
 # 
 # i <- 1
 # for(i in 1:ncol(line.VP))
@@ -1564,24 +1501,18 @@ Bat species were positively associated with one another, unsurprising as bat spe
 # 
 # colnames(line.VP) <- gsub('\\.', ' ', colnames(line.VP))
 # 
-# #pdf(height=7, width=7, "figures//Line Characteristics_6month_NoOffline_COMMON.pdf")
+# pdf(height=6.5, width=8, "Output//VarianceExplained.pdf")
 # par(mar=c(12,4,1,2))
 # labels <- data.frame("Species"=colnames(line.VP[,order(colSums(line.VP), decreasing=T)]))
-# #labels <- left_join(labels, common)
 # barplot(line.VP[,order(colSums(line.VP), decreasing =T)]
-#         , las=2, col=brewer.pal(n = 5, name = "Set2"), ylab="Total variation explained %", ylim=c(0,max(colSums(line.VP))+0.02 ))#,
+#         , las=2, col=brewer.pal(n = 6, name = "Set2"), ylab="Total variation explained %", ylim=c(0,max(colSums(line.VP))+0.2 ))#,
 #        # names.arg=labels$Common)
-# 
-# #rev(row.names(line.VP))
-# # Offline
-# #legend(11, 0.12, legend=c("Offline/Online", "Mound Height", "Line width", "Line of sight", "Line density" ), fill= rev(brewer.pal(n = 5, name = "Set2")))
-# # No offline
-# legend(10, 0.10, legend=c("Mound height", "Line width", "Line of sight", "Line density" ), fill= rev(brewer.pal(n = 4, name = "Set2")))
-# #dev.off()
+# legend(7, 0.6, legend=c("Random: Station","Effort","Local Scale","Landscape Scale", "Reproductive", "Temporal"), fill= rev(brewer.pal(n = 6, name = "Set2")))
+# dev.off()
 # 
 # 
 # 
-# ##########################
+# # ##########################
 # # Custom plot
 # 
 # #pdf(width=10, height=6, "figures//Covariance_figure_no_offline_COMMON.pdf")
@@ -2197,7 +2128,56 @@ knitr::include_graphics(c("./Output/activity_overlap_Agriculture.png",
 
 ### Appendix C – Hierarchical Community and Focal Species / Species Group Inferences – Extended Results
 
-```{r HMSC covariate table,  cap= "HMSC model inputs", echo=F}
-#sta %>% select()
+```{r HMSC covariate table,  cap= "HMSC model inputs", echo=F, warning=FALSE}
+
+# another plot option, based on correlation "AOE" or angular order of the eigenvectors (where 1 and 2 are the two largest eigenvalues of the matrix corr)
+# plotBeta(m, post = postBeta, param = "Support", supportLevel = 0.95, SpeciesOrder = "Original",SpVector = rev(plotOrder), mar=c(10,10,1,1) )
+
+ci95 <- getPostEstimate(m, parName = "Beta", q=c(0.05, 0.95))
+#means
+
+rownames(ci95$mean) <- m$covNames
+tmp1 <- as.data.frame.table(ci95$mean)
+colnames(tmp1) <- c("Var2", "Var3", "Freq")
+tmp1$Var1 <- "Mean"
+tmp1 <- tmp1[,c(4,1,2,3)]
+
+# Confidence intervals
+
+# Specify the names
+column.names <- m$covNames
+row.names <- c("5%",  "95%")
+matrix.names <- m$spNames
+
+dimnames(ci95$q) <- list(row.names, column.names, matrix.names)
+tmp2 <- as.data.frame.table(ci95$q)
+
+tmp <- rbind(tmp1,tmp2)
+
+df1 <- spread(data = tmp, key = Var1, value = Freq)
+
+par(mfrow=c(1,3))
+par(mar=c(10,4,2,1))
+i <- 1
+for(i in 2:length(unique(df1$Var2)))
+{
+  logic <- (df1$Var2 == unique(df1$Var2)[i])
+
+  plotCI(plotOrder, df1$Mean[logic],
+         li=df1$`5%`[logic], ui=df1$`95%`[logic],
+         pch=19, sfrac=0.000, xaxt="n",las=1,
+         ylab="B-Coefficient", xlab="",
+         main=unique(df1$Var2)[i]
+  )
+  axis(1, at=plotOrder,
+       labels=gsub("."," ",df1[logic,]$Var3, fixed=T), font=3, las=2 )
+
+  abline(h=0, lty=2)
+}
+
+supportLevel = 0
+toPlot = ((OmegaCor[[1]]$support>supportLevel)
+          + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
+
 ```
 
