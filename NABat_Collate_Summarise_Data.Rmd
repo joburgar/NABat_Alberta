@@ -920,15 +920,21 @@ call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
       }
     }
 
-###--- need to delete the two weeks ABMI sites were not recording between recordings
+###--- need to delete the ABMI and Fort Chip sites as recordings are very low so perhaps issues with detectors
 ABMI.sites <- as.matrix(sta %>% filter(grepl("NABAT",Orig.Name)) %>% select(Location.Name))
+FortChip.sites <- as.matrix(sta %>% filter(grepl("Chip",Orig.Name)) %>% select(Location.Name))
 nrow(week.obs %>% filter(Location.Name %in% ABMI.sites))
-week.obs <- week.obs %>% filter(!(Location.Name %in% ABMI.sites & Week==25 | 
-                                           Location.Name %in% ABMI.sites & Week==26))
+nrow(week.obs)
+# week.obs <- week.obs %>% filter(!(Location.Name %in% ABMI.sites & Week==25 | 
+#                                            Location.Name %in% ABMI.sites & Week==26))
+week.obs <- week.obs %>% filter(!Location.Name %in% ABMI.sites) %>% filter(GRTS.Cell.ID!="238")
+week.obs <- week.obs %>% filter(!Location.Name %in% FortChip.sites)
 
 nrow(daily.obs %>% filter(Location.Name %in% ABMI.sites))
 ABMI.sites.remove.dates <- seq.Date(as.Date("2020-06-14"),as.Date("2020-07-02"), by="1 day")
-daily.obs <- daily.obs %>% filter(!(Location.Name %in% ABMI.sites & Date %in% ABMI.sites.remove.dates))
+# daily.obs <- daily.obs %>% filter(!(Location.Name %in% ABMI.sites & Date %in% ABMI.sites.remove.dates))
+daily.obs <- daily.obs %>% filter(!Location.Name %in% ABMI.sites)
+daily.obs <- daily.obs %>% filter(!Location.Name %in% FortChip.sites)
 daily.obs %>% filter(Location.Name %in% ABMI.sites)
 
 # Save the Y data
@@ -961,7 +967,6 @@ XData <- data.frame(sta.week)
 as.data.frame(XData %>% filter(Land.Unit.Code=="BNP") %>% group_by(Location.Name) %>% count(Year))
 XData$Location.Name_Yr_Week <- paste(XData$Location.Name, XData$Year, XData$Week,sep="_")
 
-
 #relevel categorical covariates
 XData$Natural.Region <- relevel(XData$Natural.Region, ref="Rocky Mountain")
 XData$Land.Unit.Code <- XData$Land.Unit.Code %>% droplevels() %>% relevel("WBNP")
@@ -984,6 +989,8 @@ XData$Human.Footprint.Distance <- stdize(XData$HF.Dist.HMSC)
 summary(XData)
 # remove the two surveys done outside the temporal window: 171651_NW_01 and 171651_NW_02
 XData <- XData %>% filter(Location.Name!="171651_NW_01" & Location.Name!="171651_NW_02")
+XData <- XData %>% filter(!Location.Name %in% ABMI.sites) %>% filter(!Location.Name %in% FortChip.sites)
+nrow(XData)
 
 # subset using the weather data
 XData.sub <- left_join(XData, weekly.max.env.cov %>% select(-Max.Wind, -Week), by="Location.Name_Yr_Week") 
@@ -1002,12 +1009,15 @@ nrow(XData.sub)
 tmp <- cor(Y)
 corrplot.mixed(tmp)
 
+nrow(Y)
+nrow(XData)
+
 # Predictors
 XData.predictors <- c("Latitude","Road.Type","Road.Distance","Water.Type","Water.Distance","Human.Footprint.Distance")
 tmp <- cor(XData[,c(XData.predictors)])
-corrplot.mixed(tmp)
+corrplot.mixed(tmp) # 0.83 correlation between Road.Distance and Human.Footprint.Distance
 
-nChains   = 3 # Ultimately use 4
+nChains   = 3 
 thin      = 1000 # build up from 100
 samples   = 1000 # #1000
 transient = 100*thin
@@ -1100,7 +1110,7 @@ fsurvey.dist
 sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
 sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
 sta.count2$GRTS.count <- 1
-sta.count3 <- sta.count2 %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% summarise(sum(GRTS.count))
+sta.count3 <- as.data.frame(sta.count2 %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% summarise(sum(GRTS.count)))
 
 sta.NP <-sta %>% filter(NP=="In") %>% count(Land.Unit.Code)
 sta.NP$prop <- sta.NP$n / sum(sta.NP$n)
@@ -1108,9 +1118,9 @@ sta.NP$prop <- sta.NP$n / sum(sta.NP$n)
 sta.NR <-sta %>% count(Natural.Region)
 sta.NR$prop <- sta.NR$n / sum(sta.NR$n)
 
-sta.count$Count.Grid.Cells <- sta.count3[,4]
+sta.count$Count.Grid.Cells <- as.vector(sta.count3[,4])
 colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Count Bat Survey Locations", "Count NABat Grid Cells")
-knitr::kable(sta.count, 
+knitr::kable(sta.count,
              caption="The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.",
              align = "lllrr")
 ```
@@ -1212,6 +1222,8 @@ NightPA.hist
 ###### Figure 6. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year within and outside of National Parks (NP).
 
 ```{r nightly survey effort NR, echo=F, fig.height=8.5, fig.width=6.5}
+
+brewer.pal()
 
 NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Natural.Region)) + 
   geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
@@ -1333,8 +1345,9 @@ Table.Calls <- call_count %>% group_by(Classification) %>% summarise(Call.Count 
 Table.Calls$Per.Known <- as.data.frame(round(Table.Calls$Call.Count/sum(Table.Calls$Call.Count)*100,0))[,1]
 Table.Calls$Occupancy <- as.data.frame(round(Table.Calls$Call.Count/sum(as.numeric(total.effort$Diff)),2))[,1] 
 colnames(Table.Calls) <- c("Species / Species Group", "Call Count", "% of Calls","Calls per Night")
+as.data.frame(Table.Calls)
 
-knitr::kable(replace(Table.Calls, Table.Calls==0, ""), 
+knitr::kable(Table.Calls, 
              caption=paste("Overall bat call count, percentage and call per night for ",n.stat," stations surveyed from ",min(eff$Deployment.ID),"-", max(eff$Deployment.ID),".", sep=""),
              align = "lrrr")
 ```
@@ -1348,7 +1361,7 @@ Sp.hist.data <- call_count %>% group_by(Deployment.ID, Natural.Region, Land.Use.
 
 Sp.hist.NR <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Natural.Region)) + 
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values=col.catNR)+
+  scale_fill_manual(values=unique(sta$ColsNR))+
   theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
   theme(legend.position="bottom", legend.title = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
@@ -1365,7 +1378,7 @@ Sp.hist.NR
 
 Sp.hist.LUT <- ggplot(data = Sp.hist.data %>% filter(!is.na(Land.Use.Type)), aes(x = Classification, y = n, fill= Land.Use.Type)) + 
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values=col.catLUT)+
+  scale_fill_brewer(palette = "Set1")+
   theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
   theme(legend.position="bottom", legend.title = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
