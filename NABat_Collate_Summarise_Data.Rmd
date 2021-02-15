@@ -927,7 +927,6 @@ nrow(week.obs %>% filter(Location.Name %in% ABMI.sites))
 nrow(week.obs)
 # week.obs <- week.obs %>% filter(!(Location.Name %in% ABMI.sites & Week==25 | 
 #                                            Location.Name %in% ABMI.sites & Week==26))
-week.obs <- week.obs %>% filter(!Location.Name %in% ABMI.sites) %>% filter(GRTS.Cell.ID!="238")
 week.obs <- week.obs %>% filter(!Location.Name %in% FortChip.sites)
 
 nrow(daily.obs %>% filter(Location.Name %in% ABMI.sites))
@@ -1222,8 +1221,6 @@ NightPA.hist
 ###### Figure 6. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year within and outside of National Parks (NP).
 
 ```{r nightly survey effort NR, echo=F, fig.height=8.5, fig.width=6.5}
-
-brewer.pal()
 
 NightNR.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Natural.Region)) + 
   geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
@@ -1557,6 +1554,163 @@ corrplot(toPlot[plotOrder,plotOrder], method = "color",
          col=colorRampPalette(c("blue","white","red"))(200),
          title="Station Random Effect Level", mar=c(0,0,1,0), type="lower")
 
+############################
+# Fixed effects
+
+######################
+# B estimate plots  - similar to the heatmap
+#creating new data
+
+newdata <- t(postBeta$mean)
+newdata <- newdata[, 2:ncol(newdata)]
+
+# # Set min and max values
+min <- -1
+min(newdata, na.rm=T)
+max <- 1 #
+max(newdata, na.rm=T)
+#creating new data
+
+# newdata[newdata>1] <- 1
+# newdata[newdata<(-1)] <- (-1)
+
+
+source("NUNEZ.FNS.NEW.R")
+# Create x and y labels
+yLabels <- m$spNames
+xLabels <-m$covNames[2:length(m$covNames)]
+#new.data <- as.matrix(newdata)
+
+#setting the color palette
+cln <- c("#67a9cf","#f7f7f7","#ef8a62")
+ColorRamp <- colorInterpolate(1:length(newdata), color = cln)
+ColorLevels <- seq(min, max, length=length(ColorRamp))
+
+newdata <- newdata[plotOrder,]
+
+par(mar=c(10,0,1,2))
+
+m$XFormula
+
+colnames(newdata) <- c("Year", "Volancy_Post", "Effort", "NP_Out", 
+                       "NR_Boreal", "NR_Canadian.Shield","NR_Foothills","NR_Grassland","NR_Parkland",
+                       "Latitude", "Longitude", 
+                       "LUT_Agriculture", "LUT_Barren.Land", "LUT_Developed","LUT_Grassland","LUT_Shrubland","LUT_Water",
+                       "Road.Type","Road.Distance", "Water.Type", "Water.Distance")
+
+newdata <- newdata[,c("Year", "Volancy_Post","NP_Out", 
+                      "NR_Boreal","NR_Foothills","NR_Grassland","NR_Parkland",
+                      "Latitude", "Longitude", 
+                      "LUT_Agriculture", "LUT_Barren.Land", "LUT_Developed","LUT_Grassland","LUT_Shrubland","LUT_Water",
+                      "Road.Type","Road.Distance", "Water.Type", "Water.Distance","Effort")]
+#pdf("SpecModTable.pdf", width = 9, height = 8)
+# Set layout.  We are going to include a colorbar next to plot.
+# par(mar = c(bottom, left, top, right))
+layout(matrix(data=c(1,2), nrow=1, ncol=2), widths=c(4,1),
+      heights=c(1,1))
+par(mar = c(8,11,5,2))
+par(mfrow=c(1,1))
+image(1:ncol(newdata), 1:nrow(newdata), t(newdata),
+      col=ColorRamp, xlab="", ylab="",
+      axes=FALSE, zlim=c(min,max),
+      main= "")
+#abline(v=1.5)
+#abline(v=5.5)
+
+
+# Now annotate the plot
+box()
+
+colnames(newdata)
+
+axis(side = 1, at=seq(1,length(xLabels),1),
+     labels=colnames(newdata),
+     cex.axis=1, las=2)
+
+par(xpd=F)
+
+abline(v=4.5, lty=1)
+abline(v=6.5, lty=1)
+abline(v=7.5, lty=1)
+abline(v=8.5, lty=1)
+
+par(xpd=T)
+lines(c(0.9,4.1), c(-2.5,-2.5)); lines(c(0.9,0.9), c(-2.5,-2.3)); lines(c(4.1,4.1), c(-2.5,-2.3))
+lines(c(4.9,6.1), c(-2.5,-2.5)); lines(c(4.9,4.9), c(-2.5,-2.3)); lines(c(6.1,6.1), c(-2.5,-2.3))
+lines(c(6.9,7.1), c(-2.5,-2.5)); lines(c(6.9,6.9), c(-2.5,-2.3)); lines(c(7.1,7.1), c(-2.5,-2.3))
+lines(c(7.9,8.1), c(-2.5,-2.5)); lines(c(7.9,7.9), c(-2.5,-2.3)); lines(c(8.1,8.1), c(-2.5,-2.3))
+
+lines(c(0,9.8),c(0.5,0.5), lty=2)
+lines(c(0,9.8),c(8.5,8.5), lty=2)
+lines(c(0,9.8),c(11.5,11.5), lty=2)
+lines(c(0,9.8),c(12.5,12.5), lty=2)
+lines(c(9.8,9.8),c(12.5,0.5), lty=2)
+
+text(2.5,-3, "Temporal")
+text(5.5,-3, "Landscape")
+text(7,-3, "Local")
+text(8,-3, "Effort")
+
+par(xpd=F)
+
+
+#axis(side = 2, at=seq(1,length(yLabels),1), labels=yLabels, las= 1,
+#     cex.axis=0.9)
+
+#now adding "significant" marks on image
+spp <- rownames(newdata)
+# The support column is separate for negative and positive
+pos  <- postBeta$support[2:nrow(postBeta$support),]
+pos <-  pos[,plotOrder]
+row.names(pos) <- colnames(newdata)
+
+neg  <- postBeta$supportNeg[2:nrow(postBeta$supportNeg),]
+neg  <- neg[,plotOrder]
+row.names(neg) <- colnames(newdata)
+
+# Put them in the right order
+# pos <- pos[c("LOS", "LD500", "LineWidth", "MoundingHt", "WAT500", "z.NDVIseas","Season", "Year", "Effort"),]
+# neg <- neg[c("LOS", "LD500", "LineWidth", "MoundingHt", "WAT500", "z.NDVIseas","Season", "Year", "Effort"),]
+
+
+
+for(i in 1:nrow(pos))
+{
+  for(j in 1:ncol(pos))
+  {
+    if(pos[i,j]>0.95)
+    {
+      text(i,j, "+")
+    }
+    if(neg[i,j]>0.95)
+    {
+      text(i,j, "-")
+    }
+  }
+}
+
+
+axis(1, at=c(-100, 100))
+axis(2, at=c(-100, 100))
+axis(3, at=c(-100, 100))
+axis(4, at=c(-100, 100))
+
+# Add colorbar to second plot region
+cln2 <- colorInterpolate(1:10000, color = cln)
+#par(mar = c(3,2.5,2.5,2))
+par(mar=c(0,5,4.5,7))
+
+image(ColorLevels,1,
+      matrix(data=ColorLevels, ncol=1, nrow=length(ColorLevels)),
+      col=cln2,xlab="",ylab="",xaxt="n",yaxt="n", las = 1)
+
+axis(3, at=seq(-5,5,1),labels=c("<-5", seq(-4,4,1), ">5") , cex.axis=0.9, las=1)
+mtext("Effects size", side = 3, line = 2, cex=0.7)
+box()
+
+#dev.off()
+
+
 # m$XFormula
 # XFormula = ~Year + Volancy + Effort + NP + Natural.Region + Latitude  + 
 #    Land.Use.Type + Road.Type + Road.Distance + Water.Type + 
@@ -1564,7 +1718,7 @@ corrplot(toPlot[plotOrder,plotOrder], method = "color",
 VP = computeVariancePartitioning(m, group = c(1,1,4,2,2,2,2,2,3,3,3,3), groupnames=c("Temporal","Landscape", "Local","Effort"))
 plotVariancePartitioning(m, VP = VP, las=2)
 column.names <- m$spNames
-row.names <- c("Temporal","Landscape", "Road","Water","Effort", "Random")
+row.names <- c("Temporal","Landscape", "Local","Effort", "Random")
 mod.eval$SR2[order(mod.eval$SR2, decreasing=T)]
 
 # Make a two tier plot of R2 on the top, and variance partiioning on the bottom
@@ -1607,56 +1761,59 @@ Tikhonov, G., O. Opedal, N. Abrego, A. Lehikoinen, O. Ovaskainen, Ø. H. Opedal,
 
 ### Appendix A – Spatial Call Summaries – Extended Results
 
-#### Mean annual overall nightly bat call by GRTS quadrant.
+#### Mean annual overall nightly bat call by station.
 
-``` {r annual mean nightly call by GRTS quadrant, echo=F, warning=FALSE, results='asis'}
-call_count$Quadrant <- as.factor(word(call_count$Location.Name,2,sep = "\\_"))
-call_count3 <- call_count %>% group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Quadrant) %>%
+``` {r annual mean nightly call by station, echo=F, warning=FALSE, results='asis'}
+call_count$Stn.Num <- as.factor(word(call_count$Location.Name,3,sep = "\\_"))
+call_count3 <- call_count %>% group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Stn.Num) %>%
   mutate(Nights.Surveyed=max(SurveyNight)-min(SurveyNight)+1)
 call_count3$Nights.Surveyed <- as.numeric(call_count3$Nights.Surveyed)
 
 call_count4 <- call_count3 %>% 
-  group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Quadrant, Nights.Surveyed) %>%
-  summarise(Mean=mean(Count), SE=se(Count)) 
+  group_by(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Location.Name, Nights.Surveyed) %>%
+  summarise(Mean=mean(Count), SE=se(Count)) %>% 
+  select(NP, Land.Unit.Code, GRTS.Cell.ID, Deployment.ID, Location.Name, Nights.Surveyed, Mean, SE)
 
-mean.quad.count <- call_count4  %>% select(-SE, -Nights.Surveyed) %>% 
-                               pivot_wider(names_from = c("Quadrant"),  values_from = c("Mean")) %>%
-                             rename(SE_mean=SE, SW_mean=SW, NE_mean=NE, NW_mean=NW )
+call_count4$Mean.SE <- paste0(round(call_count4$Mean,2)," ± ",round(call_count4$SE,2))
+call_count4 <- call_count4 %>% select(-c(Mean, SE))
 
-se.quad.count <- call_count4 %>% select(-Mean, -Nights.Surveyed) %>%
-                            pivot_wider(names_from = c("Quadrant"),  values_from = c("SE")) %>% 
-                           rename(SE_se=SE, SW_se=SW, NE_se=NE, NW_se=NW ) 
+stn.count.year <- call_count4  %>% pivot_wider(names_from = c("Deployment.ID"),  values_from = c("Mean.SE","Nights.Surveyed"))
 
-srvynights.quad.count <- call_count4 %>% select(-Mean, -SE) %>%
-                            pivot_wider(names_from = c("Quadrant"),  values_from = c("Nights.Surveyed")) %>% 
-                           rename(SE_ns=SE, SW_ns=SW, NE_ns=NE, NW_ns=NW ) 
+stn.count.year <- stn.count.year[,c("NP","Land.Unit.Code","GRTS.Cell.ID","Location.Name","Mean.SE_2015","Nights.Surveyed_2015",     
+                                    "Mean.SE_2016","Nights.Surveyed_2016","Mean.SE_2017","Nights.Surveyed_2017","Mean.SE_2018","Nights.Surveyed_2018", "Mean.SE_2019","Nights.Surveyed_2019","Mean.SE_2020","Nights.Surveyed_2020"  )]
+colnames(stn.count.year) <- c("NP","Land Unit","GRTS ID","Station", "Mean 2015", "# Nights 2015","Mean 2016", "# Nights 2016",
+                               "Mean 2017", "# Nights 2017","Mean 2018", "# Nights 2018","Mean 2019", "# Nights 2019",
+                               "Mean 2020", "# Nights 2020")
 
-mean.se.ns.quad.count <- cbind(mean.quad.count, se.quad.count, srvynights.quad.count) %>% select(-NP1:-Deployment.ID1, -NP2:-Deployment.ID2)
 
-# function to separate out into year tables for knitr:kable
-fn.mean.se.quad.count.YR <- function(year=year){
-  df.year <- mean.se.ns.quad.count %>% filter(Deployment.ID==year)
-  df.year <- df.year[c("Land.Unit.Code", "GRTS.Cell.ID",
-                                           "SE_mean", "SE_se", "SE_ns",
-                                           'SW_mean', "SW_se", "SW_ns",
-                                           'NE_mean', 'NE_se', "NE_ns",
-                                           "NW_mean", "NW_se", "NW_ns")]
-  
-  colnames(df.year) <- c("Land Unit", "GRTS ID","SE Mean", "SE", "# Nights", "SW Mean", "SE", "# Nights", "NE Mean", "SE", "# Nights", "NW Mean", "Se", "# Nights")
-  return(df.year)
-  }
-
-# create loop to run annual tables
-call_year <- unique(call_count4$Deployment.ID)
-for (i in 1:length(call_year)) {
-  opts <- options(knitr.kable.NA = "")
-  df.year <- fn.mean.se.quad.count.YR(year=call_year[i])
-  print(knitr::kable(df.year, 
-             caption = paste(call_year[i],"mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) surveyed. # Nights refers to the number of nights the quadrant was surveyed.", sep=" "), 
-             digits=1))
-  cat('\n\n')
+opts <- options(knitr.kable.NA = "")
+print(knitr::kable(stn.count.year,
+             caption = "Mean ± 1 SE nightly bat calls for each NABat station. # Nights refers to the number of nights the station was surveyed.",
+             align="llllrrrrrrrrrrrr"))
   options(opts)
-}
+
+# # function to separate out into year tables for knitr:kable
+# fn.mean.se.quad.count.YR <- function(year=year){
+#   df.year <- mean.se.ns.quad.count %>% filter(Deployment.ID==year)
+#   df.year <- df.year[c("Land.Unit.Code", "GRTS.Cell.ID",
+#                                            "SE_mean", "SE_se", "SE_ns",
+#                                            'SW_mean', "SW_se", "SW_ns",
+#                                            'NE_mean', 'NE_se', "NE_ns",
+#                                            "NW_mean", "NW_se", "NW_ns")]
+# 
+# # create loop to run annual tables
+# call_year <- unique(call_count4$Deployment.ID)
+# for (i in 1:length(call_year)) {
+#   opts <- options(knitr.kable.NA = "")
+#   df.year <- fn.mean.se.quad.count.YR(year=call_year[i])
+#   print(knitr::kable(df.year, 
+#              caption = paste(call_year[i],"mean ± 1 SE nightly bat calls for each NABat GRTS quadrant (SE = South-east, SW = South-west, NE = North-east, and NW = North-west) surveyed. # Nights refers to the number of nights the quadrant was surveyed.", sep=" "), 
+#              digits=1))
+#   cat('\n\n')
+#   options(opts)
+# }
+
+
 
 ```
 
