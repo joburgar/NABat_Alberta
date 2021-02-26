@@ -354,7 +354,7 @@ unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 2852 survey nights
+sum(total.effort$Diff) # 3121 survey nights
 ```
 
 ### Introduction
@@ -665,9 +665,11 @@ To examine species specific patterns, pre- and post-volancy activity patterns we
 glimpse(call_count)
 dat <- call_count
 
+locations.to.use <- sta[1:113,]$Location.Name
+  
 # Exclude EINP as no station covariates
-dat <- dat %>% filter(Land.Unit.Code!="EINP")
-dat %>% count(Location.Name) #113 stations, EINP has been removed
+dat <- dat %>% filter(Location.Name %in% locations.to.use)
+dat %>% count(Location.Name) #111 stations, stations without covariates have been removed
 
 # Subset to the species / species groups with sufficient data (>100), exclude unknown
 dat %>% count(Classification, sort=TRUE)
@@ -681,10 +683,8 @@ dat$Species <- factor(dat$Classification)
 # Station (unique survey bat location) data
 nrow(sta)
 # remove EINP as doesn't have the GIS covaraites
-sta2 <- sta %>% filter(Land.Unit.Code!="EINP") # now only 113 stations
-nrow(sta2) # EINP has been removed
-
-plot(sta2$Longitude , sta2$Latitude, asp=1)
+sta2 <- sta %>% filter(Location.Name %in% locations.to.use) # now only 113 stations
+nrow(sta2)
 
 # modify the GIS covariates to suit the analysis
 ### Road type and distance
@@ -699,7 +699,6 @@ sta2$Road.Type.Ord <- sta2$Road.Type %>% replace_na("No Road") %>%
   recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4,
          "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
 
-hist(sta2$Road.Type.Ord)
 # recode distance to ordinal scale 1-10 for 0-100 m being 1, 100-200 being 2 and so on
 max(sta2$Road.Distance, na.rm=T) # 759 m, so max category is 9 for roads > 800 and those with NA (none within 1000 m)
 sta2$Road.Distance.Ord <- ifelse(sta2$Road.Distance<100, 1,
@@ -751,7 +750,7 @@ sta2$Water.Distance.Ord <- ifelse(sta2$Water.Distance<100, 1,
                                                                                         ifelse(sta2$Water.Distance<1000,10,11))))))))))
 
 sta2 %>% group_by(Water.Distance.Ord) %>% summarise(min(Water.Distance), max(Water.Distance))
-hist(sta2$Water.Distance.Ord)
+# hist(sta2$Water.Distance.Ord)
 
 ### Human Footprint type and distance
 as.data.frame(sta2 %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report
@@ -813,22 +812,11 @@ no.weather.df <- weekly.max.env.cov[is.na(weekly.max.env.cov$Max.Temp),]
 no.weather.df$Location.Name <- substr(no.weather.df$Location.Name.Year, 1,  nchar(as.character(no.weather.df$Location.Name.Year))-5)
 no.weather.df <- left_join(no.weather.df, sta%>% select(Location.Name, Orig.Name, GRTS.Cell.ID, Land.Unit.Code))
 no.weather.df %>% group_by(Location.Name) %>% count(Location.Name.Year)
-as.data.frame(no.weather.df)
 no.weather.df$Year <- word(no.weather.df$Location.Name.Year, 4, sep="_")
-as.data.frame(no.weather.df %>% group_by(Year,GRTS.Cell.ID)%>% count(Orig.Name))
-as.data.frame(no.weather.df %>% ungroup()%>% count(Year)%>% ungroup())
-8/66 # 2015 = 12%
-9/77 # 2016 = 12%
-9/56 # 2017 = 16% 
-11/81 # 2018 = 14% (Edson, Switzer, Lost River, Medicine Hat)
-4/108 # 2019 = 4%, 
-84/168 # 2020 = 50%, mostly new sites (UPR incl ABMI)
 
-# will remove 137 survey weeks of data if want to include max temp and max hum
+# will remove 100 survey weeks of data if want to include max temp and max hum
 # will remove 37 stations as weather data limiting based on station
-# try as a "sub-sample" to see if it changes the output for this data set
-# also do regular analysis for "sub-sample" to see if general trends hold
-
+# for now keep weather out of analysis
 
 # now have ordinal scales for road distance, road type, water distance, water type and human footprint distance
 # categorical scale for human footprint (no footprint will be reference value)
@@ -864,8 +852,6 @@ call_effort_daily <- call_effort %>%
      distinct
 
 call_effort_daily$Year <- year(call_effort_daily$Date)
-call_effort_daily %>% group_by(Year) %>% summarise(min(Date), max(Date))
-call_effort_daily %>% group_by(Year) %>% count(Date)
 call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
 
 #####################################################################
@@ -939,13 +925,11 @@ week.obs <- week.obs %>%
   mutate(batcalls = sum(c(`EPFU`, `EPFU-LANO`, `LANO`, `LACI`, `LABO`, `LABO-MYLU`, `MYLU`, `Myotis 40k`)))
 
 week.obs <- week.obs %>% filter(batcalls>1) %>% filter(Effort>1)
-HMSC.stn.yr.week <- unique(week.obs$Location.Name_Yr_Week) 
 
 # ABMI.sites.remove.dates <- seq.Date(as.Date("2020-06-14"),as.Date("2020-07-02"), by="1 day")
 # daily.obs <- daily.obs %>% filter(!(Location.Name %in% ABMI.sites & Date %in% ABMI.sites.remove.dates))
 daily.obs <- daily.obs %>% filter(!Location.Name %in% ABMI.sites)
 daily.obs <- daily.obs %>% filter(!Location.Name %in% FortChip.sites)
-daily.obs %>% filter(Location.Name %in% ABMI.sites)
 
 # Save the Y data
 write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )
@@ -960,11 +944,12 @@ week.obs %>% group_by(Week) %>% count(Volancy)
 
 # add in env covariates (need to match on Location.Name, Year and Week)
 week.obs$Location.Name_Yr_Week <- paste(week.obs$Location.Name_Yr,week.obs$Week,sep="_")
-
+HMSC.stn.yr.week <- unique(week.obs$Location.Name_Yr_Week) # the data points for the HMSC analysis
 
 # Make the Y Matrix
 Y <- week.obs[c(6:13)]
-row.names(Y) <- as.data.frame(week.obs$Location.Name_Yr_Week)
+Y.rownames <- week.obs$Location.Name_Yr_Week
+rownames(Y) <- Y.rownames
 Y <- as.matrix(Y)
 
 # Make the XData
@@ -999,19 +984,6 @@ XData$Human.Footprint.Distance <- stdize(XData$HF.Dist.HMSC)
 summary(XData)
 nrow(XData)
 
-# # subset using the weather data
-# XData.sub <- left_join(XData, weekly.max.env.cov %>% select(-Max.Wind, -Week), by="Location.Name_Yr_Week") 
-# XData.sub <- XData.sub[complete.cases(XData.sub),] # removed 116 data points ~20%
-# summary(XData.sub)
-# #standardize ordinal/continuous variables
-# XData.sub$Max.Temp <- stdize(XData.sub$Max.Temp)
-# XData.sub$Max.Hum <- stdize(XData.sub$Max.Hum)
-# 
-# sub.data <- XData.sub$Location.Name_Yr_Week
-# Y.sub <- Y[sub.data,]
-# nrow(Y.sub)
-# nrow(XData.sub)
-
 # Responses
 tmp <- cor(Y)
 corrplot.mixed(tmp)
@@ -1030,54 +1002,24 @@ samples   = 1000 # #1000
 transient = 100*thin
 verbose   = T
 
-###--- FULL DATASET MODEL
-# Add a station-level random effect (for the covariances)
-studyDesign = data.frame(station = as.character(week.obs$Location.Name))
-rL = HmscRandomLevel(units = studyDesign$station)
-# Added poisson distributed
-
-# full model WITHOUT weather terms
-m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
-           NP + Natural.Region + Latitude + Longitude + Land.Use.Type +
-           Road.Type + Road.Distance + Water.Type + Water.Distance,
-         studyDesign = studyDesign, ranLevels = list(station = rL), distr="poisson")
-
-m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, verbose = verbose, nParallel = 3)
-
-saveRDS(m,file="Output/MultiSpeciesHMSC.RData")
-
-
-###--- SUB DATASET WITH MODEL 1 and WITH WEATHER TERMS 
-# Add a station-level random effect (for the covariances)
-studyDesign.sub = data.frame(station = as.character(XData.sub$Location.Name))
-
-rL.sub = HmscRandomLevel(units = studyDesign.sub$station)
-# Added poisson distributed
-
-# sub model WITHOUT weather terms
-m.sub.all = Hmsc(Y = Y.sub, XData = XData.sub, XFormula = ~Year + Week + Effort +
-           NP + Natural.Region + Latitude + Longitude + Land.Use.Type +
-           Road.Type + Road.Distance + Water.Type + Water.Distance,
-         studyDesign = studyDesign.sub, ranLevels = list(station = rL), distr="poisson")
-
-m.sub.all = sampleMcmc(m.sub.all, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, verbose = verbose, nParallel = 3)
-
-# sub model WITH weather terms
-m.sub.weather2 = Hmsc(Y = Y.sub, XData = XData.sub, XFormula = ~Year + Week + Effort +
-           NP + Natural.Region + Latitude + Land.Use.Type +
-           Road.Type + Road.Distance + Water.Type + Water.Distance + Max.Temp + Max.Hum,
-         studyDesign = studyDesign.sub, ranLevels = list(station = rL), distr="poisson")
-
-m.sub.weather2 = sampleMcmc(m.sub.weather2, thin = thin, samples = samples, transient = transient,
-               nChains = nChains, verbose = verbose, nParallel = 3)
-
-saveRDS(m.sub.weather2,file="Output/MultiSpeciesHMSC_weather2.RData")
-saveRDS(m.sub.all,file="Output/MultiSpeciesHMSC_sub.RData")
-saveRDS(m,file="Output/MultiSpeciesHMSC.RData")
-
-# #m <- readRDS("Output/MultiSpeciesHMSC.RData")
+# ###--- FULL DATASET MODEL
+# # Add a station-level random effect (for the covariances)
+# studyDesign = data.frame(station = as.character(week.obs$Location.Name))
+# rL = HmscRandomLevel(units = studyDesign$station)
+# # Added poisson distributed
+# 
+# # # full model WITHOUT weather terms
+# m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
+#            NP + Natural.Region + Latitude + Longitude + Land.Use.Type +
+#            Road.Type + Road.Distance + Water.Type + Water.Distance,
+#          studyDesign = studyDesign, ranLevels = list(station = rL), distr="poisson")
+# 
+# m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
+#                nChains = nChains, verbose = verbose, nParallel = 3)
+# 
+# saveRDS(m,file="Output/MultiSpeciesHMSC.RData")
+# 
+m <- readRDS("Output/MultiSpeciesHMSC.RData")
 ```
 
 #### Hierarchical modelling of species communities (HMSC)
@@ -1093,6 +1035,7 @@ The provincial NABat program has seen an incredible increase in effort over the 
 To date there have been passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Within 10 km of a station, there were an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` neighbouring stations. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` stations where the next nearest station was >10 km away (Figure 2). While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window).
 
 ```{r survey distance fig, fig.cap = "Mean distance (km) between stations within 100 km of one another.", echo=F}
+
 dist.mat.100km <- dist.mat.100km[order(dist.mat.100km$Mean),]
 
 fsurvey.dist = ggplot(dist.mat.100km, aes(x = reorder(ORIGIN_Location.Name, Mean), Mean))+
@@ -1264,7 +1207,7 @@ fcalls.NR <- NR.Calls.Yr %>%
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-  ylim(c(0,60))+
+  #ylim(c(0,60))+
   geom_linerange(aes(Natural.Region, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
   theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
@@ -1404,22 +1347,7 @@ sp.to.use <- call_count.Sp %>% group_by(Classification) %>% summarise(Sum = sum(
 Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Volancy) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
 
-# fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
-#   ggplot(aes(x = Classification, y = Mean, fill=Volancy))+
-#   geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
-#   scale_fill_manual(values=unique(col.catVol)) +
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-#         panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-#   ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-#   #ylim(c(0,60))+
-#   geom_linerange(aes(Classification, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
-#   theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-#   theme(legend.position = "bottom", legend.title = element_blank()) +
-#   facet_wrap(~Deployment.ID, ncol=1)
-# fcalls.Sp
-
-fcalls.Sp2 <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
+fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
   ggplot(aes(x = Deployment.ID, y = Mean, fill=Volancy))+
   geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
   scale_fill_manual(values=unique(col.catVol)) +
@@ -1431,7 +1359,7 @@ fcalls.Sp2 <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum
   theme(axis.text.x = element_text(colour = "black", size = 10)) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
   facet_wrap(~Classification, ncol=3, scales="free_y")
-fcalls.Sp2
+fcalls.Sp
 
 ```
 
@@ -1490,10 +1418,8 @@ knitr::include_graphics(c(paste("./Output/activity_overlap_LACI Pre-volancy-LACI
 
 Bat species were positively associated with one another, unsurprising as bat species tend to select for the same broad landsacpe features, which were modelled here.
 
-``` {r HMSC results, echo=F} 
-# m <- readRDS("Output/MultiSpeciesHMSC_weather2.RData")
-# m <- readRDS("Output/MultiSpeciesHMSC_sub.RData")
-# m <- readRDS("Output/MultiSpeciesHMSC.RData")
+``` {r HMSC results, include=F} 
+m <- readRDS("Output/MultiSpeciesHMSC.RData")
 
 # 1st step - check for convergence
 mpost = convertToCodaObject(m)
@@ -1506,12 +1432,10 @@ ESS.tbl <- aggregate(ESS$`effectiveSize(mpost$Beta)`, by=c(list(ESS$Species)), F
 colnames(ESS.tbl) <- c("Species","ESS")
 ESS.tbl$Species.Full <- substr(ESS.tbl$Species,1,nchar(ESS.tbl$Species)-1)
 ESS.tbl$Species <- word(ESS.tbl$Species,1,sep=" ")
-# table1 <- as.data.frame(Table.Calls)
-# colnames(table1) <- c("Species","Call.Count","Perc.Calls","Nightly.Calls")
-# table1 <- left_join(table1,tmp, by=c("Species"="Group.1"))
-# table1$Eff <- round(table1$x/4,1)
-# table1$x <- NULL
-#
+table1 <- as.data.frame(Table.Calls)
+colnames(table1) <- c("Species","Call.Count","Perc.Calls","Nightly.Calls")
+table1 <- left_join(table1,ESS.tbl)
+
 # # # Second step, check Potential Scale Reduction Factors - They should all be close to one
 GSRF <- gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
 # Take the mean and the maximum
@@ -1523,17 +1447,17 @@ tmp <- aggregate(GSRF$`Point est.`, by=c(list(GSRF$Species)), FUN=mean)
 colnames(tmp)[2] <- "GSRF.Mean"
 tmp$GSRF.Max <- aggregate(GSRF$`Point est.`, by=c(list(GSRF$Species)), FUN=max)[,2]
 tmp$Group.1 <- word(tmp$Group.1,1,sep=" ")
-ESS.tbl <- left_join(ESS.tbl,tmp, by=c("Species"="Group.1"))
-write.csv(ESS.tbl, "Output//ESS_GD_FINAL.csv", row.names=F )
+ESS.GRSF.tbl <- left_join(table1,tmp, by=c("Species"="Group.1"))
+write.csv(ESS.GRSF.tbl, "Output//ESS_GD_FINAL.csv", row.names=F )
 
 # # Explore these graphically
-# par(mfrow=c(2,2))
-# # Fixed Effects
-# hist(effectiveSize(mpost$Beta), main="ess(beta)")
-# hist(gelman.diag(mpost$Beta,multivariate=FALSE)$psrf, main="psrf(beta)")
-# # Random
-# hist(effectiveSize(mpost$Omega[[1]]), main="ess(omega)")
-# hist(gelman.diag(mpost$Omega[[1]],multivariate=FALSE)$psrf, main="psrf(omega)")
+par(mfrow=c(2,2))
+# Fixed Effects
+hist(effectiveSize(mpost$Beta), main="ess(beta)")
+hist(gelman.diag(mpost$Beta,multivariate=FALSE)$psrf, main="psrf(beta)")
+# Random
+hist(effectiveSize(mpost$Omega[[1]]), main="ess(omega)")
+hist(gelman.diag(mpost$Omega[[1]],multivariate=FALSE)$psrf, main="psrf(omega)")
 
 # Assess the models explantory power
 preds = computePredictedValues(m)
@@ -1572,10 +1496,17 @@ supportLevel = 0
 toPlot = ((OmegaCor[[1]]$support>supportLevel)
           + (OmegaCor[[1]]$support<(1-supportLevel))>0)*OmegaCor[[1]]$mean
 
-par(mfrow=c(1,1))
+Cairo(file="Output/corrplot.PNG",
+      type="png",
+      width=2000,
+      height=2000,
+      pointsize=15,
+      bg="white",
+      dpi=300)
 corrplot(toPlot[plotOrder,plotOrder], method = "color",
          col=colorRampPalette(c("blue","white","red"))(200),
          title="Station Random Effect Level", mar=c(0,0,1,0), type="lower")
+dev.off()
 
 ############################
 # Fixed effects
@@ -1618,10 +1549,19 @@ newdata <- newdata[,c("Year", "Volancy_Post","NP_Out",
                       "LUT_Agriculture", "LUT_Barren.Land", "LUT_Developed","LUT_Grassland","LUT_Shrubland","LUT_Water",
                       "Road.Type","Road.Distance", "Water.Type", "Water.Distance","Effort")]
 
-pdf(width=9, height=8, "Output/Heatmap_95CI.pdf")
+
+#pdf(width=9, height=8, "Output/Heatmap_95CI.pdf")
+Cairo(file="Output/Heatmap_95CI.PNG",
+      type="png",
+      width=3400,
+      height=3000,
+      pointsize=15,
+      bg="white",
+      dpi=300)
 # par(mar = c(bottom, left, top, right))
+
 par(mar = c(12,11,5,2))
-par(mfrow=c(1,1))
+#par(mfrow=c(1,1))
 image(1:ncol(newdata), 1:nrow(newdata), t(newdata),
       col=ColorRamp, xlab="", ylab="",
       axes=FALSE, zlim=c(min,max),
@@ -1721,6 +1661,14 @@ mod.eval$SR2[order(mod.eval$SR2, decreasing=T)]
 # Make a two tier plot of R2 on the top, and variance partiioning on the bottom
 # pdf(width=8, height=7, "Output/Variance_Partitioning_HMSC_full.pdf")
 library(viridis)
+
+Cairo(file="Output/Variance_Partitioning_HMSC_full.PNG",
+      type="png",
+      width=3400,
+      height=3000,
+      pointsize=15,
+      bg="white",
+      dpi=300)
 layout(matrix(c(1,2,2), 3, 1, byrow = TRUE))
 par(mar=c(1,4,2,2))
 barplot(mod.eval$SR2[order(mod.eval$SR2, decreasing=T)], las=1,
@@ -1817,7 +1765,7 @@ print(knitr::kable(stn.count.year,
 
 #### Mean species / species group calls for each year and volancy period by Natural Region (graphs)
 
-``` {r natural region annual and volancy species graphs, echo=F, fig.height=8.5, fig.width=6.5}
+``` {r natural region annual and volancy species graphs, warnings= F, echo=F, fig.height=8.5, fig.width=6.5}
 
 # group data for NR mean nightly bat calls by year and volancy
 NR.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Natural.Region, Volancy) %>% 
@@ -1841,40 +1789,13 @@ fcalls.NR2 <- NR.Calls.Yr %>% filter(Natural.Region==NR) %>%
 fcalls.NR2
 }
 
-
-
-NR.Calls.Yr.BO <- NR.Calls.Yr.fn(Natural.Region="Boreal")
-
-```{r bunch-o-figs, fig.height=4, fig.width=8}
-n <- 100
-x <- rnorm(n)
 par(mfrow=c(1,2), las=1)
-for(i in 1:8) {
-  y <- i*x + rnorm(n)
-  plot(x, y, main=i)
-}
-```
+NR.Calls.Yr.BO <- NR.Calls.Yr.fn(NR="Boreal") ; NR.Calls.Yr.BO
+NR.Calls.Yr.FO <- NR.Calls.Yr.fn(NR="Foothills") ; NR.Calls.Yr.FO
+NR.Calls.Yr.GR <- NR.Calls.Yr.fn(NR="Grassland") ; NR.Calls.Yr.GR
+NR.Calls.Yr.PA <- NR.Calls.Yr.fn(NR="Parkland") ; NR.Calls.Yr.PA
+NR.Calls.Yr.RM <- NR.Calls.Yr.fn(NR="Rocky Mountain") ; NR.Calls.Yr.RM
 
-```
-
-
-#### Mean species / species group calls for each year and volancy period by Land Unit (graphs)
-
-``` {r }
-
-fcalls.Sp2 <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
-  ggplot(aes(x = Deployment.ID, y = Mean, fill=Volancy))+
-  geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
-  scale_fill_manual(values=unique(col.catVol)) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
-  geom_linerange(aes(Deployment.ID, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
-  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
-  theme(axis.text.x = element_text(colour = "black", size = 10)) +
-  theme(legend.position = "bottom", legend.title = element_blank()) +
-  facet_wrap(~Classification, ncol=3, scales="free_y")
-fcalls.Sp2
 
 ```
 
