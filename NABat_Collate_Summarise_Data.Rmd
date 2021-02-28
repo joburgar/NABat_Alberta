@@ -28,7 +28,7 @@ Cover Illustration: Lasiurus cinereus © Jason Headley
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "camtrapR", "circular", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "mapview", "fs", "lubridate", "camtrapR", "circular", "Hmsc", "corrplot", "plotrix", "RColorBrewer", "MuMIn", "Cairo", "viridis")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -228,6 +228,7 @@ length(setdiff(unique(eff$Location.Name), unique(dat_count$Location.Name))) # 0
 missing.dat.eff <- left_join(eff, dat_count, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
 missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # will show missing deployment data covariates
 
+# Clearwater had malfunction issues, no actual data
 # EINP can be included in the NABat 2020 report but does not include station covariates (no info from Rhonda), just NP, NR, NSR groupings
 
 # 5) Remove dates outside survey range (i.e., ARUs turned on but not deployed)
@@ -354,7 +355,7 @@ unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 3121 survey nights
+sum(total.effort$Diff) # 3327 survey nights
 ```
 
 ### Introduction
@@ -418,7 +419,7 @@ dat_sum_sub <- dat_sum_sub %>% filter(!Location.Name.Year %in% timestamp.error$L
 
 # subset data to one month pre and one month post volancy (July 10)
 dat_sum_sub <- dat_sum_sub %>% filter(between(jDay, 162,223))
-nrow(dat_sum_sub) # now down to 188416
+nrow(dat_sum_sub) # now down to 198840
 
 # create thresholds for noise and bat classificaitons
 threshold_noise <- 0.8; threshold_bat <- 0.5
@@ -906,16 +907,6 @@ call_effort_daily <- call_effort_daily %>% select(-Location.Name.Year)
       }
     }
 
-###--- need to delete the ABMI and Fort Chip sites as recordings are very low so perhaps issues with detectors
-ABMI.sites <- as.matrix(sta %>% filter(grepl("NABAT",Orig.Name)) %>% select(Location.Name))
-FortChip.sites <- as.matrix(sta %>% filter(grepl("Chip",Orig.Name)) %>% select(Location.Name))
-nrow(week.obs %>% filter(Location.Name %in% ABMI.sites))
-
-week.obs <- week.obs %>% filter(!Location.Name %in% FortChip.sites)
-nrow(daily.obs %>% filter(Location.Name %in% FortChip.sites))
-
-nrow(week.obs)
-
 ###--- also remove weeks with <1 days of effort and <1 identified bat call
 # for model convergence and to deal with sites with such low detections likely from malfunctioning equipment
 week.obs %>% group_by(Location.Name,Year) %>% summarise(sum(Effort))
@@ -925,11 +916,7 @@ week.obs <- week.obs %>%
   mutate(batcalls = sum(c(`EPFU`, `EPFU-LANO`, `LANO`, `LACI`, `LABO`, `LABO-MYLU`, `MYLU`, `Myotis 40k`)))
 
 week.obs <- week.obs %>% filter(batcalls>1) %>% filter(Effort>1)
-
-# ABMI.sites.remove.dates <- seq.Date(as.Date("2020-06-14"),as.Date("2020-07-02"), by="1 day")
-# daily.obs <- daily.obs %>% filter(!(Location.Name %in% ABMI.sites & Date %in% ABMI.sites.remove.dates))
-daily.obs <- daily.obs %>% filter(!Location.Name %in% ABMI.sites)
-daily.obs <- daily.obs %>% filter(!Location.Name %in% FortChip.sites)
+table(week.obs$Effort, week.obs$Year)
 
 # Save the Y data
 write.csv(daily.obs,"Output/daily_observations.csv", row.names = F )
@@ -945,6 +932,7 @@ week.obs %>% group_by(Week) %>% count(Volancy)
 # add in env covariates (need to match on Location.Name, Year and Week)
 week.obs$Location.Name_Yr_Week <- paste(week.obs$Location.Name_Yr,week.obs$Week,sep="_")
 HMSC.stn.yr.week <- unique(week.obs$Location.Name_Yr_Week) # the data points for the HMSC analysis
+nrow(week.obs)
 
 # Make the Y Matrix
 Y <- week.obs[c(6:13)]
@@ -954,13 +942,14 @@ Y <- as.matrix(Y)
 
 # Make the XData
 sta.week  <- week.obs[,c("Location.Name", "Week","Year", "Volancy","Effort")]
-names(sta2)
 nrow(sta.week)
-sta.week <- left_join(sta.week, sta2 %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Dist.HMSC","Road.Inf","Water.Type.Ord","Water.Dist.HMSC","Water.Inf","HF.Dist.HMSC"))
+sta.week <- left_join(sta.week, sta2 %>% select("Location.Name","NP","Natural.Region","Land.Unit.Code","Land.Use.Type","Latitude","Longitude","Road.Type.Ord","Road.Dist.HMSC","Water.Type.Ord","Water.Dist.HMSC","HF.Dist.HMSC"))
+
 XData <- data.frame(sta.week)
 nrow(XData)
 
 XData$Location.Name_Yr_Week <- paste(XData$Location.Name, XData$Year, XData$Week,sep="_")
+XData <- XData %>% filter(Location.Name_Yr_Week %in% HMSC.stn.yr.week)
 
 #relevel categorical covariates
 XData$Natural.Region <- droplevels(XData$Natural.Region)
@@ -975,10 +964,8 @@ XData$Longitude <- stdize(XData$Longitude)
 XData$Effort <- stdize(XData$Effort)
 XData$Road.Type <- stdize(XData$Road.Type.Ord)
 XData$Road.Distance <- stdize(XData$Road.Dist.HMSC)
-XData$Road.Inf <- stdize(XData$Road.Inf)
 XData$Water.Type <- stdize(XData$Water.Type.Ord)
 XData$Water.Distance <- stdize(XData$Water.Dist.HMSC)
-XData$Water.Inf <- stdize(XData$Water.Inf)
 XData$Human.Footprint.Distance <- stdize(XData$HF.Dist.HMSC)
 
 summary(XData)
@@ -994,7 +981,7 @@ nrow(XData)
 # Predictors
 XData.predictors <- c("Latitude","Road.Type","Road.Distance","Water.Type","Water.Distance","Human.Footprint.Distance")
 tmp <- cor(XData[,c(XData.predictors)])
-corrplot.mixed(tmp) # 0.83 correlation between Road.Distance and Human.Footprint.Distance
+corrplot.mixed(tmp) # 0.83 negative correlation between Road.Distance and Human.Footprint.Distance
 
 nChains   = 3 
 thin      = 1000 # build up from 100
@@ -1004,22 +991,21 @@ verbose   = T
 
 # ###--- FULL DATASET MODEL
 # # Add a station-level random effect (for the covariances)
-# studyDesign = data.frame(station = as.character(week.obs$Location.Name))
-# rL = HmscRandomLevel(units = studyDesign$station)
+studyDesign = data.frame(station = as.character(week.obs$Location.Name))
+rL = HmscRandomLevel(units = studyDesign$station)
 # # Added poisson distributed
 # 
 # # # full model WITHOUT weather terms
-# m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
-#            NP + Natural.Region + Latitude + Longitude + Land.Use.Type +
-#            Road.Type + Road.Distance + Water.Type + Water.Distance,
-#          studyDesign = studyDesign, ranLevels = list(station = rL), distr="poisson")
-# 
+m = Hmsc(Y = Y, XData = XData, XFormula = ~Year + Volancy + Effort +
+           NP + Natural.Region + Latitude + Longitude + Land.Use.Type +
+           Road.Type + Road.Distance + Water.Type + Water.Distance,
+         studyDesign = studyDesign, ranLevels = list(station = rL), distr="poisson")
+
 # m = sampleMcmc(m, thin = thin, samples = samples, transient = transient,
 #                nChains = nChains, verbose = verbose, nParallel = 3)
 # 
 # saveRDS(m,file="Output/MultiSpeciesHMSC.RData")
-# 
-m <- readRDS("Output/MultiSpeciesHMSC.RData")
+ 
 ```
 
 #### Hierarchical modelling of species communities (HMSC)
@@ -1107,10 +1093,12 @@ cov.prop.hist
 
 ##### Figure 3. Proportional representation of stations compared to land area for Land Units, Natural Regions, and Land Use Types.
 
-```{r hist LUT, echo=F, warning=F, fig.width=6.5, fig.cap="Representation of bat survey locations by Land Use Type in/out of National Parks (NP)"}
+```{r hist LUT, echo=F, warning=F, fig.width=6.5, fig.cap="Representation of NABat stations (n=84) by Land Use Type in/out of National Parks (NP)"}
 
 # Land Use Type
-LUT.NP.hist <- sta %>% group_by(NP) %>% count(Land.Use.Type, sort=TRUE)
+LUT.NP.hist <- sta %>% filter(NABat.Sample=="Yes") %>% group_by(NP) %>% count(Land.Use.Type, sort=TRUE)
+summary(sta$NABat.Sample)
+
 LUT.NP.hist <- LUT.NP.hist[complete.cases(LUT.NP.hist),] # remove EINP which doesn't have associated LUT covariate
 
 LUT.hist <- ggplot(data = LUT.NP.hist, aes(x = reorder(Land.Use.Type, -n), y = n, fill= NP)) + 
@@ -1379,9 +1367,9 @@ Within Natural Regions, overall bat activity patterns only diverged between vola
 
 ```{r NP activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_In-Out_NP.png",
-                          "./Output/activity_overlap_In-Out_NP_pre.png",
-                          "./Output/activity_overlap_In-Out_NP_post.png"))
+knitr::include_graphics(c("./Output/activity_overlap_NP_In-Out.png",
+                          "./Output/activity_overlap_NP_Pre_Volancy-In-Out.png",
+                          "./Output/activity_overlap_NP_Post_Volancy_In-Out.png"))
 ``` 
 ##### Figure 14. Nightly activity overlap one month pre and post volancy within and outside of National Parks.
 
@@ -1463,7 +1451,7 @@ hist(gelman.diag(mpost$Omega[[1]],multivariate=FALSE)$psrf, main="psrf(omega)")
 preds = computePredictedValues(m)
 
 mod.eval <- evaluateModelFit(hM = m, predY = preds)
-#mod.eval$SR2
+mod.eval$SR2
 # All measures of model fit are given as vectors with one value for each species.t
 
 #For Poisson models, a pseudo-R2 is computed as squared spearman correlation
@@ -1660,7 +1648,6 @@ mod.eval$SR2[order(mod.eval$SR2, decreasing=T)]
 
 # Make a two tier plot of R2 on the top, and variance partiioning on the bottom
 # pdf(width=8, height=7, "Output/Variance_Partitioning_HMSC_full.pdf")
-library(viridis)
 
 Cairo(file="Output/Variance_Partitioning_HMSC_full.PNG",
       type="png",
@@ -1850,21 +1837,23 @@ for (i in 1:length(call_LUC)) {
 #### Nocturnal activity patterns for all bat calls pooled as pre- or post-volancy for each Natural Region
 ```{r NR activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_Boreal.png",
-                          "./Output/activity_overlap_Foothills.png",
-                          "./Output/activity_overlap_Grassland.png",
-                          "./Output/activity_overlap_Parkland.png",
-                          "./Output/activity_overlap_Rocky Mountain.png"))
+knitr::include_graphics(c("./Output/activity_overlap_NR_Boreal.png",
+                          "./Output/activity_overlap_NR_Foothills.png",
+                          "./Output/activity_overlap_NR_Grassland.png",
+                          "./Output/activity_overlap_NR_Parkland.png",
+                          "./Output/activity_overlap_NR_RockyMountain.png"))
 ``` 
 
 #### Nocturnal activity patterns for all bat calls pooled as pre- or post-volancy for each Land Use Type
 ```{r LUT activity overlap, out.width="33%", out.height="20%",fig.show='hold', fig.align='center', echo=FALSE}
 
-knitr::include_graphics(c("./Output/activity_overlap_Agriculture.png",
-                          "./Output/activity_overlap_Developed.png",
-                          "./Output/activity_overlap_Forest.png",
-                          "./Output/activity_overlap_Shrubland.png",
-                          "./Output/activity_overlap_Water.png"))
+knitr::include_graphics(c("./Output/activity_overlap_LUT_Agriculture.png",
+                          "./Output/activity_overlap_LUT_BarrenLand.png",
+                          "./Output/activity_overlap_LUT_Developed.png",
+                          "./Output/activity_overlap_LUT_Forest.png",
+                          "./Output/activity_overlap_LUT_Grassland.png",
+                          "./Output/activity_overlap_LUT_Shrubland.png",
+                          "./Output/activity_overlap_LUT_Water.png"))
 ``` 
 
 
