@@ -1044,26 +1044,39 @@ fsurvey.dist
 ##### Table 1. The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.
 ```{r Table 1 bat survey location, echo=F}
 sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
+
 sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
 sta.count2$GRTS.count <- 1
 sta.count3 <- as.data.frame(sta.count2 %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% summarise(sum(GRTS.count)))
 
+sta.count4 <- sta %>% filter(NABat.Sample=="Yes") %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(NABat.Sample)
+
 sta.NP <-sta %>% filter(NP=="In") %>% count(Land.Unit.Code)
 sta.NP$prop <- sta.NP$n / sum(sta.NP$n)
+sta.NP <- arrange(sta.NP, n)
 
 sta.NR <-sta %>% count(Natural.Region)
 sta.NR$prop <- sta.NR$n / sum(sta.NR$n)
+sta.NR <- arrange(sta.NR, n)
 
 sta.count$Count.Grid.Cells <- as.vector(sta.count3[,4])
-colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Count Bat Survey Locations", "Count NABat Grid Cells")
+sta.count <- left_join(sta.count, sta.count4 %>% select(-NABat.Sample), 
+                  by = c("NP" = "NP", "Natural.Region" = "Natural.Region", "Land.Unit.Code" = "Land.Unit.Code"))
+
+
+colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Total Stations", "Total Grid Cells", "NABat Stations")
+sta.count <- sta.count[,c("National Park", "Natural Region", "Land Unit","Total Grid Cells","Total Stations","NABat Stations")]
+
+opts <- options(knitr.kable.NA = "0")
+
 knitr::kable(sta.count,
              caption="The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.",
-             align = "lllrr")
+             align = "lllrrr")
 ```
 
-Stations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figure 1). The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of stations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) stations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. On average, there were `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` stations within each National Park; ranging from `r ARUs.by.NP[1,2]` stations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` stations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`. Considering the area of each National Park, BNP and JNP had proportional survey representation, i.e., `r round(sta.NP %>% filter(Land.Unit.Code=="BNP") %>% summarise(sum(prop))*100,0)`% and `r round(sta.NP %>% filter(Land.Unit.Code=="JNP") %>% summarise(sum(prop))*100,0)`% of Alberta's park area and proportion of stations within the parks. In contrast, WLNP and EINP were over-represented, and WBNP was under-represented, in terms of number of stations to park area. 
+Stations were distributed across Alberta with a slight concentration in the south-western portion of the province (Figure 1). The majority (i.e., `r nrow(sta)-sum(ARUs.by.NP$n)` or `r round((nrow(sta)-sum(ARUs.by.NP$n))/nrow(sta)*100,0)`%) of stations were outside of National Parks. Of the `r sum(ARUs.by.NP$n)` (`r round(sum(ARUs.by.NP$n)/nrow(sta)*100,0)`%) stations within parks, `r sum(ARUs.by.NP[ARUs.by.NP$Land.Unit.Code %in% c("BNP","JNP", "WLNP"),]$n)` were part of the Mountain Park Network. On average, there were `r round(mean(ARUs.by.NP$n),1)` ± `r round(se(ARUs.by.NP$n),1)` stations within each National Park; ranging from `r ARUs.by.NP[1,2]` stations within `r ARUs.by.NP[1,1]` to `r ARUs.by.NP[5,2]` stations within both `r ARUs.by.NP[5,1]` and `r ARUs.by.NP[4,1]`. Considering the area of each National Park,JNP had proportional survey representation, i.e., `r round(sta.NP %>% filter(Land.Unit.Code=="JNP") %>% summarise(sum(prop))*100,0)`% of Alberta's park area and proportion of stations within the parks. In contrast, WLNP and EINP were over-represented, and WBNP was under-represented, in terms of number of stations to park area. 
 
-Outside of National Parks, stations were within `r nrow(ARUs.by.LUC)` Land Units, with an average of `r round(mean(ARUs.by.LUC$n),1)` ± `r round(se(ARUs.by.LUC$n),1)` stations within each Land Unit. Most (i.e., `r ARUs.by.LUC[1,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) stations were within the `r ARUs.by.LUC[1,1]` and only (i.e., `r ARUs.by.LUC[7,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.LUC[7,1]`. Stations were under-represented in LAR and LPR, over-represented in RDR and UPR and roughly proportional in the remaining Land Units. 
+Outside of National Parks, stations were within `r nrow(ARUs.by.LUC)` Land Units, with an average of `r round(mean(ARUs.by.LUC$n),1)` ± `r round(se(ARUs.by.LUC$n),1)` stations within each Land Unit. Most (i.e., `r ARUs.by.LUC[1,2]` or  `r round(ARUs.by.LUC[1,2]/nrow(sta)*100,0)`%) stations were within the `r ARUs.by.LUC[1,1]` and only (i.e., `r ARUs.by.LUC[7,2]` or  `r round(ARUs.by.LUC[7,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.LUC[7,1]`. Stations were under-represented in LAR and LPR, over-represented in RDR and UPR and roughly proportional in the remaining Land Units. 
 
 Stations occurred within each of the six Natural Regions, with an average of `r round(mean(ARUs.by.NR$n),1)` ± `r round(se(ARUs.by.NR$n),1)` stations within each Natural Region. Most (i.e., `r ARUs.by.NR[1,2]` or  `r round(ARUs.by.NR[1,2]/nrow(sta)*100,0)`%) stations were within the `r ARUs.by.NR[1,1]` and only `r ARUs.by.NR[6,2]` (i.e., `r round(ARUs.by.NR[6,2]/nrow(sta)*100,0)`%) within the `r ARUs.by.NR[6,1]`. For each Natural Region, stations were under-represented in the Boreal (i.e., `r round(sta.NR %>% filter(Natural.Region=="Boreal") %>% summarise(sum(prop))*100,0)`% of the stations) compared to Alberta's land area (58%). In contrast, stations were over-represented in the Foothills, Grassland and Rocky Mountain Natural Regions. The Canadian Shield and Parkland Natural Regions had roughly proportional station to land area representation. 
 
@@ -1089,6 +1102,17 @@ cov.prop.hist <- ggplot(cov.prop.hist.data %>% filter(!Name %in% c("Broadleaf Fo
   theme(axis.title.x = element_blank())+
   facet_wrap(~Cov2, scales="free_x", ncol=1)
 cov.prop.hist
+
+# Cairo(file="Output/cov.prop_hit.PNG",
+#       type="png",
+#       width=2200,
+#       height=2000,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# cov.prop.hist
+# dev.off()
+
 ```
 
 ##### Figure 3. Proportional representation of stations compared to land area for Land Units, Natural Regions, and Land Use Types.
@@ -1097,7 +1121,6 @@ cov.prop.hist
 
 # Land Use Type
 LUT.NP.hist <- sta %>% filter(NABat.Sample=="Yes") %>% group_by(NP) %>% count(Land.Use.Type, sort=TRUE)
-summary(sta$NABat.Sample)
 
 LUT.NP.hist <- LUT.NP.hist[complete.cases(LUT.NP.hist),] # remove EINP which doesn't have associated LUT covariate
 
@@ -1110,6 +1133,18 @@ LUT.hist <- ggplot(data = LUT.NP.hist, aes(x = reorder(Land.Use.Type, -n), y = n
   theme(axis.title.y = element_text(size = 14)) + theme(axis.title.x = element_blank())
 
 LUT.hist
+
+# Cairo(file="Output/LUT_hit.PNG",
+#       type="png",
+#       width=2000,
+#       height=2000,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# LUT.hist
+# dev.off()
+
+
 ```
 
 ##### Figure 4. Representation of stations by Land Use Type within and outside of National Parks (NP).
@@ -1179,7 +1214,6 @@ NightNR.hist
 ###### Figure 7. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year in each Natural Region.
 
 #### Nightly Overall Bat Call Summaries
-NEED TO ADD IN OVERALL FINDINGS
 
 ```{r mean nightly call by NR, echo=F, fig.height=8.5, fig.width=7, warning=FALSE}
 call_count.NR <- call_count %>% group_by(Natural.Region, Deployment.ID, Volancy)
@@ -1326,12 +1360,12 @@ Sp.hist.LUT
 
 ##### Figure 12. Total bat calls for species / species groups by year and Land Use Type.
 
-```{r mean species call by year and volancy, echo=F, fig.height=8.5, fig.width=7, warning=FALSE}
+```{r mean species call by year and volancy, echo=F, fig.height=8.5, fig.width=8.5, warning=FALSE}
 call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
 # only graph species / species groups with >100 calls
 sp.to.use <- call_count.Sp %>% group_by(Classification) %>% summarise(Sum = sum(Count))
 
-# group data for overall mean nightly bat calls by year
+# group data for overall mean nightly bat calls by year with volancy
 Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Volancy) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
 
@@ -1348,6 +1382,34 @@ fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>
   theme(legend.position = "bottom", legend.title = element_blank()) +
   facet_wrap(~Classification, ncol=3, scales="free_y")
 fcalls.Sp
+
+# group data for overall mean nightly bat calls by year withouy volancy
+Sp.Calls.Yr.noVol <- call_count.Sp%>% group_by(Classification, Deployment.ID) %>% 
+  summarise(Mean = mean(Count), SE = se(Count))
+
+fcalls.Sp2 <- Sp.Calls.Yr.noVol %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
+  ggplot(aes(x = Deployment.ID, y = Mean, fill=Deployment.ID))+
+  geom_point(colour="black", shape=21, size=4)+
+  scale_fill_manual(values=unique(col.catYr)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
+  geom_linerange(aes(Deployment.ID, ymin = Mean-SE, ymax = Mean+SE)) +
+  theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
+  theme(axis.text.x = element_text(colour = "black", size = 10)) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  facet_wrap(~Classification, ncol=3, scales="free_y")
+
+
+# Cairo(file="Output/fcalls_Sp.PNG",
+#       type="png",
+#       width=2600,
+#       height=2000,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# fcalls.Sp2
+# dev.off()
 
 ```
 
@@ -1394,7 +1456,7 @@ knitr::include_graphics(c(paste("./Output/activity_overlap_LABO Pre-volancy-LABO
 ##### Figure 16. Nightly activity overlap one month pre and post volancy for LABO, MYLU and LABO-MYLU. 
 
 ```{r LACO-Myotis 40k activity overlap, out.width="33%", out.height="20%", fig.show='hold', fig.align='center', echo=FALSE}
-
+citation("rmarkdown")
 knitr::include_graphics(c(paste("./Output/activity_overlap_LACI Pre-volancy-LACI Post-volancy_",Sys.Date(),".png",sep=""),
                           paste("./Output/activity_overlap_Myotis 40k Pre-volancy-Myotis 40k Post-volancy_",Sys.Date(),".png",sep="")))
 ``` 
@@ -1451,7 +1513,7 @@ hist(gelman.diag(mpost$Omega[[1]],multivariate=FALSE)$psrf, main="psrf(omega)")
 preds = computePredictedValues(m)
 
 mod.eval <- evaluateModelFit(hM = m, predY = preds)
-mod.eval$SR2
+mean(mod.eval$SR2)
 # All measures of model fit are given as vectors with one value for each species.t
 
 #For Poisson models, a pseudo-R2 is computed as squared spearman correlation
@@ -1752,7 +1814,7 @@ print(knitr::kable(stn.count.year,
 
 #### Mean species / species group calls for each year and volancy period by Natural Region (graphs)
 
-``` {r natural region annual and volancy species graphs, warnings= F, echo=F, fig.height=8.5, fig.width=6.5}
+``` {r natural region annual and volancy species graphs, warnings= F, echo=F, fig.height=8.5, fig.width=8.5}
 
 # group data for NR mean nightly bat calls by year and volancy
 NR.Calls.Yr <- call_count.Sp%>% group_by(Classification, Deployment.ID, Natural.Region, Volancy) %>% 
