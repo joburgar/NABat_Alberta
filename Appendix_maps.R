@@ -2,7 +2,7 @@
 # to be used with NABat_Annual_Report.Rmd
 
 ###--- create map of GRTS and NABat stations
-NABatDir = c("/Users/joburgar/Documents/NABat/GIS/")
+NABatDir = c("/Users/joburgars/Documents/NABat/GIS/")
 
 NABat_grid <- read_sf(dsn = NABatDir,layer = "master_sample_Alberta")
 #st_geometry(NABat_grid) # no ESPG
@@ -30,7 +30,8 @@ AB.NABat_3857_coords$Location.Name <- AB.NABat_3857$Location.Name
 
 NABat_grid_3857 <- st_transform(NABat_grid %>% filter(GRTS_ID %in% sta$GRTS.Cell.ID), 3857)
 
-register_google(key = "AIzaSyDJbrtdQDqCROO7L7YMFJoXrGvtemWpKQI")
+# read.table("google_key.txt")
+register_google(key = google_key)
 
 
 # Define a function to fix the bbox to be in EPSG:3857
