@@ -269,7 +269,7 @@ dist.mat.100km <- left_join(dist.mat.100km, dist.mat %>% filter(Link.Distance..k
 dist.mat.100km <- dist.mat.100km %>% select(-count)
 dist.mat.100km$n <- dist.mat.100km$n %>% replace_na(0) # the number of survey locations within 10 km
 mean(dist.mat.100km$n); se(dist.mat.100km$n) # the mean and se of survey locations wtihin 10 km
-dist.mat.100km %>% filter(n==0) %>% nrow()
+dist.mat.100km %>% filter(n==0) %>% nrow() # 19 stations with next nearest station > 10 km away
 
 # Count the total number of detector stations and GRTS cells
 n.stat <- length(unique(sta$Location.Name))
@@ -536,7 +536,7 @@ LABO.WWT <- volancy_overlap.fn(Classification=class.list[8,])
 All analyses were conducted in R (version 3.6.1; 2019), within RStudio (version 1.2.5033) using rmarkdwon (version 2.1; Allaire et al. 2020) for reproducible results. Unless otherwise noted, results are reported as the mean ± 1 SE. 
 
 ### Results – Survey Representation
-To date there have been passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` and `r max(det.per.quad[,1])` stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Within 10 km of a station, there were an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` neighbouring stations. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` stations where the next nearest station was >10 km away (Figure 2). While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window).
+In `r Year_interest` there were passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==1,]$n` stations) and `r max(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==4,]$n` station) stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Within 10 km of a station, there were an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` neighbouring stations. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` stations where the next nearest station was >10 km away (Figure 2). While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window or for other objectives such as monitoring migratory routes [RDR] or to collect WNS baseline data [BNP, WLNP]).
 
 ```{r Table 1 bat survey location, echo=F}
 sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
@@ -802,7 +802,7 @@ knitr::include_graphics(c(paste("./Output/activity_overlap_LACI Pre-volancy-LACI
 
 ### Acknowledgements
 
-Thank you to Lisa Wilkinson for having the foresight and enthusiasm to start NABat monitoring in Alberta and her continued support of the program, to Jason Headley for providing the cover photo, and to all of the biologists who generously provided their time and energy in gathering and providing bat acoustic data: Agnieszka Sztaba, Barb Johnston, Brenda Shepard, Brett Sarchuk, Cory Olson, Courtney Hughes, David Bruinsma, Erin Bayne, Greg Brooke, Greg Horne, Geoffrey Prophet, Helena Mahoney, Jason Unruh, Jennifer Carpenter, Lisa Wilkinson, Matina Kalcounis-Rueppell, Natalka Melnycky, Rolanda Steenweg, Saakje Hazenberg, Sandi Robertson, and Sharon Irwin. Thank you also to Sandra Frey and Chris Beirne for providing extremely helpful R code and advice on temporal niche partitioning and HMSC, respectively. Lastly, thanks to Alex MacPhail, Cami Hurtado, and Monica Kohler for providing access to ABMIs data, to Rhonda Connors (TerraSolis Inc.) for answering mapping and GIS questions, and to Brandon Aubie for responding so quickly to, and troubleshooting any, issues with Alberta eBat.
+Thank you to Lisa Wilkinson for having the foresight and enthusiasm to start NABat monitoring in Alberta and her continued support of the program, to Jason Headley for providing the cover photo, and to all of the biologists who generously provided their time and energy in gathering and providing bat acoustic data: Barb Johnston, Brenda Shepard, Cory Olson, Courtney Hughes, David Bruinsma, Erin Bayne, Greg Brooke, Greg Horne, Geoffrey Prophet, Helena Mahoney, Jason Unruh, Jennifer Carpenter, Lisa Wilkinson, Matina Kalcounis-Rueppell, Natalka Melnycky, Rolanda Steenweg, Saakje Hazenberg, Sandi Robertson, and Sharon Irwin. Thank you also to Sandra Frey for providing helpful R code and advice on temporal niche partitioning. Lastly, thanks to Alex MacPhail, Cami Hurtado, and Monica Kohler for providing access to ABMIs data, to Rhonda Connors (TerraSolis Inc.) for answering mapping and GIS questions, and to Brandon Aubie for responding so quickly to, and troubleshooting any, issues with Alberta eBat.
 
 
 ```{r appendix loop, echo=F}
@@ -813,6 +813,15 @@ library("rmarkdown")
 
 
 slices <- unique(sta$GRTS.Cell.ID)
+
+for(i in slices){
+  GRTS.plot(GRTS.Cell.ID = i)
+  
+}  
+         
+GRTS_23146 <- GRTS.plot(GRTS.Cell.ID = 23146)
+GRTS_23146
+
 
 for(i in slices){
   render("~/NABat_Annual_Report.Rmd",
