@@ -1,7 +1,5 @@
 ---
-params:
-  new_title: "Alberta's North American Bat Monitoring Program (NABat) Annual Report"
-title: "`r params$new_title`"
+title: "Alberta's North American Bat Monitoring Program (NABat) Annual Report"
 author: "Created by Joanna Burgar"
 date: "Report generated on `r format(Sys.time(), '%d %B, %Y')`"
 output: word_document
@@ -147,9 +145,12 @@ sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "
 # if waterbody < 10 m, then change Land Use Type to Water, otherwise go with ABMI class
 # Consolidate Land.Cover to Agriculture, Barren (Exposed) Land, Forest, Grassland, Shrubland, Developed (incl Urban), Water/Wetland 
 
-sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest", "Broadleaf Forest" = "Forest", 
-                                               "Mixed Forest" = "Forest", "Exposed Land" = "Barren Land")
+sta %>% filter(Land.Cover=="Water")
+
+sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest-conifer", "Broadleaf Forest" = "Forest-deciduous", 
+                                               "Mixed Forest" = "Forest-mixed", "Exposed Land" = "Barren Land")
 sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
+                               grepl("URBAN", sta$Human.Footprint.Type) ~ "Urban",
                                TRUE ~ as.character(sta$Land.Use.Type))
 
 sta <- sta %>% filter(Location.Name %in% NABat.stns.to.use)
@@ -620,6 +621,7 @@ fcalls.NR <- NR.Calls.Yr %>%
   ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
   #ylim(c(0,60))+
   geom_linerange(aes(Natural.Region, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme_classic()+
   theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
@@ -645,6 +647,7 @@ fcalls.LUT <- LUT.Calls.Yr %>%
         panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
   geom_linerange(aes(Land.Use.Type, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme_classic()+
   theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
   theme(legend.position = "bottom") +
@@ -677,6 +680,7 @@ fcalls.GRTS <- GRTS.Calls.Yr %>%
   ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
   xlab(expression("NABat GRTS Cell ID"))+
   geom_linerange(aes(GRTS.Cell.ID, ymin = Mean-SE, ymax = Mean+SE)) +
+  theme_classic()+
   theme(axis.text.y = element_text(size=12))+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8)) +
   theme(legend.position = "bottom", legend.title=element_blank()) +
@@ -733,7 +737,7 @@ Sp.hist.NR
 
 Sp.hist.LUT <- ggplot(data = Sp.hist.data %>% filter(!is.na(Land.Use.Type)), aes(x = Classification, y = n, fill= Land.Use.Type)) + 
   geom_bar(stat = "identity") + 
-  scale_fill_brewer(palette = "Set3", direction=-1)+
+  scale_fill_brewer(palette = "Paired", direction=-1)+
   theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
   theme(legend.position="bottom", legend.title = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
@@ -763,9 +767,11 @@ fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>
         panel.background = element_blank(), axis.line = element_line(colour = "black")) +
   ylab(expression(paste("Mean ± 1 SE Nightly Bat Calls"))) +
   geom_linerange(aes(Classification, ymin = Mean-SE, ymax = Mean+SE), position=position_dodge(width=0.5)) +
+  theme_classic()+
   theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
   theme(axis.text.x = element_text(colour = "black", size = 10)) +
-  theme(legend.position = "bottom", legend.title = element_blank())
+  theme(legend.position = "bottom", legend.title = element_blank())+
+  facet_wrap(~Deployment.ID)
 fcalls.Sp
 
 ```
@@ -814,10 +820,13 @@ library("rmarkdown")
 
 slices <- unique(sta$GRTS.Cell.ID)
 
+
 for(i in slices){
   GRTS.plot(GRTS.Cell.ID = i)
   
 }  
+
+
          
 GRTS_23146 <- GRTS.plot(GRTS.Cell.ID = 23146)
 GRTS_23146
@@ -828,6 +837,8 @@ for(i in slices){
          output_file=paste0("~/Appendix_GRTS.Cell.ID_", i, ".docx"),
          params=list(new_title=paste("Appendix for GRTS Cell ID ", i)))
 }
+
+
 
 
 ```
