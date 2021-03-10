@@ -838,7 +838,11 @@ for(i in slices){
          params=list(new_title=paste("Appendix for GRTS Cell ID ", i)))
 }
 
-
-
+# add in Table 1 (formatting/structuring in Appendix_read)
+opts <- options(knitr.kable.NA = "")
+knitr::kable(t(Appendix.Table1 %>% filter(GRTS.Cell.ID==i) %>% select(-GRTS.Cell.ID)),
+             caption = paste("Table 1 - NABat Site Metadata for GRTS Cell",i),
+             digits=0)
+options(opts)
 
 ```
