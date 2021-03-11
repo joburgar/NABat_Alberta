@@ -155,6 +155,10 @@ sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
 
 sta <- sta %>% filter(Location.Name %in% NABat.stns.to.use)
 
+sta$Land.Unit.Code <- recode(sta$Land.Unit.Code, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR",
+                                         "NSR"="NOSR","RDR"="REDR","SSR"="SOSR","UAR"="UPAR","UPR"="UPPR")
+
+
 eff <- left_join(eff %>% select(-Land.Unit.Code), 
                  sta %>% dplyr::select(Location.Name, Land.Unit.Code, Natural.Region, NP, Land.Use.Type))
 eff %>% count(GRTS.Cell.ID)
@@ -567,7 +571,7 @@ sta.count <- sta.count[,c("National Park", "Natural Region", "Land Unit","Total 
 opts <- options(knitr.kable.NA = "0")
 
 knitr::kable(sta.count,
-             caption="The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BNP = Banff National Park, EINP = Elk Island National Park, JNP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LAR = Lower Athabasca Region, LPR = Lower Peace Region, NSR = North Saskatchewan Region, RDR = Red Deer Region, SSR = South Saskatchewan Region, UAR = Upper Athabasca Region, and UPR = Upper Peace Region.",
+             caption="The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BANP = Banff National Park, EINP = Elk Island National Park, JANP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LOAR = Lower Athabasca Region, LOPR = Lower Peace Region, NOSR = North Saskatchewan Region, REDR = Red Deer Region, SOSR = South Saskatchewan Region, UPAR = Upper Athabasca Region, and UPPR = Upper Peace Region.",
              align = "lllrrr")
 ```
 
