@@ -15,11 +15,11 @@ NABat_grid <- NABat_grid %>% filter(GRTS_ID %in% sta$GRTS.Cell.ID)
 
 
 # NABat stations within NABat grid cells - looks like it's loading correctly
-ggplot()+
-  geom_sf(data = NABat_grid) +
-  geom_sf(data = NABat.sf, pch=19) +
-  scale_shape_identity()+
-  coord_sf()
+# ggplot()+
+#   geom_sf(data = NABat_grid) +
+#   geom_sf(data = NABat.sf, pch=19) +
+#   scale_shape_identity()+
+#   coord_sf()
 
 
 # Transform nc to EPSG 3857 (Pseudo-Mercator, what Google uses)
@@ -31,7 +31,7 @@ AB.NABat_3857_coords$Location.Name <- AB.NABat_3857$Location.Name
 NABat_grid_3857 <- st_transform(NABat_grid %>% filter(GRTS_ID %in% sta$GRTS.Cell.ID), 3857)
 
 # read.table("google_key.txt")
-register_google(key = google_key)
+# register_google(key = google_key)
 
 
 # Define a function to fix the bbox to be in EPSG:3857
@@ -89,12 +89,6 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
   
 }
 
-sta %>% filter(Land.Unit.Code=="SOSR")
-sta %>% filter(grepl("Lost", Orig.Name))
-
-slices <- unique(sta$GRTS.Cell.ID)
-length(slices)
-
 # for(i in slices){
 #   GRTS_map <- GRTS.plot(GRTS.Cell.ID = i, v.just=-2, h.just=-0.1)
 #   ggsave(file=paste("Output/Maps/GRTSID_",i,"_map.png",sep=""))
@@ -110,7 +104,6 @@ nr$area <- st_area(nr)
 Alberta <-
   nr %>%
   summarise(area = sum(area))
-ggplot(Alberta) + geom_sf(data = RM)
 
 unique(nr$NRNAME)
 RM <-nr %>%
@@ -148,46 +141,45 @@ NR <- rbind(RM, BO, PA, GA, CS, FH)
 rm(nr)
 
 
-for(i in slices){
- inset.plot <- ggplot() + 
-    geom_sf(data = Alberta) +
-    geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
-    scale_fill_manual(name = "Natural Regions",
-                      values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
-    geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
-    geom_sf(data = NABat_grid %>% filter(GRTS_ID==i), col="black", lwd=1) +
-    #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
-    coord_sf() +
-    theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))+
-    theme(legend.position = "none")
-  ggsave(file=paste("Output/Maps/Inset_GRTSID_",i,"_map.png",sep=""))
-}
-
-library(gridExtra)
-library(grid)
-
-grid.newpage()
-vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
-vpa_ <- viewport(width = 0.5, height = 0.4, x = 0.85, y = 0.8)  # the inset in upper right
-
-for(i in slices){
-  grid.newpage()
-  vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
-  vpa_ <- viewport(width = 0.5, height = 0.4, x = 0.85, y = 0.8)  # the inset in upper right
-  print(GRTS.plot(GRTS.Cell.ID = i, h.just=0), 
-      vp = vpb_)
-  print(ggplot() + 
-        geom_sf(data = Alberta) +
-        geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
-        scale_fill_manual(name = "Natural Regions",
-                          values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
-        geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
-        geom_sf(data = NABat_grid %>% filter(GRTS_ID==i), col="black", lwd=1) +
-        #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
-        coord_sf() +
-        theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))+
-        theme(legend.position = "none"),
-      vp = vpa_)
-  ggsave(file=paste("Output/Maps/Combined_GRTSID_",i,"_map.png",sep=""))
-  #dev.off()
-}
+# for(i in slices){
+#  inset.plot <- ggplot() + 
+#     geom_sf(data = Alberta) +
+#     geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
+#     scale_fill_manual(name = "Natural Regions",
+#                       values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+#     geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
+#     geom_sf(data = NABat_grid %>% filter(GRTS_ID==i), col="black", lwd=1) +
+#     #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+#     coord_sf() +
+#     theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))+
+#     theme(legend.position = "none")
+#   ggsave(file=paste("Output/Maps/Inset_GRTSID_",i,"_map.png",sep=""))
+# }
+# 
+# 
+# 
+# grid.newpage()
+# vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
+# vpa_ <- viewport(width = 0.5, height = 0.4, x = 0.85, y = 0.8)  # the inset in upper right
+# 
+# for(i in slices){
+#   grid.newpage()
+#   vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
+#   vpa_ <- viewport(width = 0.5, height = 0.4, x = 0.85, y = 0.8)  # the inset in upper right
+#   print(GRTS.plot(GRTS.Cell.ID = i, h.just=0), 
+#       vp = vpb_)
+#   print(ggplot() + 
+#         geom_sf(data = Alberta) +
+#         geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
+#         scale_fill_manual(name = "Natural Regions",
+#                           values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+#         geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
+#         geom_sf(data = NABat_grid %>% filter(GRTS_ID==i), col="black", lwd=1) +
+#         #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+#         coord_sf() +
+#         theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))+
+#         theme(legend.position = "none"),
+#       vp = vpa_)
+#   ggsave(file=paste("Output/Maps/Combined_GRTSID_",i,"_map.png",sep=""))
+#   #dev.off()
+# }
