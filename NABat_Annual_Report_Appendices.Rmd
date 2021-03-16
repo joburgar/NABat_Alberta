@@ -1,0 +1,52 @@
+---
+title: "NABat_Annual_Report_Appendices"
+author: "Created by Joanna Burgar"
+date: "Report generated on `r format(Sys.time(), '%d %B, %Y')`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r appendix loop, echo=F}
+
+library("rmarkdown")
+
+#source("~/Appendix_read.R")
+
+
+slices <- unique(sta$GRTS.Cell.ID)
+
+
+for(i in slices){
+  GRTS.plot(GRTS.Cell.ID = i)
+  
+}  
+
+
+         
+GRTS_23146 <- GRTS.plot(GRTS.Cell.ID = 23146)
+GRTS_23146
+
+
+for(i in slices){
+  render("~/NABat_Annual_Report.Rmd",
+         output_file=paste0("~/Appendix_GRTS.Cell.ID_", i, ".docx"),
+         params=list(new_title=paste("Appendix for GRTS Cell ID ", i)))
+}
+
+# add in Table 1 (formatting/structuring in Appendix_read)
+opts <- options(knitr.kable.NA = "")
+knitr::kable(t(Appendix.Table1 %>% filter(GRTS.Cell.ID==i) %>% select(-GRTS.Cell.ID)),
+             caption = paste("Table 1 - NABat Site Metadata for GRTS Cell",i),
+             digits=0)
+options(opts)
+
+```
