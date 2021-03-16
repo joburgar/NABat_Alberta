@@ -2,7 +2,7 @@
 # to be used with NABat_Annual_Report.Rmd
 
 ###--- create map of GRTS and NABat stations
-NABatDir = c("/Users/joburgars/Documents/NABat/GIS/")
+NABatDir = c("/Users/joburgar/Documents/NABat/GIS/")
 
 NABat_grid <- read_sf(dsn = NABatDir,layer = "master_sample_Alberta")
 #st_geometry(NABat_grid) # no ESPG
@@ -15,11 +15,11 @@ NABat_grid <- NABat_grid %>% filter(GRTS_ID %in% sta$GRTS.Cell.ID)
 
 
 # NABat stations within NABat grid cells - looks like it's loading correctly
-# ggplot()+
-#   geom_sf(data = NABat_grid) +
-#   geom_sf(data = NABat.sf, pch=19) +
-#   scale_shape_identity()+
-#   coord_sf()
+ggplot()+
+  geom_sf(data = NABat_grid) +
+  geom_sf(data = NABat.sf, pch=19) +
+  scale_shape_identity()+
+  coord_sf()
 
 
 # Transform nc to EPSG 3857 (Pseudo-Mercator, what Google uses)
@@ -55,7 +55,7 @@ ggmap_bbox <- function(map) {
 }
 
 
-GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID) {
+GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
   
   AB.GRTS_bb <- as.vector(st_bbox(NABat_grid_3857 %>% filter(GRTS_ID==GRTS.Cell.ID)))
   
@@ -68,7 +68,7 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID) {
                         bottom = bottom,
                         right = right,
                         top =  top),
-                      color = "bw")
+                      color = "color")
   
   # Use the function in a loop to create all GRTS grid/station maps
   map_GRTS <- ggmap_bbox(GRTS_map)
@@ -78,7 +78,7 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID) {
     geom_sf(data = NABat_grid_3857 %>% filter(GRTS_ID==GRTS.Cell.ID), col="grey14", fill = NA, inherit.aes = FALSE) +
     geom_sf(data = AB.NABat_3857 %>% filter(GRTS.Cell.ID==GRTS.Cell.ID), col="darkred", fill="red", cex = 3, inherit.aes = FALSE) +
     geom_text(data=AB.NABat_3857_coords %>% filter(GRTS.Cell.ID==GRTS.Cell.ID), 
-              aes(x=X ,y=Y, label=Location.Name, fontface="bold"), vjust=-1.2, size=4) +
+              aes(x=X ,y=Y, label=Location.Name, fontface="bold"), vjust=-v.just, size=4, hjust=h.just) +
     theme(legend.position = "none", text=element_text(size=13)) +
     theme(axis.text.y=element_blank(),axis.text.x=element_blank(),
           axis.ticks=element_blank()) +
@@ -89,20 +89,105 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID) {
   
 }
 
+sta %>% filter(Land.Unit.Code=="SOSR")
+sta %>% filter(grepl("Lost", Orig.Name))
+
 slices <- unique(sta$GRTS.Cell.ID)
 length(slices)
 
 # for(i in slices){
-#   GRTS_map <- GRTS.plot(GRTS.Cell.ID = i)
-#   Cairo(file=paste("Output/Maps/GRTSID_",i,"_map.png",sep=""), 
-#         type="png",
-#         width=2800, 
-#         height=2000, 
-#         pointsize=18,
-#         bg="white",
-#         dpi=300)
-#   GRTS_map
-#   dev.off()
-# }  
+#   GRTS_map <- GRTS.plot(GRTS.Cell.ID = i, v.just=-2, h.just=-0.1)
+#   ggsave(file=paste("Output/Maps/GRTSID_",i,"_map.png",sep=""))
 
-# for some reason it doesn't work as loop, but works if I specify each i ?!?!?
+######################################
+#- overall AB map
+theme_set(theme_bw())
+nr <- read_sf(dsn = paste(NABatDir,"/Natural_Regions_Subregions_of_Alberta", sep=""),
+              layer = "Natural_Regions_Subregions_of_Alberta")
+
+nr$area <- st_area(nr)
+
+Alberta <-
+  nr %>%
+  summarise(area = sum(area))
+ggplot(Alberta) + geom_sf(data = RM)
+
+unique(nr$NRNAME)
+RM <-nr %>%
+  filter(NRNAME =="Rocky Mountain") %>%
+  summarise(area = sum(area))
+RM$NR <- "Rocky Mountain"
+
+BO <-nr %>%
+  filter(NRNAME =="Boreal") %>%
+  summarise(area = sum(area))
+BO$NR <- "Boreal"
+
+PA <-nr %>%
+  filter(NRNAME =="Parkland") %>%
+  summarise(area = sum(area))
+PA$NR <- "Parkland"
+
+GA <-nr %>%
+  filter(NRNAME =="Grassland") %>%
+  summarise(area = sum(area))
+GA$NR <- "Grassland"
+
+CS <-nr %>%
+  filter(NRNAME =="Canadian Shield") %>%
+  summarise(area = sum(area))
+CS$NR <- "Canadian Shield"
+
+FH <-nr %>%
+  filter(NRNAME =="Foothills") %>%
+  summarise(area = sum(area))
+FH$NR <- "Foothills"
+
+NR <- rbind(RM, BO, PA, GA, CS, FH)
+
+rm(nr)
+
+
+for(i in slices){
+ inset.plot <- ggplot() + 
+    geom_sf(data = Alberta) +
+    geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
+    scale_fill_manual(name = "Natural Regions",
+                      values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+    geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
+    geom_sf(data = NABat_grid %>% filter(GRTS_ID==i), col="black", lwd=1) +
+    #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+    coord_sf() +
+    theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))+
+    theme(legend.position = "none")
+  ggsave(file=paste("Output/Maps/Inset_GRTSID_",i,"_map.png",sep=""))
+}
+
+library(gridExtra)
+library(grid)
+
+grid.newpage()
+vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
+vpa_ <- viewport(width = 0.5, height = 0.4, x = 0.85, y = 0.8)  # the inset in upper right
+
+for(i in slices){
+  grid.newpage()
+  vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
+  vpa_ <- viewport(width = 0.5, height = 0.4, x = 0.85, y = 0.8)  # the inset in upper right
+  print(GRTS.plot(GRTS.Cell.ID = i, h.just=0), 
+      vp = vpb_)
+  print(ggplot() + 
+        geom_sf(data = Alberta) +
+        geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
+        scale_fill_manual(name = "Natural Regions",
+                          values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+        geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
+        geom_sf(data = NABat_grid %>% filter(GRTS_ID==i), col="black", lwd=1) +
+        #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+        coord_sf() +
+        theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))+
+        theme(legend.position = "none"),
+      vp = vpa_)
+  ggsave(file=paste("Output/Maps/Combined_GRTSID_",i,"_map.png",sep=""))
+  #dev.off()
+}
