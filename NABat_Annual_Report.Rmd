@@ -12,7 +12,7 @@ editor_options:
 always_allow_html: yes
 ---
 ```{r LACI image, out.width="0.3\\linewidth", include=TRUE, fig.align="center", echo=FALSE}
-knitr::include_graphics("./Input/JasonHeadley-LACI-9544.jpg")
+knitr::include_graphics("./Input/JasonHeadley-EPFU-1756.jpg")
 ```
 
 Prepared by: Joanna M. Burgar, PhD RPBio
@@ -22,7 +22,7 @@ Prepared for: Alberta Environment & Parks
 
 Suggested Citation: Burgar, J.M. 2021. North American Bat Monitoring Program 2020. Alberta Environment & Parks, Edmonton, Alberta. 
 
-Cover Illustration: Lasiurus cinereus © Jason Headley
+Cover Illustration: Eptesicus fuscus - Big Brown Bat © Jason Headley
 
 ```{r setup, echo=F, include=F}
 
@@ -815,38 +815,3 @@ knitr::include_graphics(c(paste("./Output/activity_overlap_LACI Pre-volancy-LACI
 Thank you to Lisa Wilkinson for having the foresight and enthusiasm to start NABat monitoring in Alberta and her continued support of the program, to Jason Headley for providing the cover photo, and to all of the biologists who generously provided their time and energy in gathering and providing bat acoustic data: Barb Johnston, Brenda Shepard, Cory Olson, Courtney Hughes, David Bruinsma, Erin Bayne, Greg Brooke, Greg Horne, Geoffrey Prophet, Helena Mahoney, Jason Unruh, Jennifer Carpenter, Lisa Wilkinson, Matina Kalcounis-Rueppell, Natalka Melnycky, Rolanda Steenweg, Saakje Hazenberg, Sandi Robertson, and Sharon Irwin. Thank you also to Sandra Frey for providing helpful R code and advice on temporal niche partitioning. Lastly, thanks to Alex MacPhail, Cami Hurtado, and Monica Kohler for providing access to ABMIs data, to Rhonda Connors (TerraSolis Inc.) for answering mapping and GIS questions, and to Brandon Aubie for responding so quickly to, and troubleshooting any, issues with Alberta eBat.
 
 
-```{r appendix loop, echo=F}
-
-library("rmarkdown")
-
-#source("~/Appendix_read.R")
-
-
-slices <- unique(sta$GRTS.Cell.ID)
-
-
-for(i in slices){
-  GRTS.plot(GRTS.Cell.ID = i)
-  
-}  
-
-
-         
-GRTS_23146 <- GRTS.plot(GRTS.Cell.ID = 23146)
-GRTS_23146
-
-
-for(i in slices){
-  render("~/NABat_Annual_Report.Rmd",
-         output_file=paste0("~/Appendix_GRTS.Cell.ID_", i, ".docx"),
-         params=list(new_title=paste("Appendix for GRTS Cell ID ", i)))
-}
-
-# add in Table 1 (formatting/structuring in Appendix_read)
-opts <- options(knitr.kable.NA = "")
-knitr::kable(t(Appendix.Table1 %>% filter(GRTS.Cell.ID==i) %>% select(-GRTS.Cell.ID)),
-             caption = paste("Table 1 - NABat Site Metadata for GRTS Cell",i),
-             digits=0)
-options(opts)
-
-```
