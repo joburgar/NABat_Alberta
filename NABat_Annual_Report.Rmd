@@ -21,7 +21,7 @@ Cover Illustration: Eptesicus fuscus - Big Brown Bat © Jason Headley
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -515,6 +515,9 @@ volancy_overlap.fn <- function(Classification=Classification){
   wwt <- watson.wheeler.test(list(overlap$densityA, overlap$densityB))
   return(wwt)
 }
+
+
+save.image("NABat_Annual_Report.RDS")
 
 # run through each classification, except "unknown" and any classification with <100 calls
 class.list <- as.data.frame(dat_time %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% 
