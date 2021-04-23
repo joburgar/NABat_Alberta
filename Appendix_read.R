@@ -10,17 +10,28 @@
 #MYOVOL|MYOYUM|MYSE|MYSO|MYTH|MYVE|MYVO|MYYU|NOCLEP|NOISE|NOLE|NOTBAT|NYCFEM|NYCHUM|NYCMAC|NYFE|NYHU|NYMA|NYSP|NoID|PAHE|PARHES|PERSUB|PESU|STERUF|STRU|TABR|TADBRA|HiLo
 
 
-render_one <- function(GRTS.Cell.ID) {
-  # assuming the output format of input.Rmd is PDF
+render_one <- function(GRTS_ID) {
   rmarkdown::render(
     'NABat_Annual_Report_Appendices.Rmd',
-    output_file = paste0('Appendix_',GRTS.Cell.ID,'.docx'),
+    output_file = paste0('Appendices/Appendix_',GRTS.Cell.ID,'.docx'),
     params = list(GRTS.Cell.ID = GRTS.Cell.ID),
     envir = parent.frame()
   )
 }
 
-for(GRTS.Cell.ID in unique(sta$GRTS.Cell.ID)){
+library("rmarkdown")
+source("Appendix_maps.R", local = knitr::knit_global())
+
+unique.GRTS.Cell.ID = unique(sta$GRTS.Cell.ID)
+
+for(GRTS.Cell.ID in unique.GRTS.Cell.ID){
+  rmarkdown::render("NABat_Annual_Report_Appendices.Rmd",
+                    params=list(GRTS.Cell.ID = GRTS.Cell.ID),
+                    output_file=paste0("Appendices/Appendix_", GRTS.Cell.ID, ".docx"))
+}
+
+
+for(GRTS.Cell.ID in unique.GRTS.Cell.ID){
   render_one(GRTS.Cell.ID)  
 }
 
