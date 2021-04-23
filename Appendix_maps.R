@@ -1,12 +1,25 @@
 ###--- this script generates individual annual GRTS specific appendices
 # to be used with NABat_Annual_Report_Appendices.Rmd, read in once bulk of report code has been run
 
+#Load Packages
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
+# Check you have them and load them
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+lapply(list.of.packages, require, character.only = TRUE)
+
+# save.image("NABat_Annual_Submission.RDS")
+# load("NABat_Annual_Submission.RDS")
+
+#############################################################################
+
 dat_count <- droplevels(dat_count)
 dat_summary <- droplevels(dat_summary)
 dat_time <- droplevels(dat_time)
 eff <- droplevels(eff)
 sta <- droplevels(sta)
-
+names(eff)
 
 call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
 call_count.Sp <- droplevels(call_count.Sp)
@@ -18,8 +31,10 @@ call_count.Sp$GRTS.Cell.ID <- as.character(call_count.Sp$GRTS.Cell.ID)
 # include tables in report as first appendix, along with datasheets as recommendation for future use
 # with cover page = map (inset of Alberta? or just refer to Fig 1?)
 ## Stationary Point data sheet: Surveyor details, Site Locations, Recording Details, Detector Details
+
 ## Environmental data sheet with rows as dates and columns as Max, Min, Mean
 # for three sections: Nightly Temp (degree), Nightly Rel Hum (%); Wind speed (km/h)
+
 ## sta covariates: NR, LUT, HF + dist, Road + dist, Water + dist (for each station)
 ## graph: Mean nightly call sequences - passive survey (y axis), species / species group (with fill = station)
 ## table: Total bat call sequences - passive survey 
@@ -100,13 +115,13 @@ Appendix.Table1 <- left_join(Appendix.Table1, eff %>% select(Location.Name, Cont
 # add in null columns (NABat template)
 xx <- c("Detector","Detector.Serial.Number", "Microphone","Microphone.Serial.Number","Microphone.Orientation",
         "Microphone.Height","Clutter.Distance","Clutter.Type","Percent.Clutter","Weather.Proofing","Unusual.Occurrences")
-Appendix.Table1[xx] <- NA
+Appendix.Table1[xx] <- as.character(NA)
 
 # put in the same order as NABat template
 Appendix.Table1 <- Appendix.Table1[c("GRTS.Cell.ID","Location.Name", "Orig.Name","Latitude", "Longitude","Survey.Start.Time", 
                                      "Survey.End.Time", "Detector", "Detector.Serial.Number", "Microphone","Microphone.Serial.Number",
-                                     "Microphone.Orientation","Microphone.Height","Clutter.Distance","Clutter.Type","Percent.Clutter",
-                                     "Water.Distance","Water.Type","Road.Distance","Road.Type", "Human.Footprint.Distance", "Human.Footprint.Sublayer", "Human.Footprint.Type",
+                                     "Microphone.Orientation","Microphone.Height","Clutter.Distance","Clutter.Type",
+                                     "Water.Distance","Water.Type","Percent.Clutter","Road.Distance","Road.Type", "Human.Footprint.Distance", "Human.Footprint.Sublayer", "Human.Footprint.Type",
                                      "Land.Use.Type","Land.Unit.Code","Contact","Weather.Proofing","Unusual.Occurrences")]
 
 # opts <- options(knitr.kable.NA = "")
@@ -122,16 +137,160 @@ Appendix.Table1 <- Appendix.Table1[c("GRTS.Cell.ID","Location.Name", "Orig.Name"
 
 ## Environmental data sheet with rows as dates and columns as Max, Min
 # Create environmental covariate
-nightly.env.cov <- dat_summary %>% group_by(Location.Name,SurveyNight) %>% dplyr::summarise_at(c("max_temp","max_hum","max_wind","min_temp","min_hum","min_wind"), list(Mean = mean))
-nightly.env.cov <- nightly.env.cov %>% rename(Max.Temp = "max_temp_Mean", Max.Hum = "max_hum_Mean", Max.Wind = "max_wind_Mean", 
-                                              Min.Temp = "min_temp_Mean", Min.Hum = "min_hum_Mean", Min.Wind = "min_wind_Mean")
+# load weather data
+# library(weathercan) # if not already loaded
+weather <- read.csv("Input/NABat_2020_nightly_weather_sum.csv", header=T)
+glimpse(weather)
+weather <- weather[,-1]
 
-Appendix.Table2 <- nightly.env.cov[c("Location.Name","SurveyNight","Min.Temp","Max.Temp","Min.Hum","Max.Hum","Min.Wind","Max.Wind")] %>% ungroup
+ECCC.stn <- sta[c("Latitude","Longitude")]
+
+ECCC.stn.id <- vector('list',nrow(ECCC.stn))
+for (i in 1:nrow(ECCC.stn)){
+  ECCC.stn.id.list <- stations_search(coords = ECCC.stn[i,], 
+                                      interval = "hour", starts_latest=2020, ends_earliest=2021,
+                                      quiet = T) 
+  ECCC.stn.id[i] <- ECCC.stn.id.list[1,c("station_id")]
+}
+
+sta$ECCC_stn_id <- unlist(ECCC.stn.id)
+
+head(weather)
+colnames(weather) <- c("ECCC.stn.id", "SurveyNight", "Min.Tmp", "Min.RH", "Min.WS", "Mean.Tmp", "Mean.RH", "Mean.WS", "Max.Tmp", "Max.RH", "Max.WS")
+weather$SurveyNight <- ymd(weather$SurveyNight)
+nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
+nightly.env.cov$ECCC.stn.id <- sta$ECCC_stn_id[match(nightly.env.cov$Location.Name, sta$Location.Name)]
+nightly.env.cov <- nightly.env.cov %>% count(Location.Name, SurveyNight, ECCC.stn.id)
+nightly.env.cov <- nightly.env.cov %>% select(-n)
+
+nightly.env.cov <- left_join(nightly.env.cov, weather, by = c("SurveyNight","ECCC.stn.id"))
+
+
+# Appendix.Table2 <- nightly.env.cov[c("Location.Name","SurveyNight","Min.Tmp","Max.Tmp","Min.RH","Max.RH","Min.WS","Max.WS")] #%>% ungroup
 # opts <- options(knitr.kable.NA = "")
 # knitr::kable(Appendix.Table2 %>% filter(grepl(i, Location.Name)) %>% select(-Location.Name),
 #              caption = paste("Table 2 - NABat Survey Weather Conditions for GRTS Cell",i),
 #              digits=1)
 # options(opts)
+
+###- Appendix Table 3 - Nightly call counts
+###---recode Classification to "AutoID" and use NABat 4-6 letter codes for NABat submission
+#25k|40k|40kMyo|ANPA|ANPAEPFU|ANTPAL|ARJA|ARTJAM|BRACAV|BRCA|CHME|CHOMEX|CORA|CORRAF|CORTO|COTO|COTOVI|DIEC|DIPECA|
+#EPFU|EPFULABO|EPFULANO|EPFUMYLU|EPTFUS|EUDMAC|EUFL|EUMA|EUMFLO|EUMPER|EUMUND|EUPE|EUUN|HiF|HighF|IDIPHY|IDPH|LABL|
+#LABLPAHE|LABO|LABOLASE|LABOMYLU|LABONYHU|LABOPESU|LACI|LACILANO|LACITABR|LAEG|LAIN|LAMI|LANO|LANOTABR|LASBLO|LASBOR|
+#LASCIN|LASE|LASEGA|LASINT|LASMIN|LASNOC|LASSEM|LASXAN|LAXA|LEMY|LENI|LEPNIV|LEPYER|LESP|LEYE|LUSO|LoF|LowF|MACA|MACCAL|
+#MOLMOL|MOME|MOMO|MORMEG|MYAR|MYAU|MYCA|MYCAMYCI|MYCAMYYU|MYCI|MYCIMYVO|MYEV|MYEVMYTH|MYGR|MYKE|MYLE|MYLU|MYLUMYCI|
+#MYLUMYSE|MYLUMYVO|MYOAUR|MYOAUS|MYOC|MYOCAL|MYOCIL|MYOEVO|MYOGRI|MYOKEE|MYOLEI|MYOLUC|MYOOCC|MYOSEP|MYOSOD|MYOTHY|MYOVEL|
+#MYOVOL|MYOYUM|MYSE|MYSO|MYTH|MYVE|MYVO|MYYU|NOCLEP|NOISE|NOLE|NOTBAT|NYCFEM|NYCHUM|NYCMAC|NYFE|NYHU|NYMA|NYSP|NoID|PAHE|PARHES|PERSUB|PESU|STERUF|STRU|TABR|TADBRA|HiLo
+
+Appendix.Table3 <- dat_time %>% select(Location.Name, Filename, Timep, SurveyNight, Classification)
+
+Appendix.Table3$Classification <- as.factor(Appendix.Table3$Classification %>% 
+                                        recode(`EPFU-LANO` = "EPFULANO", `LABO-MYLU` = "LABOMYLU", `Myotis 40k` = "40kMyo", MYEV.MYSE = "40kMyo",unknown = "NoID", noise = "NOISE"))
+
+Bulk_call_meta <- left_join(Appendix.Table3, nightly.env.cov, by = "SurveyNight", "Location.Name")
+Bulk_call_meta$Timep <- as.POSIXct(strptime(Bulk_call_meta$Time, "%H:%M:%S", tz))
+Bulk_call_meta$SurveyDate <- case_when(Bulk_call_meta$Timep < "2021-04-10 12:00:00" ~ Bulk_call_meta$SurveyNight-1,
+                                       TRUE ~ Bulk_call_meta$SurveyNight)
+Bulk_call_meta$Time <- format(Bulk_call_meta$Timep, format = "%H:%M:%S")
+Bulk_call_meta$`Audio Recording Time` <- paste(Bulk_call_meta$SurveyDate, Bulk_call_meta$Time)
+head(Bulk_call_meta)
+
+Bulk_call_meta <- Bulk_call_meta %>% select(Location.Name.x, Min.Tmp, Max.Tmp, Min.RH, Max.RH, Min.WS, Max.WS, Filename, `Audio Recording Time`, Classification)
+Bulk_call_meta$Survey.Start.Time <- Bulk_call_meta$Survey.Start.Time[match(Bulk_call_meta$Location.Name.x, Appendix.Table1$Location.Name)]
+Bulk_call_meta$Survey.End.Time <- Appendix.Table1$Survey.End.Time[match(Bulk_call_meta$Location.Name.x, Appendix.Table1$Location.Name)]
+
+colnames(Bulk_call_meta) <- c("Location Name", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity", "Nightly High Relative Humidity", 
+                              "Nightly Low Wind Speed", "Nightly High Wind Speed", "Audio Recording Name", "Audio Recording Time", "Auto Id", "Survey Start Time", "Survey End Time")
+
+
+# add in null columns (NABat template)
+xx <- c("Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Software Type", "Manual Id","Species List")
+Bulk_call_meta[xx] <- NA
+
+names(Bulk_call_meta)
+Bulk_call_meta <- Bulk_call_meta[c("Location Name", "Survey Start Time", "Survey End Time", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity",
+                                   "Nightly High Relative Humidity", "Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Wind Speed", "Nightly High Wind Speed", 
+                                   "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Audio Recording Name", "Audio Recording Time", "Software Type","Auto Id", "Manual Id","Species List")]
+
+Bulk_call_meta$`Software Type` <- "Alberta eBat"
+Bulk_call_meta$`Species List` <- "Alberta_01"
+head(Bulk_call_meta)
+
+Bulk_call_meta$`Nightly High Cloud Cover` <- as.numeric(Bulk_call_meta$`Nightly High Cloud Cover`)
+Bulk_call_meta$`Nightly Low Cloud Cover` <- as.numeric(Bulk_call_meta$`Nightly Low Cloud Cover`)
+Bulk_call_meta$`Nightly High Weather Event` <- as.character(Bulk_call_meta$`Nightly High Weather Event`)
+Bulk_call_meta$`Nightly Low Weather Event` <- as.character(Bulk_call_meta$`Nightly Low Weather Event`)
+Bulk_call_meta$`Manual Id` <- as.character(Bulk_call_meta$`Manual Id`)
+
+# also have bulk call meta for all stations outside of NP (except Elk Island)
+
+NABat_NPsubmit <- eff %>% filter(Land.Unit.Code %in% c("BANP","JANP","WLNP")) %>% count(Location.Name)
+
+Bulk_call_meta_tosubmit <- Bulk_call_meta %>% filter(!`Location Name` %in% NABat_NPsubmit$Location.Name)
+nrow(Bulk_call_meta)
+Bulk_call_meta_tosubmit %>% filter(`Location Name` %in% NABat_NPsubmit$Location.Name) # check if it worked
+# write.csv(Bulk_call_meta_tosubmit, "Bulk_call_meta_2020.csv", row.names = FALSE) # only the sites to submit
+glimpse(Bulk_call_meta)
+
+###--- Bulk Stationary Acoustic Meta Template
+#- provide contacts with bulk data for review and reference
+glimpse(Appendix.Table1)
+Bulk_site_meta <- Appendix.Table1 %>% select(-Road.Distance,-Road.Type,-Human.Footprint.Distance,-Human.Footprint.Sublayer,-Human.Footprint.Type, -Orig.Name)
+colnames(Bulk_site_meta) <- c("GRTS Cell Id", "Location Name","Latitude", "Longitude", "Survey Start Time", "Survey End Time", "Detector", "Detector Serial Number",
+                               "Microphone", "Microphone Serial Number", "Microphone Orientation", "Microphone Height (meters)", "Distance to Nearest Clutter (meters)", "Clutter Type", 
+                               "Distance to Nearest Water (meters)", "Water Type", "Percent Clutter", "Broad Habitat Type", "Land Unit Code","Contact","Weather Proofing", "Unusual Occurrences" )
+
+Bulk_site_meta$`Microphone Height (meters)` <- as.numeric(Bulk_site_meta$`Microphone Height (meters)`)
+Bulk_site_meta$`Distance to Nearest Clutter (meters)` <- as.numeric(Bulk_site_meta$`Distance to Nearest Clutter (meters)`)
+Bulk_site_meta$`Percent Clutter` <- as.numeric(Bulk_site_meta$`Percent Clutter`)
+Bulk_site_meta$`Weather Proofing` <- as.logical(Bulk_site_meta$`Weather Proofing`)
+
+write.table(Bulk_site_meta, "Bulk_site_meta.csv",na = "",row.names = FALSE,sep = ",")
+
+
+# # Write files for bio review
+# write.table(Bulk_site_meta %>% filter(grepl("barb",Contact)),"Bulk_site_meta_BNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("Brett",Contact)),"Bulk_site_meta_LAR.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("hurtado",Contact)),"Bulk_site_meta_UoA.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("hughes",Contact)),"Bulk_site_meta_PR1.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("olson",Contact)),"Bulk_site_meta_Cori.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("david",Contact)),"Bulk_site_meta_EINP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("helena",Contact)),"Bulk_site_meta_WLNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("Unruh",Contact)),"Bulk_site_meta_RDR.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("lisa",Contact)),"Bulk_site_meta_Lisa.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("Steenweg",Contact)),"Bulk_site_meta_PR2.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("saakje",Contact)),"Bulk_site_meta_JNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta %>% filter(grepl("sandi",Contact)),"Bulk_site_meta_MH.csv", na = "",row.names = FALSE,sep = ",")
+
+###--- Bulk Stationary Acoustic Data Template
+#- provide contacts with bulk data for review and reference
+glimpse(Bulk_call_meta)
+
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("barb", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_BNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("Brett", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_LAR.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("hurtado", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_UofA.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("hughes", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_PR1.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("olson", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_Cori.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("david", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_EINP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("helena", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_WLNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("Unruh", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_RDR.csv", row.names = FALSE)
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("lisa", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_Lisa.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("Steenweg", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_PR2.csv", row.names = FALSE)
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("saakje", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_JNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_call_meta %>% filter(`Location Name` %in% contact_cells[grepl("sandi", contact_cells$Contact),]$`Location Name`),
+#           "Bulk_call_meta_MH.csv", na = "",row.names = FALSE,sep = ",")
 
 ##############################################################################################
 
@@ -148,7 +307,7 @@ NABat_grid <- st_transform(NABat_grid, crs=4326) # now espg 4326
 
 ###--- create sf object of sta (Alberta NABat sites)
 NABat.sf <- st_as_sf(sta, coords=c("Longitude", "Latitude"), crs = 4326)
-NABat_grid <- NABat_grid %>% filter(GRTS_ID %in% sta$GRTS.Cell.ID)
+#NABat_grid <- NABat_grid %>% filter(GRTS_ID %in% sta$GRTS.Cell.ID)
 
 
 # NABat stations within NABat grid cells - looks like it's loading correctly
@@ -276,7 +435,33 @@ FH$NR <- "Foothills"
 NR <- rbind(RM, BO, PA, GA, CS, FH)
 
 rm(nr)
+Two.DT <- unique(eff %>% filter(grepl("churtado|EINP", Contact)) %>% select(GRTS.Cell.ID))
+One.DT <-   unique(eff %>% filter(!grepl("churtado|EINP", Contact)) %>% select(GRTS.Cell.ID))
 
+NABat_DT1_3857 <- st_transform(NABat_grid %>% filter(GRTS_ID %in% One.DT$GRTS.Cell.ID), 3857)
+NABat_DT2_3857 <- st_transform(NABat_grid %>% filter(GRTS_ID %in% Two.DT$GRTS.Cell.ID), 3857)
+
+
+Fig_mobile.plot <- ggplot() + 
+  geom_sf(data = Alberta) +
+  geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
+  scale_fill_manual(name = "Natural Regions",
+                    values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+  geom_sf(data = NABat_DT1_3857, col="blue", lwd=1) +
+  geom_sf(data = NABat_DT2_3857, col="black", lwd=1) +
+  annotation_scale(location = "bl", width_hint = 0.4, bar_cols = c("grey", "white")) +
+  coord_sf() +
+  theme_minimal()
+
+Cairo(file="Fig_mobile.plot.PNG", 
+      type="png",
+      width=1500, 
+      height=2000, 
+      pointsize=14,
+      bg="white",
+      dpi=300)
+Fig_mobile.plot
+dev.off()
 
 # for(i in slices){
 #  inset.plot <- ggplot() + 
