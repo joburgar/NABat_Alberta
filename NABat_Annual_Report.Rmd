@@ -21,7 +21,7 @@ Cover Illustration: Eptesicus fuscus - Big Brown Bat © Jason Headley
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid","weathercan")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -466,7 +466,7 @@ dat_sum_sub_df$category[My_40k_index] <- "My_40k"
 # use overlap and circular R packages
 
 # create new df with select columns, remove noise files and add in some covariates
-dat_time <- dat_sum_sub_df %>% select(-Filename:-sp3) %>% filter(category!="noise")
+dat_time <- dat_sum_sub_df %>% select(-n_calls:-sp3) %>% filter(category!="noise")
 # now down to 167,319 files
 
 dat_time$Classification <- as.factor(dat_time$category %>% 
@@ -589,33 +589,53 @@ knitr::include_graphics("./Input/Bats_finaldata.pdf")
 ##### Figure 1. Bats were acoustically surveyed, following NABat protocols, at `r n.stat` stations across Alberta in `r Year_interest`. Please note that the 4 EINP stations were not included on the map as data was obtained after the map was produced.
 
 
-```{r nightly survey effort NP, echo=F, fig.height=7, fig.width=6}
+```{r nightly survey effort NP, echo=F, fig.height=6, fig.width=7}
 
 calls.per.night.locn <- dat_count %>% group_by(Year,jDay, SurveyNight,NP, Natural.Region, Land.Unit.Code, Location.Name) %>%
   filter(Classification!="noise") %>%
   summarise(Call.Count =sum(Count))
 calls.per.night.locn$Night.Count <- 1
 
-NightPA.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=NP)) + 
+
+NightLUC.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Land.Unit.Code)) + 
   geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values=unique(sta$Cols))+
+  scale_fill_manual(values=unique(sta$ColsLUC))+
   scale_x_continuous(breaks = c(153, 183, 214, 245),
   label = c("Jun-01", "Jul-01", "Aug-01","Sep-01"))+
   theme_classic() + ylab("Number of Stations Surveyed") +
-  theme(legend.position="bottom") +
+  theme(legend.position="bottom", legend.title = element_blank()) +
   theme(axis.title.x = element_blank()) +
   theme(axis.title.y = element_text(size = 14))+
   facet_wrap(~Year, ncol=1)
 
-NightPA.hist
+NightLUC.hist
+
+# Cairo(file="Output/NightPA.hist.PNG",
+#       type="png",
+#       width=3400,
+#       height=2600,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# NightLUC.hist
+# dev.off()
+
+tmp1 <- calls.per.night.locn %>% group_by(Location.Name) %>% summarise(min(SurveyNight), max(SurveyNight))
+colnames(tmp1) <- c("Location.Name", "Survey.Start", "Survey.End")
+tmp1$nights_surveyed <- tmp1$Survey.End - tmp1$Survey.Start+1
+tmp1 <- as.data.frame(tmp1)
+min(tmp1$nights_surveyed)
+max(tmp1$nights_surveyed)
+mean(tmp1$nights_surveyed)
+
 ```
 
 ###### Figure 2. Number of bat survey locations sampled per night from `r min(eff$Deployment.ID)` to `r max(eff$Deployment.ID)` by year within and outside of National Parks (NP).
 
 #### Nightly Overall Bat Call Summaries
 
-```{r mean nightly call by NR, echo=F, fig.height=7, fig.width=6, warning=FALSE}
+```{r mean nightly call by NR, echo=F, fig.height=6, fig.width=7, warning=FALSE}
 call_count.NR <- call_count %>% group_by(Natural.Region, Deployment.ID, Volancy)
 
 # subset data for overall mean nightly bat calls by year for each Natural Region
@@ -641,7 +661,7 @@ fcalls.NR
 ```
 ##### Figure 8. Mean nightly bat calls for each Natural Region, by year and volancy period.
 
-```{r mean nightly call by LUT, echo=F, fig.height=7, fig.width=6, warning=FALSE}
+```{r mean nightly call by LUT, echo=F, fig.height=6, fig.width=7, warning=FALSE}
 call_count.LUT <- call_count %>% group_by(Land.Use.Type, Deployment.ID, Volancy)
 call_count.LUT <- call_count.LUT[complete.cases(call_count.LUT$Land.Use.Type),]
 
@@ -660,13 +680,13 @@ fcalls.LUT <- LUT.Calls.Yr %>%
   theme_classic()+
   theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
   facet_wrap(~Deployment.ID)
 fcalls.LUT
 
 ```
 
-```{r mean nightly call by GRTS, echo=F, fig.height=7, fig.width=6, warning=FALSE}
+```{r mean nightly call by GRTS, echo=F, fig.height=6, fig.width=7, warning=FALSE}
 call_count2 <- call_count %>% group_by(Land.Unit.Code, Deployment.ID, GRTS.Cell.ID)
 
 # Reorder GRTS to be NP, Land.Unit.Code then GRTS
@@ -718,10 +738,16 @@ as.data.frame(Table.Calls)
 knitr::kable(Table.Calls, 
              caption=paste("Overall bat call count, percentage and call per night for ",n.stat," stations surveyed in ",Year_interest,".", sep=""),
              align = "lrrr")
+
+# bat_count <- call_count %>% filter(Classification!="unknown")
+# sum(bat_count$Count)
+# bat_count %>% group_by(Classification) %>% summarise(sum(Count))
+# 
+# 15545  / sum(bat_count$Count)
 ```
 
 
-```{r sp hist NR, echo=F, fig.height=7, fig.width=6}
+```{r sp hist NR, echo=F, fig.height=6, fig.width=7}
 # Generate colours to display the species levels
 call_count$Classification <- droplevels(call_count$Classification)
 
@@ -743,7 +769,7 @@ Sp.hist.NR
 ##### Figure 11. Total bat calls for species / species groups by year and Natural Region
 
 
-```{r sp hist LUT, echo=F, fig.height=7, fig.width=6}
+```{r sp hist LUT, echo=F, fig.height=6, fig.width=7}
 
 Sp.hist.LUT <- ggplot(data = Sp.hist.data %>% filter(!is.na(Land.Use.Type)), aes(x = Classification, y = n, fill= Land.Use.Type)) + 
   geom_bar(stat = "identity") + 
@@ -760,7 +786,7 @@ Sp.hist.LUT
 ##### Figure 12. Total bat calls for species / species groups by year and Land Use Type.
 
 
-```{r mean species call by year and volancy, echo=F, fig.height=7, fig.width=6, warning=FALSE}
+```{r mean species call by year and volancy, echo=F, fig.height=6, fig.width=7, warning=FALSE}
 call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
 # only graph species / species groups with >100 calls
 sp.to.use <- call_count.Sp %>% group_by(Classification) %>% summarise(Sum = sum(Count))
