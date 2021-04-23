@@ -3,28 +3,30 @@ title: "NABat_Annual_Report_Appendices"
 author: "Created by Joanna Burgar"
 date: "Report generated on `r format(Sys.time(), '%d %B, %Y')`"
 output: word_document
-
+params:
+  GRTS.Cell.ID: 296805
+  
 ---
 ```{r setup, include = FALSE}
 
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=9)
 
-#Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
-# Check you have them and load them
-new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
-if(length(new.packages)) install.packages(new.packages)
-
-lapply(list.of.packages, require, character.only = TRUE)
-
-load("NABat_Annual_Report.RDS")
-source("Appendix_maps.R", local = knitr::knit_global())
+# #Load Packages
+# list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
+# # Check you have them and load them
+# new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+# if(length(new.packages)) install.packages(new.packages)
+# 
+# lapply(list.of.packages, require, character.only = TRUE)
+# 
+# load("NABat_Annual_Report.RDS")
+# source("Appendix_maps.R", local = knitr::knit_global())
 
 ```
 
 ## NABat 2020 Report Appendix
 
-``` {r map with inset, echo=FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=9}
+``` {r map with inset}
   grid.newpage()
   vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
   vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  # the inset in upper right
@@ -49,7 +51,7 @@ source("Appendix_maps.R", local = knitr::knit_global())
 
 ##### Table 1. NABat station meta data for GRTS Cell `r params$GRTS.Cell.ID`.  
 
-``` {r Table 1, echo=FALSE, warning=F}
+``` {r Table 1}
 ###- Appendix Table 1 (formatting/structuring in Appendix_read)
   opts <- options(knitr.kable.NA = "")
   knitr::kable(t(Appendix.Table1 %>% dplyr::filter(GRTS.Cell.ID==params$GRTS.Cell.ID) %>% select(-GRTS.Cell.ID)),
@@ -61,7 +63,7 @@ source("Appendix_maps.R", local = knitr::knit_global())
 
 ##### Table 2. Minimum and maximum nightly survey weather conditions - Temperature (°C), Humidity (%), and Wind Speed (km/hr) - for GRTS Cell `r params$GRTS.Cell.ID`.  
 
-``` {r Table 2, echo=F, warning=F}
+``` {r Table 2}
   
 ###- Appendix Table 2
   knitr::kable(Appendix.Table2 %>% dplyr::filter(grepl(params$GRTS.Cell.ID, Location.Name)) %>% select(-Location.Name),
@@ -71,7 +73,7 @@ source("Appendix_maps.R", local = knitr::knit_global())
 
 
 
-``` {r Figure 2, echo=FALSE, warning=FALSE, results=FALSE}
+``` {r Figure 2}
 ###- Appendix Figure 2
   # only graph species / species groups with >100 calls
 sp.to.use <- call_count.Sp %>% group_by(GRTS.Cell.ID, Classification) %>% summarise(Sum = sum(Count)) %>% filter(Sum>100)
@@ -102,7 +104,7 @@ app.Calls <- call_count.Sp%>% group_by(GRTS.Cell.ID, Classification, Deployment.
   
 ##### Figure 2. Mean (± 1 Standard Error) nightly bat calls for GRTS Cell `r params$GRTS.Cell.ID` in `r unique(dat_count$Deployment.ID)`. 
   
-``` {r Figure 3, echo=FALSE, warning=FALSE}
+``` {r Figure 3}
 ###- Appendix Figure 3
   
 app.hist.calls <- ggplot(data = call_count.Sp %>% dplyr::filter(GRTS.Cell.ID==params$GRTS.Cell.ID), aes(x = Classification, y = Count, fill= Location.Name)) + 
@@ -123,7 +125,7 @@ app.hist.calls
 
 ##### Table 3. Nightly call counts for GRTS Cell `r params$GRTS.Cell.ID`, as identified by Alberta eBat to species / species groups, unknown, or as noise (i.e., not a bat).
 
-``` {r Table 3, echo=FALSE, warning=FALSE}
+``` {r Table 3}
 ###- Appendix Table 3 - Nightly call counts
   Appendix.Table3 <- dat_count %>% group_by(Location.Name, SurveyNight, Classification) %>%
     summarise(Call.Count = sum(Count))
@@ -133,10 +135,35 @@ app.hist.calls
   colnames(Appendix.Table3)[1:2] <- c("Station", "Date")
   
   
-  knitr::kable(Appendix.Table3 %>% dplyr::filter(grepl(params$GRTS.Cell.ID, Station)),
+knitr::kable(Appendix.Table3 %>% dplyr::filter(grepl(params$GRTS.Cell.ID, Station)),
              #caption = paste("Table 3 - NABat Nightly Call Counts for GRTS Cell",i),
              digits=1)
 options(opts)
+
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("barb", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_BNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("Brett", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_LAR.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("hurtado", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_UofA.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("hughes", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_PR1.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("olson", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_Cori.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("david", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_EINP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("helena", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_WLNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("Unruh", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_RDR.csv", row.names = FALSE)
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("lisa", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_Lisa.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("Steenweg", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_PR2.csv", row.names = FALSE)
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("saakje", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_JNP.csv", na = "",row.names = FALSE,sep = ",")
+# write.table(Appendix.Table3 %>% filter(Station %in% contact_cells[grepl("sandi", contact_cells$Contact),]$`Location Name`),
+#           "Appendix.Table3_MH.csv", na = "",row.names = FALSE,sep = ",")
 
 
 ```
