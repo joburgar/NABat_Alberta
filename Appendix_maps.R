@@ -185,20 +185,26 @@ nightly.env.cov <- left_join(nightly.env.cov, weather, by = c("SurveyNight","ECC
 
 Appendix.Table3 <- dat_time %>% select(Location.Name, Filename, Timep, SurveyNight, Classification)
 
+# create survey start date and survey end date from recording dates (may not be accurate in eff dataframe)
+Survey.Dates <- Appendix.Table3 %>% group_by(Location.Name) %>% summarise(Survey.Start.Date = min(SurveyNight), Survey.End.Date = max(SurveyNight)+1)
+
+# create proper Audio Time Recording Stamp (right now Timep has date Timep was created, not audio date)
+Appendix.Table3$SurveyDate <- case_when(Appendix.Table3$Timep > "2021-04-10 12:00:00" ~ Appendix.Table3$SurveyNight,
+                                        Appendix.Table3$Timep < "2021-04-10 12:00:00" ~ Appendix.Table3$SurveyNight + 1)
+
+Appendix.Table3$Time <- as.character(Appendix.Table3$Timep, "%Y-%m-%d %H:%M:%S")
+Appendix.Table3$Time <- substr(Appendix.Table3$Time, 12,19)
+
 Appendix.Table3$Classification <- as.factor(Appendix.Table3$Classification %>% 
                                         recode(`EPFU-LANO` = "EPFULANO", `LABO-MYLU` = "LABOMYLU", `Myotis 40k` = "40kMyo", MYEV.MYSE = "40kMyo",unknown = "NoID", noise = "NOISE"))
-
-Bulk_call_meta <- left_join(Appendix.Table3, nightly.env.cov, by = "SurveyNight", "Location.Name")
-Bulk_call_meta$Timep <- as.POSIXct(strptime(Bulk_call_meta$Time, "%H:%M:%S", tz))
-Bulk_call_meta$SurveyDate <- case_when(Bulk_call_meta$Timep < "2021-04-10 12:00:00" ~ Bulk_call_meta$SurveyNight-1,
-                                       TRUE ~ Bulk_call_meta$SurveyNight)
-Bulk_call_meta$Time <- format(Bulk_call_meta$Timep, format = "%H:%M:%S")
+Bulk_call_meta <- left_join(Appendix.Table3, nightly.env.cov, by = c("SurveyNight", "Location.Name"))
 Bulk_call_meta$`Audio Recording Time` <- paste(Bulk_call_meta$SurveyDate, Bulk_call_meta$Time)
-head(Bulk_call_meta)
 
-Bulk_call_meta <- Bulk_call_meta %>% select(Location.Name.x, Min.Tmp, Max.Tmp, Min.RH, Max.RH, Min.WS, Max.WS, Filename, `Audio Recording Time`, Classification)
-Bulk_call_meta$Survey.Start.Time <- Bulk_call_meta$Survey.Start.Time[match(Bulk_call_meta$Location.Name.x, Appendix.Table1$Location.Name)]
-Bulk_call_meta$Survey.End.Time <- Appendix.Table1$Survey.End.Time[match(Bulk_call_meta$Location.Name.x, Appendix.Table1$Location.Name)]
+Bulk_call_meta <- Bulk_call_meta %>% select(Location.Name, Min.Tmp, Max.Tmp, Min.RH, Max.RH, Min.WS, Max.WS, Filename, `Audio Recording Time`, Classification)
+Bulk_call_meta$Survey.Start.Time <- Survey.Dates$Survey.Start.Date[match(Bulk_call_meta$Location.Name, Survey.Dates$Location.Name)]
+Bulk_call_meta$Survey.End.Time <- Survey.Dates$Survey.End.Date[match(Bulk_call_meta$Location.Name, Survey.Dates$Location.Name)]
+
+head(Bulk_call_meta)
 
 colnames(Bulk_call_meta) <- c("Location Name", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity", "Nightly High Relative Humidity", 
                               "Nightly Low Wind Speed", "Nightly High Wind Speed", "Audio Recording Name", "Audio Recording Time", "Auto Id", "Survey Start Time", "Survey End Time")
