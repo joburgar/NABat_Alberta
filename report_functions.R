@@ -159,7 +159,7 @@ AppTab1 <- function(doc, tab, grts_cell_id, bookmark) {
 AppTab2 <- function(doc, tab, bookmark) {
   ## create and format flextable
   tab <- tab %>% 
-    # filter(grepl(GRTS.Cell.ID, Location.Name)) %>% select(-Location.Name) %>%
+    filter(grepl(GRTS.Cell.ID, Location.Name)) %>% select(-Location.Name) %>%
     flextable::regulartable() %>%
     flextable::set_header_labels(SurveyNight = "Survey Night",
                                  Min.Tmp = "Min Temp",
@@ -232,7 +232,7 @@ AppFig2 <- function(doc, grts_cell_id, bookmark, alt_text) {
 AppFig3 <- function(doc, grts_cell_id, bookmark, alt_text) {
   
   ## don't run if grts_cell_id NOT in call_count.Sp
-  if(dim(sp.to.use %>% filter(GRTS.Cell.ID == grts_cell_id))[1] > 0) {
+  if(dim(call_count.Sp %>% filter(GRTS.Cell.ID == grts_cell_id))[1] > 0) {
     
     ## create ggplot
     app.hist.calls <- ggplot(data = call_count.Sp %>% dplyr::filter(GRTS.Cell.ID == grts_cell_id),
