@@ -24,8 +24,8 @@ alt_text <- "not surveyed"
 
 ### * generate individual annual GRTS specific appendices
 ##   or just load in the "NABat_Annual_Submission.RDS" rather than source the code
-source("Appendix_maps_JH.R")    ## b/c I can't get a couple packages to install. hmmm
-# source("Appendix_maps.R")  ##, local = knitr::knit_global())
+# source("Appendix_maps_JH.R")    ## b/c I can't get a couple packages to install. hmmm
+source("Appendix_maps.R")  ##, local = knitr::knit_global())
 # load("NABat_Annual_Submission.RDS")
 
 
@@ -77,7 +77,7 @@ generateAppendix <- function(grts_cell_id) {
     #                             width = 5.9, height = 5.25) },
     function(doc) {  AppTab1(doc, tab = Appendix.Table1, grts_cell_id = grts_cell_id,
                              bookmark = "bkm_table1"); NULL },
-    function(doc) {  AppTab2(doc, tab = Appendix.Table2, bookmark = "bkm_table2"); NULL },
+    function(doc) {  AppTab2(doc, tab = Appendix.Table2, bookmark = "bkm_table2", grts_cell_id=grts_cell_id); NULL },
     function(doc) {  AppFig2(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig2", alt_text); NULL  },
     function(doc) {  AppFig3(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig3", alt_text); NULL  },
     function(doc) {  AppTab3(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_table3", alt_text); NULL }
@@ -99,8 +99,8 @@ generateAppendixSafe <- function(grts_cell_id) {
            error = function(e) logError(e, grts_cell_id))
   return()
 }
-controlFile <- unique.GRTS.Cell.ID %>% as.character()
-# controlFile <- "922"
+# controlFile <- unique.GRTS.Cell.ID %>% as.character()
+controlFile <- "922"
 # controlFile <- unique.GRTS.Cell.ID[55] %>% as.character()
 tmp <- lapply(controlFile, function(f) generateAppendixSafe(f))
 

@@ -73,7 +73,7 @@ AppFig1 <- function(doc, grts_cell_id, bookmark) {
   ## make map
   grid.newpage()
   vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)       ## the larger map
-  vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  ## the inset in upper right
+  # vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  ## the inset in upper right
   print(GRTS.plot(GRTS.Cell.ID = grts_cell_id, h.just = 0), vp = vpb_)
   map_with_inset <- print(ggplot() + 
           geom_sf(data = Alberta) +
@@ -156,10 +156,10 @@ AppTab1 <- function(doc, tab, grts_cell_id, bookmark) {
 
 
 ### * make and add Appendix Table 2: Minimum and maximum nightly survey weather conditions
-AppTab2 <- function(doc, tab, bookmark) {
+AppTab2 <- function(doc, tab, bookmark, grts_cell_id) {
   ## create and format flextable
   tab <- tab %>% 
-    filter(grepl(GRTS.Cell.ID, Location.Name)) %>% select(-Location.Name) %>%
+    filter(str_detect(Location.Name, grts_cell_id)) %>% select(-Location.Name) %>% unique() %>%
     flextable::regulartable() %>%
     flextable::set_header_labels(SurveyNight = "Survey Night",
                                  Min.Tmp = "Min Temp",
@@ -219,7 +219,7 @@ AppFig2 <- function(doc, grts_cell_id, bookmark, alt_text) {
     ## add ggplot to doc 
     officer::cursor_bookmark(x = doc, id = bookmark)
     officer::body_add_gg(x = doc, value = app.calls.Sp,
-                         width = 4.2, height = 3.7)  ## 4.2 in = 10.69 cm; 9.5 cm = 3.7 in
+                         width = 5, height = 3.5)  ## 4 in = 10 cm; 9 cm = 3.5 in
   } else {
     ## instead, add text to doc
     officer::cursor_bookmark(x = doc, id = bookmark)
@@ -251,7 +251,7 @@ AppFig3 <- function(doc, grts_cell_id, bookmark, alt_text) {
     
     ## add ggplot to doc
     officer::cursor_bookmark(x = doc, id = bookmark)
-    officer::body_add_gg(x = doc, value = app.hist.calls, width = 4.2, height = 3.7)  ## 4.2 in = 10.69 cm; 9.5 cm = 3.7 in
+    officer::body_add_gg(x = doc, value = app.hist.calls, width = 5, height = 3.7)  ## 4.2 in = 10.69 cm; 9.5 cm = 3.7 in
   } else {
     ## instead, add text to doc
     officer::cursor_bookmark(x = doc, id = bookmark)
@@ -290,9 +290,10 @@ AppTab3 <- function(doc, grts_cell_id, bookmark, alt_text) {
       flextable::bold(part = "header") %>%
       theme_bats() %>%
       flextable::fontsize(size = 9, part = "header") %>%
+      flextable::fontsize(part = "header", j = 15, size = 8.5) %>%
       flextable::fontsize(j = 2, size = 9) %>%
-      # flextable::bg(i = ~ Station %in% shadeRows, bg = "#F2F2F2") %>%
-      flextable::bg(i =sRows, bg = "#F2F2F2") %>%
+      flextable::fontsize(j = -(1:2), size = 10) %>%
+      flextable::bg(i = sRows, bg = "#F2F2F2") %>%
       flextable::align(j = (1:2), align = "left", part = "all") %>%
       flextable::align(j = -(1:2), align = "right", part = "all") %>%
       flextable::width(j = 1, width = 1.06) %>%              ## width is in inches (2.7 cm = 1.06 in)
