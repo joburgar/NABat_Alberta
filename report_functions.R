@@ -73,25 +73,42 @@ AppFig1 <- function(doc, grts_cell_id, bookmark) {
   ## make map
   grid.newpage()
   vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)       ## the larger map
-  # vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  ## the inset in upper right
-  print(GRTS.plot(GRTS.Cell.ID = grts_cell_id, h.just = 0), vp = vpb_)
-  map_with_inset <- print(ggplot() + 
-          geom_sf(data = Alberta) +
-          geom_sf(data = NR, mapping = aes(fill = NR), lwd = 0) + 
-          scale_fill_manual(name = "Natural Regions",
-                            values = c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333")) +
-          geom_sf(data = NABat_grid, col = "azure2", lwd = 0.8) +
-          geom_sf(data = NABat_grid %>% dplyr::filter(GRTS_ID == grts_cell_id), col="black", lwd=1) +
-          coord_sf() +
-          theme(axis.text.x = element_text(size = 4),
-                axis.text.y = element_text(size = 5),
-                legend.position = "none"),
-        vp = vpa_)
+  vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  ## the inset in upper right
+  GRTS.map <- GRTS.plot(GRTS.Cell.ID = grts_cell_id, h.just = 0)
+  
+  map.inset <- ggplot() + 
+            geom_sf(data = Alberta) +
+            geom_sf(data = NR, mapping = aes(fill = NR), lwd = 0) +
+            scale_fill_manual(name = "Natural Regions",
+                              values = c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333")) +
+            geom_sf(data = NABat_grid_3857, col = "azure2", lwd = 0.8) +
+            geom_sf(data = NABat_grid %>% dplyr::filter(GRTS_ID == grts_cell_id), col="black", lwd=1) +
+            coord_sf() +
+            theme(axis.text.x = element_text(size = 4),
+                  axis.text.y = element_text(size = 5),
+                  legend.position = "none")
+  
+  Cairo(file=paste("Appendices/Maps/",grts_cell_id,"_map.png", sep=""),
+        type="png",
+        width=2500,
+        height=1800,
+        pointsize=14,
+        bg="white",
+        dpi=300)
+
+  ## Create a graphical object g here
+  print(GRTS.map, vp = vpb_)
+  print(map.inset, vp=vpa_)
+  
+  ## Stop writing to the PDF file
+  dev.off()
+ 
+  
   
   ## add map to doc
-  officer::cursor_bookmark(x = doc, id = bookmark)
-  officer::body_add_gg(x = doc, value = map_with_inset, width = 5.9, height = 5.25)
-  
+  # officer::cursor_bookmark(x = doc, id = bookmark)
+  # officer::body_add_gg(x = doc, value = map_with_inset, width = 5.9, height = 5.25)
+  # 
 }
 
 # tab <- Appendix.Table1
