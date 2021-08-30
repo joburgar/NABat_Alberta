@@ -24,11 +24,11 @@ source("Appendix_maps.R", local = knitr::knit_global())
 
 unique.GRTS.Cell.ID = unique(sta$GRTS.Cell.ID)
 
-for(GRTS.Cell.ID in unique.GRTS.Cell.ID){
-  rmarkdown::render("NABat_Annual_Report_Appendices.Rmd",
-                    params=list(GRTS.Cell.ID = GRTS.Cell.ID),
-                    output_file=paste0("Appendices/Appendix_", GRTS.Cell.ID, ".docx"))
-}
+# for(GRTS.Cell.ID in unique.GRTS.Cell.ID){
+#   rmarkdown::render("NABat_Annual_Report_Appendices.Rmd",
+#                     params=list(GRTS.Cell.ID = GRTS.Cell.ID),
+#                     output_file=paste0("Appendices/Appendix_", GRTS.Cell.ID, ".docx"))
+# }
 
 
 for(GRTS.Cell.ID in unique.GRTS.Cell.ID){
