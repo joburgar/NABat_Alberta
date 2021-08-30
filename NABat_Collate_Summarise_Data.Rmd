@@ -46,7 +46,7 @@ colour <- "lightseagreen"
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- "922"
-# Year_interest <- as.Date(2018)
+Year_interest <- as.Date(2020)
 
 ## README FIRST ##
 #Read and run this chunk of code line by line - there are some question below which you will have to answer/ logic tests to complete. Once you are happy with this, hit 'knit' above. 
@@ -61,13 +61,14 @@ dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
   type_convert() %>% 
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
   mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  # filter(Year==Year_interest) %>%
   select(-Date)
 
 # # Import count files if selecting only GRTS.Cell.ID of interest
 # make the changes below to add in GRTS_interest and/or Year_interest for other files as appropriate
-# dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"), 
+# dat_count <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles",GRTS_interest,sep="/"),
 #                           regexp = "\\counts.csv$", recurse = TRUE) %>%
-#   map_dfr(read_csv, .id = "source") %>% 
+#   map_dfr(read_csv, .id = "source") %>%
 #   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
 #   mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
 #   filter(Year==Year_interest)
@@ -79,6 +80,7 @@ dat_count$Deployment.ID <- as.factor(word(dat_count$source,6,sep = "\\/"))
 dat_count$Classification <- as.factor(dat_count$Classification %>% 
                                         recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
                                                My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+
 dat_count$Classification <- factor(dat_count$Classification,
                                     levels = c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU",
                                                "MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k",
@@ -91,9 +93,12 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
   map_dfr(~read_csv(.x, col_types = cols(.default = "c")), .id="source") %>% # issues with min_wind so read in as character
   type_convert() %>% # convert back to proper formats, min_wind still problematic so only use max or mean wind if available
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
-  mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
+  mutate(Year = year(SurveyNight), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-Date)%>%
+  filter(Year==Year_interest) %>%
   rename(Orig.Name=Site)
+
+glimpse(dat_summary)
 
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
@@ -121,7 +126,8 @@ nightly.max.env.cov <- nightly.max.env.cov %>% rename(Max.Temp = "max_temp_Mean"
 eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
 eff$Survey.End.Time - eff$Survey.Start.Time
-eff <- eff %>% filter(Deployment.ID>2014)
+eff$Deployment.ID <- as.Date(eff$Deployment.ID)
+# eff <- eff %>% filter(Deployment.ID==2020)
 
 eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
 dat.names <- dat_count%>% group_by(Location.Name) %>% count(Orig.Name) 
@@ -130,13 +136,12 @@ names.join <- as.data.frame(full_join(eff.names, dat.names.sum, by="Location.Nam
 names.join[is.na(names.join$n.y),] # will show missing deployment data
 
 # Read station covariates csv
+names(sta)
 sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1)) %>%
-  dplyr::select(OBJECTID, LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
-                WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
-  rename(FID = OBJECTID, Land.Unit.Code=LandUnitCo, GRTS.Cell.ID=GRTSCellID, Location.Name=LocName,Orig.Name=Orig_Name, NABat.Sample=NABat_Samp,
-         Yrs.Surveyed=YrsSurveye, Land.Cover=LC_class, Natural.Sub.Region=NSRNAME, Natural.Region=NRNAME, Waterbody.Type=WTRBODY_TY,          Waterbody.Distance=DIST_WTRBD, Stream.Type=STREAM_TYP, Stream.Distance=Dist_Strea, Road.Type=RoadType, Road.Distance=DistRoad_M,
-         Human.Footprint.Type=HF_TYPE, Human.Footprint.Distance=Dist_to_HF)
-sta$NP <- as.factor(ifelse(sta$Land.Unit.Code %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
+  # dplyr::select(FID, Land.Unit.Code, GRTS.Cell.ID, Location.Name, Cardinal_D, Stn_Num, Orig.Name, NABat.Sample, Yrs.Surveyed, LC_type, NSRNAME, NRNAME,
+  #               WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
+  rename(Land.Cover=LC_type, Waterbody.Type=WB_type, Waterbody.Distance=WB.dist, Road.Type=RD_Type, Road.Distance=RD.dist)
+sta$NP <- sta$NP %>% relevel(ref="In")
 
 sta$Land.Cover <- as.factor(sta$Land.Cover)
 levels(sta$Land.Cover)
