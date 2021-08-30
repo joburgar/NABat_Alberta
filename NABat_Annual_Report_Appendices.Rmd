@@ -111,7 +111,7 @@ app.hist.calls <- ggplot(data = call_count.Sp %>% dplyr::filter(GRTS.Cell.ID==pa
     geom_bar(stat = "identity") +
     scale_fill_brewer(palette = "Paired")+
     theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") +
-    theme(legend.position="none") +
+    theme(legend.position="bottom", legend.title = element_blank()) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
     theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
     facet_wrap(~Deployment.ID)
