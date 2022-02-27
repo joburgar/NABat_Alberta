@@ -10,13 +10,13 @@ lapply(list.of.packages, require, character.only = TRUE)
 #############################################################################################
 # Read station covariates csv
 sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1)) %>%
-  dplyr::select(OBJECTID, LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, NSRNAME, NRNAME,
+  dplyr::select(Land.Unit.Code, GRTS.Cell.ID, Location.Name, Cardinal_D, Stn_Num, Orig.Name, NABat.Sample, 
+                Surveyed.2021, Yrs.Surveyed_2021, Natural.Sub.Region, Natural.Region,
                 # LC_class, WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, 
-                Latitude, Longitude) %>%
-  rename(FID = OBJECTID, Land.Unit.Code=LandUnitCo, GRTS.Cell.ID=GRTSCellID, Location.Name=LocName,Orig.Name=Orig_Name, NABat.Sample=NABat_Samp,
-         # Land.Cover=LC_class, Waterbody.Type=WTRBODY_TY, Waterbody.Distance=DIST_WTRBD, Stream.Type=STREAM_TYP, Stream.Distance=Dist_Strea, Road.Type=RoadType, Road.Distance=DistRoad_M,
-         # Human.Footprint.Type=HF_TYPE, Human.Footprint.Distance=Dist_to_HF,
-         Yrs.Surveyed=YrsSurveye, Natural.Sub.Region=NSRNAME, Natural.Region=NRNAME)
+                Latitude, Longitude)
+dim(sta)
+names(sta)
+
 sta$NP <- as.factor(ifelse(sta$Land.Unit.Code %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
 
 # convert sta to spatial layer, in latitude / longitude (crs = 4326)
@@ -29,12 +29,13 @@ ggplot()+
 
 #############################################################################################
 # Set GIS Dir for uploading GIS layers
-GISDir <- c("/Users/joburgar/Documents/NABat/GIS")
+GISDir <- c("/Volumes/LaCie/NABat/GIS")
 
 # Read in Alberta GIS layers and determine distance to bat survey stations
 
 # Landcover Polygons 2010 - ABMI, their source data: ABMI Remote Sensing Group 2013, based on the EOSD and NLWIS 2000 raster datasets and on hydrography and access GIS layers from the Government of Alberta. Update to 2010 based on ABMI Human Footprint dataset.
 LC <- st_read(paste(GISDir,"/2010LanCoverShapeFiles", sep=""), layer="Lancover_Polygons_2010")
+# what about st_join (left=TRUE)? might be faster...
 LC.dist <- st_nn(sta_sf, LC, k=1, returnDist = T) 
 
 sta_sf$LC_dist <- unlist(LC.dist$dist)
@@ -42,5 +43,52 @@ sta_sf$LC_type <- unlist(LC.dist$nn)
 sta_sf$LC_type <- LC$LC_class[match(sta_sf$LC_type,rownames(LC))]
 summary(sta_sf)
 
+sta$Land.Cover <- as.factor(sta$LC_type)
+levels(sta$Land.Cover)
+sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
+                                            "120"="Agriculture", "210"="Coniferous Forest", "220"="Broadleaf Forest", "230"="Mixed Forest")
+
+
+# # Human Footprint 2018 - ABMI Human Footprint (gdb)
+# st_layers("/Users/joburgar/Documents/NABat/GIS/HFI_2018_v1.gdb")
+# HF_res <- st_read("/Users/joburgar/Documents/NABat/GIS/HFI_2018_v1.gdb",layer="o15_Residentials_HFI2018")
+
+# Natural_Regions_Subregions_of_Alberta
+NR <- st_read(paste(GISDir,"/Natural_Regions_Subregions_of_Alberta", sep=""), layer="Natural_Regions_Subregions_of_Alberta")
+NR.dist <- st_nn(sta_sf, NR %>% st_transform(crs=3400), k=1, returnDist = T) 
+names(NR)
+sta_sf <- st_join(sta_sf, NR %>% select(NSRNAME, NRNAME), left=TRUE)
+
+# Water - AltaLis 
+# Base Waterbody Polygon: Base Features, obtained from AltaLis, by Alberta Environment and Parks, GoA
+# Base Stream and Flow Representation:  Base Features, obtained from AltaLis, by Alberta Environment and Parks, GoA
+WB <- st_read(paste(GISDir,"/bf_hydrography_05-03-2018/", sep=""), layer="BaseWaterbodyPolygon")
+WB.dist <- st_nn(sta_sf, WB %>% st_transform(crs=3400), k=1, returnDist = T) 
+
+sta_sf$WB.dist <- unlist(WB.dist$dist)
+sta_sf$WB_type <- unlist(WB.dist$nn)
+sta_sf$WB_type <- WB$FEATURE_TY[match(sta_sf$WB_type,rownames(LC))]
+
+# Access - AltaLis 
+# Cutline
+# CL <- st_read(paste(GISDir,"/Access", sep=""), layer="Cutline")
+# CL.dist <- st_nn(sta_sf, CL %>% st_transform(crs=3400), k=1, returnDist = T) 
+# 
+# sta_sf$CL.dist <- unlist(CL.dist$dist)
+# sta_sf$CL_date <- unlist(CL.dist$nn)
+# sta_sf$CL_date <- CL$FEATURE__2[match(sta_sf$CL_date,rownames(CL))]
+
+# Road
+RD <- st_read(paste(GISDir,"/Access", sep=""), layer="RoaD")
+RD.dist <- st_nn(sta_sf, RD %>% st_transform(crs=3400), k=1, returnDist = T) 
+
+sta_sf$RD.dist <- unlist(RD.dist$dist)
+sta_sf$RD_Type <- unlist(RD.dist$nn)
+sta_sf$RD_Type <- RD$ROAD_CLASS[match(sta_sf$RD_Type,rownames(RD))]
+
 save.image("GIS.sta.covariates.RData")
-load("GIS.sta.covariates.RData")
+#load("GIS.sta.covariates.RData")
+
+# rm(WB,WS,LC,RD,CL)
+write.csv (sta_sf %>% st_drop_geometry(), "./Input/NABat_Station_Covariates.csv", row.names = FALSE)
+
