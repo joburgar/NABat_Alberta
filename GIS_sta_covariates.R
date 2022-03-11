@@ -1,7 +1,7 @@
 ###--- this script generates distance to feature values and type of value for station covariates
 
 # Load Packages
-list.of.packages <- c("tidyverse", "sf", "nngeo")
+list.of.packages <- c("tidyverse", "sf", "nngeo","units")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -91,4 +91,42 @@ save.image("GIS.sta.covariates.RData")
 
 # rm(WB,WS,LC,RD,CL)
 write.csv (sta_sf %>% st_drop_geometry(), "./Input/NABat_Station_Covariates.csv", row.names = FALSE)
+
+###--- for housekeeping remove big files
+rm(CL,LC,RD,WB)
+
+###--- Create provincial map
+ggplot()+
+  geom_sf(data=NR)
+
+NR.NRNAME <-NR %>% group_by(NRNAME) %>%
+  summarise(across(geometry, ~ st_union(.)), .groups = "keep") %>%
+  summarise(across(geometry, ~ st_combine(.)))
+
+ggplot()+
+  geom_sf(data=NR.NRNAME, aes(fill=NRNAME, colour=NRNAME))+
+  geom_sf(data=sta_sf %>% filter(Surveyed.2021=="no"), col="white")+
+  geom_sf(data=sta_sf %>% filter(Surveyed.2021=="yes"), col="black")+
+  theme_minimal()
+
+#####--- Create distance matrix
+sta_2021 <- sta_sf %>% filter(Surveyed.2021=="yes") %>% st_transform(crs=3400)
+
+ggplot()+
+  geom_sf(data=sta_2021)
+
+stn_dist <- as.data.frame(st_distance(sta_2021, sta_2021, by_element = FALSE))
+stn_dist <- drop_units(stn_dist)
+head(stn_dist)
+stn_dist[stn_dist==0]<- NA
+stn_dist_means <- rowMeans(stn_dist, na.rm = T)
+stn_dist_min <- apply(stn_dist, 1, FUN=min, na.rm = T)
+stn_dist_max <- apply(stn_dist, 1, FUN=max, na.rm = T)
+mean(stn_dist_means/1000)
+mean(stn_dist_min/1000); min(stn_dist_min/1000); max(stn_dist_min/1000)
+# [1] 6.306125
+# [1] 0.02224549
+# [1] 35.48178
+mean(stn_dist_max/1000)
+
 
