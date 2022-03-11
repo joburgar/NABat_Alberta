@@ -14,7 +14,7 @@ Prepared by: Joanna M. Burgar, PhD RPBio
 
 Prepared for: Alberta Environment & Parks
 
-Suggested Citation: Burgar, J.M. 2021. North American Bat Monitoring Program 2020. Alberta Environment & Parks, Edmonton, Alberta. 
+Suggested Citation: Burgar, J.M. 2022. North American Bat Monitoring Program 2020. Alberta Environment & Parks, Edmonton, Alberta. 
 
 Cover Illustration: Eptesicus fuscus - Big Brown Bat © Jason Headley
 
@@ -39,7 +39,7 @@ colour <- "lightseagreen"
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- "922"
-Year_interest <- year(as.Date("2020-01-01"))
+Year_interest <- year(as.Date("2021-01-01"))
 
 # Check the listing of output files
 # fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
@@ -76,7 +76,7 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
   type_convert() %>% # convert back to proper formats, min_wind still problematic so only use max or mean wind if available
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
-  filter(Year==Year_interest) %>% 
+  filter(Year==Year_interest) %>%
   select(-Date)%>%
   rename(Orig.Name=Site)
 
@@ -119,18 +119,17 @@ NABat.stns.to.use <- unique(eff$Location.Name)
 
 
 # Read station covariates csv
+names(sta)
 sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1)) %>%
-  dplyr::select(OBJECTID, LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
-                WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
-  rename(FID = OBJECTID, Land.Unit.Code=LandUnitCo, GRTS.Cell.ID=GRTSCellID, Location.Name=LocName,Orig.Name=Orig_Name, NABat.Sample=NABat_Samp,
-         Yrs.Surveyed=YrsSurveye, Land.Cover=LC_class, Natural.Sub.Region=NSRNAME, Natural.Region=NRNAME, Waterbody.Type=WTRBODY_TY,          Waterbody.Distance=DIST_WTRBD, Stream.Type=STREAM_TYP, Stream.Distance=Dist_Strea, Road.Type=RoadType, Road.Distance=DistRoad_M,
-         Human.Footprint.Type=HF_TYPE, Human.Footprint.Distance=Dist_to_HF)
-sta$NP <- as.factor(ifelse(sta$Land.Unit.Code %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
+  # dplyr::select(OBJECTID, LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
+  #               WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
+  rename(Land.Cover=LC_type, Waterbody.Type=WB_type, Waterbody.Distance=WB.dist, Road.Type=RD_Type, Road.Distance=RD.dist)
 
+sta$NP <- as.factor(sta$NP)
+sta$NP <- sta$NP %>% relevel(ref="In")
 sta$Land.Cover <- as.factor(sta$Land.Cover)
 levels(sta$Land.Cover)
-sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
-                                            "120"="Agriculture", "210"="Coniferous Forest", "220"="Broadleaf Forest", "230"="Mixed Forest")
+sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland","120"="Agriculture", "210"="Coniferous Forest", "220"="Broadleaf Forest", "230"="Mixed Forest")
 
 # Land-Use Type (Agriculture, Barren Land, Forest, Grassland, Shrubland, Urban, Water, Wetland)
 # not enough Urban, keep as "Developed"
@@ -141,11 +140,10 @@ sta$Land.Cover <- sta$Land.Cover %>% recode("20"="Water", "33"="Exposed Land", "
 
 sta %>% filter(Land.Cover=="Water")
 
-sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest-conifer", "Broadleaf Forest" = "Forest-deciduous", 
-                                               "Mixed Forest" = "Forest-mixed", "Exposed Land" = "Barren Land")
-sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
-                               grepl("URBAN", sta$Human.Footprint.Type) ~ "Urban",
-                               TRUE ~ as.character(sta$Land.Use.Type))
+sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest-conifer", "Broadleaf Forest" = "Forest-deciduous", "Mixed Forest" = "Forest-mixed", "Exposed Land" = "Barren Land")
+# sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
+#                                grepl("URBAN", sta$Human.Footprint.Type) ~ "Urban",
+#                                TRUE ~ as.character(sta$Land.Use.Type))
 
 sta <- sta %>% filter(Location.Name %in% NABat.stns.to.use)
 
@@ -196,8 +194,8 @@ table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.S
 dat_count %>% group_by(Deployment.ID) %>% count(Year)
 
 dat_count$unique <- paste(dat_count$Location.Name, dat_count$Year, sep="_")
-dat_count$SurveyNight <- case_when(dat_count$unique=="139715_SW_02_2000" ~ dat_count$SurveyNight + 7456,
-                               TRUE ~ as.Date(dat_count$SurveyNight))
+# dat_count$SurveyNight <- case_when(dat_count$unique=="139715_SW_02_2000" ~ dat_count$SurveyNight + 7456,
+#                                TRUE ~ as.Date(dat_count$SurveyNight))
 dat_count <- dat_count %>%  
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-unique)
@@ -206,8 +204,8 @@ dat_count %>% group_by(Deployment.ID) %>% count(Year)
 # no discrepancy between SurveyNight and Deployment.ID
 
 dat_summary$unique <- paste(dat_summary$Location.Name, dat_summary$Year, sep="_")
-dat_summary$SurveyNight <- case_when(dat_summary$unique=="139715_SW_02_2000" ~ dat_summary$SurveyNight + 7456,
-                               TRUE ~ as.Date(dat_summary$SurveyNight))
+# dat_summary$SurveyNight <- case_when(dat_summary$unique=="139715_SW_02_2000" ~ dat_summary$SurveyNight + 7456,
+#                                TRUE ~ as.Date(dat_summary$SurveyNight))
 dat_summary <- dat_summary %>%  
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-unique)
@@ -219,12 +217,12 @@ as.data.frame(dat_summary %>% filter(is.na(Year)))
 # If length > 0, then you have some data missing!
 length(setdiff(unique(eff$Location.Name), unique(sta$Location.Name))) # 0
 # missing.eff.sta <- left_join(eff, sta, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
-# missing.eff.sta[is.na(missing.eff.sta$Orig.Name.y),] # will show missing station covariates
+missing.eff.sta[is.na(missing.eff.sta$Orig.Name.y),] # will show missing station covariates
 
 # 4b) Do you have all data represented in the station covariates? If yes, the value should be 0
 length(setdiff(unique(sta$Location.Name), unique(dat_count$Location.Name))) # 0
 missing.dat.sta <- left_join(sta, dat_count, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
-missing.dat.sta[is.na(missing.dat.sta$Orig.Name.y),]  # will show missing count data
+missing.dat.sta[is.na(missing.dat.sta$Orig.Name.y),]  # will show missing count data (may just not have data for certain years)
 
 # 4c) Do you have all data represented in the deployment data? If yes, the value should be 0
 length(setdiff(unique(eff$Location.Name), unique(dat_count$Location.Name))) # 0
@@ -247,7 +245,7 @@ dat_summary <- dat_summary %>% filter(between(jDay, 122, 245))
 
 # 6) # check to make sure pulling times from start and end of day
 dat_summary %>% group_by(File.Type) %>% summarise(min(Timep, na.rm=T), max(Timep, na.rm=T))
-sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues with filename
+sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues with filename (only 3 % in 2019)
 
 # hist(dat_summary[dat_summary$File.Type=="zc",]$Timep, breaks=60)
 # will have some NAs in dat_summary as not all filenames contained time, but if small proportion then ok to go ahead
@@ -284,7 +282,7 @@ NABat.smp.yes <- NABat.smp[NABat.smp$NABat.Sample=="Yes",]$n
 NABat.smp.no <- NABat.smp[NABat.smp$NABat.Sample=="No",]$n
 
 # Find mean and SE for years surveyed per GRTS cell
-yrs.surveyed.GRTS <- sta %>% group_by(GRTS.Cell.ID) %>% count(Yrs.Surveyed)
+yrs.surveyed.GRTS <- sta %>% group_by(GRTS.Cell.ID) %>% count(Yrs.Surveyed_2021)
 se(sta$Yrs.Surveyed)
 
 # ARUs by NR, LUC and LUT
@@ -341,12 +339,12 @@ dat_count$Land.Use.Type <- sta$Land.Use.Type[match(dat_count$Location.Name, sta$
 
 
 ###--- create volancy covariate
-yday("2020-07-10") # 192 = July 10 (general date of volancy)
+yday("2021-07-10") # 191 = July 10 (general date of volancy)
 # if using one date for entire province, relevel with "Pre" as first category
-dat_count$Volancy <- as.factor(ifelse(dat_count$jDay<192, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
+dat_count$Volancy <- as.factor(ifelse(dat_count$jDay<191, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
 dat_count %>% group_by(Volancy, Deployment.ID) %>% summarise(min(jDay), max(jDay))
 
-dat_summary$Volancy <- as.factor(ifelse(dat_summary$jDay<192, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
+dat_summary$Volancy <- as.factor(ifelse(dat_summary$jDay<191, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
 dat_summary %>% group_by(Volancy, Deployment.ID) %>% summarise(min(jDay), max(jDay))
 
 col.catVol <- as.character(c("#2028B2","#B2AA20"))
@@ -358,7 +356,7 @@ unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, Deployment.ID) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 1476 survey nights
+sum(total.effort$Diff) # 1688 survey nights
 ```
 
 ``` {r temporal summaries, include=F}
@@ -383,12 +381,12 @@ Timepdatetime2 <- as.POSIXct(paste(Timepdate,"18:00:00"),tz)
 timestamp.error <- as.data.frame(dat_sum_sub %>% filter(Timep >Timepdatetime1 & Timep<Timepdatetime2) %>% filter(sp1!="noise") %>% group_by(Location.Name.Year) %>% summarise(min(SurveyNight), max(SurveyNight)))
 unique(timestamp.error$Location.Name.Year)
 
-# remove these 39 surveys from dat_sum_sub
+# remove these 3 surveys from dat_sum_sub
 dat_sum_sub <- dat_sum_sub %>% filter(!Location.Name.Year %in% timestamp.error$Location.Name.Year)
 
 # subset data to one month pre and one month post volancy (July 10)
-dat_sum_sub <- dat_sum_sub %>% filter(between(jDay, 162,223))
-nrow(dat_sum_sub) # now down to 198840
+dat_sum_sub <- dat_sum_sub %>% filter(between(jDay, 161,222))
+nrow(dat_sum_sub) # now down to 123837
 
 # create thresholds for noise and bat classificaitons
 threshold_noise <- 0.8; threshold_bat <- 0.5
@@ -517,34 +515,35 @@ volancy_overlap.fn <- function(Classification=Classification){
 }
 
 
-save.image("NABat_Annual_Report.RDS")
+save.image(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
 
 # run through each classification, except "unknown" and any classification with <100 calls
 class.list <- as.data.frame(dat_time %>% filter(Classification!="unknown") %>% count(Classification, sort=TRUE) %>% 
                               filter(n>100) %>% select(Classification))
 LACI.WWT <- volancy_overlap.fn(Classification=class.list[1,])
-MYLU.WWT <- volancy_overlap.fn(Classification=class.list[2,])
-Myotis40k.WWT <- volancy_overlap.fn(Classification=class.list[3,])
+Myotis40k.WWT <- volancy_overlap.fn(Classification=class.list[2,])
+MYLU.WWT <- volancy_overlap.fn(Classification=class.list[3,])
 EPFU.LANO.WWT <- volancy_overlap.fn(Classification=class.list[4,])
 LABO.MYLU.WWT <- volancy_overlap.fn(Classification=class.list[5,])
-LANO.WWT <- volancy_overlap.fn(Classification=class.list[6,])
-EPFU.WWT <- volancy_overlap.fn(Classification=class.list[7,])
+LANO.WWT <- volancy_overlap.fn(Classification=class.list[7,])
+EPFU.WWT <- volancy_overlap.fn(Classification=class.list[6,])
 LABO.WWT <- volancy_overlap.fn(Classification=class.list[8,])
 
 ```
 ### Introduction
 
 
-```{r WNS spread png map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap="White-nose syndrome spread up to 2020", echo=FALSE}
-knitr::include_graphics("./Input/WNS_spread_map_2021-03-15.png")
+```{r WNS spread png map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap="White-nose syndrome spread up to 2021", echo=FALSE}
+knitr::include_graphics("./Input/WNS_spread_map_2022-02-26.png")
+
 ```
 
-##### Figure 1. The spread of White-Nose Syndrome up to the spring of 2020; downloaded from https://www.whitenosesyndrome.org/where-is-wns.
+##### Figure 1. The spread of White-Nose Syndrome up to the spring of 2021; downloaded from https://www.whitenosesyndrome.org/where-is-wns.
 
 
 
 #### Summary Statistics
-All analyses were conducted in R (version 3.6.1; 2019), within RStudio (version 1.2.5033) using rmarkdwon (version 2.1; Allaire et al. 2020) for reproducible results. Unless otherwise noted, results are reported as the mean ± 1 SE. 
+All analyses were conducted in R (version 4.1.2; 2021), within RStudio (version 1.2.5033) using rmarkdwon (version 2.11; Allaire et al. 2020) for reproducible results. Unless otherwise noted, results are reported as the mean ± 1 SE. 
 
 ### Results – Survey Representation
 In `r Year_interest` there were passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==1,]$n` stations) and `r max(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==4,]$n` station) stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Within 10 km of a station, there were an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` neighbouring stations. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` stations where the next nearest station was >10 km away (Figure 2). While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window or for other objectives such as monitoring migratory routes [RDR] or to collect WNS baseline data [BNP, WLNP]).
@@ -743,7 +742,7 @@ knitr::kable(Table.Calls,
 # sum(bat_count$Count)
 # bat_count %>% group_by(Classification) %>% summarise(sum(Count))
 # 
-# 15545  / sum(bat_count$Count)
+# 12878  / sum(bat_count$Count)
 ```
 
 
@@ -755,7 +754,7 @@ Sp.hist.data <- call_count %>% group_by(Deployment.ID, Natural.Region, Land.Use.
 
 Sp.hist.NR <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Natural.Region)) + 
   geom_bar(stat = "identity") + 
-  scale_fill_manual(values=unique(sta$ColsNR))+
+  # scale_fill_manual(values=unique(sta$ColsNR))+
   theme_classic() + xlab("Species / Species Group") + ylab("Total Bat Calls") + 
   theme(legend.position="bottom", legend.title = element_blank()) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
