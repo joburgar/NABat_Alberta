@@ -1,7 +1,7 @@
 ###--- this script generates distance to feature values and type of value for station covariates
 
 # Load Packages
-list.of.packages <- c("tidyverse", "sf", "nngeo","units")
+list.of.packages <- c("tidyverse", "sf", "ggspatial","nngeo","units","Cairo")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -96,18 +96,51 @@ write.csv (sta_sf %>% st_drop_geometry(), "./Input/NABat_Station_Covariates.csv"
 rm(CL,LC,RD,WB)
 
 ###--- Create provincial map
-ggplot()+
-  geom_sf(data=NR)
-
 NR.NRNAME <-NR %>% group_by(NRNAME) %>%
   summarise(across(geometry, ~ st_union(.)), .groups = "keep") %>%
   summarise(across(geometry, ~ st_combine(.)))
+NR.NRNAME$area <- st_area(NR.NRNAME)
+
+Alberta <-
+  NR.NRNAME %>%
+  summarise(area = sum(area))
 
 ggplot()+
   geom_sf(data=NR.NRNAME, aes(fill=NRNAME, colour=NRNAME))+
   geom_sf(data=sta_sf %>% filter(Surveyed.2021=="no"), col="white")+
   geom_sf(data=sta_sf %>% filter(Surveyed.2021=="yes"), col="black")+
   theme_minimal()
+
+prev.survey <- sta_sf %>% filter(Surveyed.2021=="no") %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+this.survey <- sta_sf %>% filter(Surveyed.2021=="yes") %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+
+###--- create map of GRTS and NABat stations
+NABatDir = c("/Volumes/LaCie/NABat/GIS/")
+NABat_grid <- read_sf(dsn = NABatDir,layer = "master_sample_Alberta")
+NABat_grid <- st_transform(NABat_grid, crs=4326) # now espg 4326
+
+
+
+Fig_provincial.plot <- ggplot() + 
+  geom_sf(data = Alberta %>%st_transform(crs=4326)) +
+  geom_sf(data = NR.NRNAME %>% st_transform(crs=4326), mapping=aes(fill=NRNAME), lwd=0) +
+  scale_fill_manual(name = "Natural Regions",
+                    values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% prev.survey$GRTS.Cell.ID), col="azure2", lwd=0.8) +
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% this.survey$GRTS.Cell.ID), col="black", lwd=1) +
+  annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+  coord_sf() +
+  theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
+
+Cairo(file="Output/Fig_provincial.plot.PNG",
+      type="png",
+      width=1500,
+      height=2000,
+      pointsize=14,
+      bg="white",
+      dpi=300)
+Fig_provincial.plot
+dev.off()
 
 #####--- Create distance matrix
 sta_2021 <- sta_sf %>% filter(Surveyed.2021=="yes") %>% st_transform(crs=3400)
@@ -129,4 +162,20 @@ mean(stn_dist_min/1000); min(stn_dist_min/1000); max(stn_dist_min/1000)
 # [1] 35.48178
 mean(stn_dist_max/1000)
 
+theme_set(theme_bw())
+
+Alberta <-
+  nr %>%
+  summarise(area = sum(area))
+
+# Fig_mobile.plot <- ggplot() +
+#   geom_sf(data = Alberta) +
+#   geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) +
+#   scale_fill_manual(name = "Natural Regions",
+#                     values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+#   geom_sf(data = NABat_DT1_3857, col="blue", lwd=1) +
+#   geom_sf(data = NABat_DT2_3857, col="black", lwd=1) +
+#   annotation_scale(location = "bl", width_hint = 0.4, bar_cols = c("grey", "white")) +
+#   coord_sf() +
+#   theme_minimal()
 
