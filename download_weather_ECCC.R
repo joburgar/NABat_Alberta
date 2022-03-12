@@ -8,23 +8,28 @@
 tz = Sys.timezone() # specify timezone in BC
 
 # https://docs.ropensci.org/weathercan/articles/articles/use_with_tidyverse.html
+# install.packages("weathercan", 
+#                  repos = c("https://ropensci.r-universe.dev", 
+#                            "https://cloud.r-project.org"))
 library(weathercan)
 library(tidyverse)
 library(lubridate)
 
-setwd("C:/Users/JBURGAR/R/Analysis")
+setwd("/Volumes/LaCie/NABat_Alberta/Input")
 
-Year_interest <- year(as.Date("2015-01-01"))
+Year_interest <- year(as.Date("2021-01-01"))
 
 stn <- read.csv("NABat_Station_Covariates.csv", header=T, colClasses=c("character"),
-                 stringsAsFactors = TRUE,  na.string=c("","NA")) %>% type_convert()
+                 stringsAsFactors = TRUE,  na.string=c("","NA", "#N/A")) %>% type_convert()
+stn <- stn %>% filter(!is.na(Longitude))
 
 ECCC.stn <- stn[c("Latitude","Longitude")]
+glimpse(ECCC.stn)
 
 ECCC.stn.id <- vector('list',nrow(ECCC.stn))
 for (i in 1:nrow(ECCC.stn)){
-  ECCC.stn.id.list <- stations_search(coords = ECCC.stn[i,], 
-                    interval = "hour", starts_latest=Year_interest, ends_earliest=Year_interest+1,
+  ECCC.stn.id.list <- stations_search(coords = ECCC.stn[1,], 
+                    interval = "hour", starts_latest=Year_interest-1, ends_earliest=Year_interest,
                     quiet = T) 
   ECCC.stn.id[i] <- ECCC.stn.id.list[1,c("station_id")]
 }
@@ -48,6 +53,7 @@ stn$stn.id <- ECCC.stn$station_id[match(stn$id, ECCC.stn$id)]
 #                 interval = "hour", starts_latest=2020-04-01, ends_earliest=2020-10-31,
 #                 quiet = T)
 
+
 NABat_weather %>% count(station_id)
 glimpse(NABat_weather)
 NABat_weather %>% summarise(min(hour),  max(hour))
@@ -70,4 +76,5 @@ stn.id <- NABat_nightly_weather_sum %>% count(station_id)
 # stn$stn.id_2020 <- stn.id_2020$n[match(stn$stn.id, stn.id_2020$station_id)]
 # as.data.frame(stn %>% select(Orig_Name, stn.id_2020))
 
+write.csv(stn %>% dplyr::select(-stn.id_2021), "NABat_Station_Covariates_2021_weatherstn.csv")
 write.csv(NABat_nightly_weather_sum, paste0("NABat_",Year_interest,"_nightly_weather_sum.csv"), row.names = FALSE)
