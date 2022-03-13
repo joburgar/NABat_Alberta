@@ -143,6 +143,9 @@ Fig_provincial.plot
 dev.off()
 
 #####--- Create distance matrix
+# sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326) 
+# sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
+
 sta_2021 <- sta_sf %>% filter(Surveyed.2021=="yes") %>% st_transform(crs=3400)
 
 ggplot()+
@@ -152,30 +155,5 @@ stn_dist <- as.data.frame(st_distance(sta_2021, sta_2021, by_element = FALSE))
 stn_dist <- drop_units(stn_dist)
 head(stn_dist)
 stn_dist[stn_dist==0]<- NA
-stn_dist_means <- rowMeans(stn_dist, na.rm = T)
-stn_dist_min <- apply(stn_dist, 1, FUN=min, na.rm = T)
-stn_dist_max <- apply(stn_dist, 1, FUN=max, na.rm = T)
-mean(stn_dist_means/1000)
-mean(stn_dist_min/1000); min(stn_dist_min/1000); max(stn_dist_min/1000)
-# [1] 6.306125
-# [1] 0.02224549
-# [1] 35.48178
-mean(stn_dist_max/1000)
-
-theme_set(theme_bw())
-
-Alberta <-
-  nr %>%
-  summarise(area = sum(area))
-
-# Fig_mobile.plot <- ggplot() +
-#   geom_sf(data = Alberta) +
-#   geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) +
-#   scale_fill_manual(name = "Natural Regions",
-#                     values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
-#   geom_sf(data = NABat_DT1_3857, col="blue", lwd=1) +
-#   geom_sf(data = NABat_DT2_3857, col="black", lwd=1) +
-#   annotation_scale(location = "bl", width_hint = 0.4, bar_cols = c("grey", "white")) +
-#   coord_sf() +
-#   theme_minimal()
+write.csv(stn_dist, "Input/DistanceMatrixTable_2021.csv")
 
