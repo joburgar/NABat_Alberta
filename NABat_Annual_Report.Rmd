@@ -6,7 +6,7 @@ output: word_document
 ---
 
 ```{r EPFU image, out.width="0.3\\linewidth", include=TRUE, fig.align="center", echo=FALSE}
-knitr::include_graphics("./Input/JasonHeadley-EPFU-1756.jpg")
+knitr::include_graphics("./Input/JasonHeadley-LittleBrownBat2.jpg")
 ```
 
 Prepared by: Joanna M. Burgar, PhD RPBio
@@ -16,7 +16,7 @@ Prepared for: Alberta Environment & Parks
 
 Suggested Citation: Burgar, J.M. 2022. North American Bat Monitoring Program 2020. Alberta Environment & Parks, Edmonton, Alberta. 
 
-Cover Illustration: Eptesicus fuscus - Big Brown Bat © Jason Headley
+Cover Illustration: Myotis lucifigus - Little Brown Bat © Jason Headley
 
 ```{r setup, echo=F, include=F}
 
@@ -119,7 +119,6 @@ NABat.stns.to.use <- unique(eff$Location.Name)
 
 
 # Read station covariates csv
-names(sta)
 sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1)) %>%
   # dplyr::select(OBJECTID, LandUnitCo, GRTSCellID, LocName, Cardinal_D, Stn_Num, Orig_Name, NABat_Samp, YrsSurveye, LC_class, NSRNAME, NRNAME,
   #               WTRBODY_TY, DIST_WTRBD, STREAM_TYP, Dist_Strea, RoadType, DistRoad_M, HF_TYPE, Dist_to_HF, Latitude, Longitude) %>%
@@ -147,7 +146,7 @@ sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest-con
 
 sta <- sta %>% filter(Location.Name %in% NABat.stns.to.use)
 
-sta$Land.Unit.Code <- recode(sta$Land.Unit.Code, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR",
+sta$Land.Unit.Code <- recode(sta$Land.Unit.Code, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR","LAR"="LOAR",
                                          "NSR"="NOSR","RDR"="REDR","SSR"="SOSR","UAR"="UPAR","UPR"="UPPR")
 
 
@@ -156,19 +155,14 @@ eff <- left_join(eff %>% select(-Land.Unit.Code),
 eff %>% count(GRTS.Cell.ID)
 
 # Read distance matrix csv
-dist.mat <- read.csv("Input/DistanceMatrixTable.csv", header=T)
+dist.mat <- read.csv("Input/DistanceMatrixTable_2021.csv", header=T, row.names=1)
+colnames(dist.mat)[1:nrow(sta)] <- sta$Location.Name
+dist.mat$Location.Name <- sta$Location.Name
 
-# convert FID to Location.Name and create ORIGIN and DESTINATION Location.Name columns in dist.mat
-FID <- sta[c("FID","Location.Name")]
-dist.mat$ORIGIN_Location.Name <- FID$Location.Name[match(dist.mat$ORIGIN_FID, FID$FID,)]
-dist.mat$DESTINATION_Location.Name <- FID$Location.Name[match(dist.mat$DESTINATION_FID, FID$FID,)]
-
-dist.mat <- dist.mat %>% filter(DESTINATION_Location.Name %in% NABat.stns.to.use)
-
-dist.mat$NP <- sta$NP[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
-dist.mat$Natural.Region <- sta$Natural.Region[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
-dist.mat$Land.Unit.Code <- sta$Land.Unit.Code[match(dist.mat$ORIGIN_Location.Name, sta$Location.Name,)]
-dist.mat <- dist.mat[complete.cases(dist.mat),] # removes any entries without corresponding sta data
+dist.mat$NP <- sta$NP[match(dist.mat$Location.Name, sta$Location.Name,)]
+dist.mat$Natural.Region <- sta$Natural.Region[match(dist.mat$Location.Name, sta$Location.Name,)]
+dist.mat$Land.Unit.Code <- sta$Land.Unit.Code[match(dist.mat$Location.Name, sta$Location.Name,)]
+# dist.mat <- dist.mat[complete.cases(dist.mat),] # removes any entries without corresponding sta data
 summary(dist.mat)
 
 # Read covariate proportion csv
@@ -182,7 +176,7 @@ cov.prop <- read.csv("Input/Cov.area.csv", header=T)
 
 # 1) All dates must be in YYYY-MM-DD in 'eff' and YYYY-MM-DD HH:MM:SS in 'dat' 
 # If either of the following return NA, the formatting needs to change
-strptime(eff$Survey.Start.Time[1], "%Y-%m-%d", tz="UTC")
+# strptime(eff$Survey.Start.Time[1], "%Y-%m-%d", tz="UTC")
 strptime(dat_count$SurveyNight[1], "%Y-%m-%d", tz="UTC")
 strptime(dat_summary$SurveyNight[1], "%Y-%m-%d", tz="UTC")
 
@@ -216,7 +210,7 @@ as.data.frame(dat_summary %>% filter(is.na(Year)))
 # 4a) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
 # If length > 0, then you have some data missing!
 length(setdiff(unique(eff$Location.Name), unique(sta$Location.Name))) # 0
-# missing.eff.sta <- left_join(eff, sta, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
+missing.eff.sta <- left_join(eff, sta, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
 missing.eff.sta[is.na(missing.eff.sta$Orig.Name.y),] # will show missing station covariates
 
 # 4b) Do you have all data represented in the station covariates? If yes, the value should be 0
@@ -230,7 +224,6 @@ missing.dat.eff <- left_join(eff, dat_count, by="Location.Name") %>% dplyr::sele
 missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # will show missing deployment data covariates
 
 # Clearwater had malfunction issues, no actual data
-# EINP can be included in the NABat 2020 report but does not include station covariates (no info from Rhonda), just NP, NR, NSR groupings
 
 # 5) Remove dates outside survey range (i.e., ARUs turned on but not deployed or deployed well past NABat guidelines)
 eff %>% group_by(Deployment.ID) %>% summarise(min(Survey.Start.Time), max(Survey.End.Time))
@@ -245,7 +238,7 @@ dat_summary <- dat_summary %>% filter(between(jDay, 122, 245))
 
 # 6) # check to make sure pulling times from start and end of day
 dat_summary %>% group_by(File.Type) %>% summarise(min(Timep, na.rm=T), max(Timep, na.rm=T))
-sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues with filename (only 3 % in 2019)
+sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues with filename (only 3 % in 2019; 1.6% in 2021)
 
 # hist(dat_summary[dat_summary$File.Type=="zc",]$Timep, breaks=60)
 # will have some NAs in dat_summary as not all filenames contained time, but if small proportion then ok to go ahead
@@ -258,15 +251,20 @@ sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues wit
 se <- function(x) sqrt(var(x)/length(x))
 
 # Determine distance between bat survey locations
-dist.mat$count <- 1 # to count number of survey locations within x distance of original survey location
-dist.mat.100km <- as.data.frame(dist.mat %>%
-                                 group_by(NP, Natural.Region, Land.Unit.Code, ORIGIN_Location.Name) %>% 
-                                 summarise_at(c("Link.Distance..km."), list(Mean = mean, SE = se, Min = min, Max = max)))
-dist.mat.100km <- left_join(dist.mat.100km, dist.mat %>% filter(Link.Distance..km.<=10) %>% group_by(ORIGIN_Location.Name) %>% count(count))
-dist.mat.100km <- dist.mat.100km %>% select(-count)
-dist.mat.100km$n <- dist.mat.100km$n %>% replace_na(0) # the number of survey locations within 10 km
-mean(dist.mat.100km$n); se(dist.mat.100km$n) # the mean and se of survey locations wtihin 10 km
-dist.mat.100km %>% filter(n==0) %>% nrow() # 19 stations with next nearest station > 10 km away
+# commented out code using ArcGIS generated (old) code - use new script below for R generated distance matrix
+# dist.mat$count <- 1 # to count number of survey locations within x distance of original survey location
+# dist.mat <- as.data.frame(dist.mat %>%
+#                                  group_by(NP, Natural.Region, Land.Unit.Code, Location.Name) %>% 
+#                                  summarise_at(c("Link.Distance..km."), list(Mean = mean, SE = se, Min = min, Max = max)))
+# dist.mat.100km <- left_join(dist.mat.100km, dist.mat %>% filter(Link.Distance..km.<=10) %>% group_by(ORIGIN_Location.Name) %>% count(count))
+# dist.mat.100km <- dist.mat.100km %>% select(-count)
+# dist.mat.100km$n <- dist.mat.100km$n %>% replace_na(0) # the number of survey locations within 10 km
+# mean(dist.mat.100km$n); se(dist.mat.100km$n) # the mean and se of survey locations wtihin 10 km
+# dist.mat.100km %>% filter(n==0) %>% nrow() # 19 stations with next nearest station > 10 km away
+
+dist.mat$stn_dist_mean_km <- (rowMeans(dist.mat[1:nrow(sta)], na.rm = T))/1000
+dist.mat$stn_dist_min_km <- (apply(dist.mat[1:nrow(sta)], 1, FUN=min, na.rm = T))/1000
+dist.mat$stn_dist_max_km <- (apply(dist.mat[1:nrow(sta)], 1, FUN=max, na.rm = T))/1000
 
 # Count the total number of detector stations and GRTS cells
 n.stat <- length(unique(sta$Location.Name))
@@ -292,10 +290,10 @@ ARUs.by.LUC <- sta %>% filter(NP=="Out") %>% count(Land.Unit.Code, sort = TRUE)
 ARUs.by.LUT <- sta %>% count(Land.Use.Type, sort = TRUE)
 
 # Proportion of stations vs spatial covariates
-sum(ARUs.by.LUC$n) # 87
-sum(ARUs.by.NP$n) # 30
-sum(ARUs.by.NR$n) # 117
-sum(ARUs.by.LUT$n) # 117
+sum(ARUs.by.LUC$n) # 26
+sum(ARUs.by.NP$n) # 35
+sum(ARUs.by.NR$n) # 61
+sum(ARUs.by.LUT$n) # 61
 colnames(cov.prop)[5] <- "prop.area"
 cov.prop$NP <- as.factor(ifelse(grepl("NP",cov.prop$Name), "In", "Out"))
 #cov.prop <- cov.prop %>% arrange(NP, Cov, Name)
@@ -316,15 +314,15 @@ sta[,category] <- factor(sta[,category])
 col.cat <- wheel(colour, num = length(levels(sta[,category])))
 sta$Cols <- col.cat[sta[,category]]
 
-col.catNR <- wheel(colour, num = length(levels(sta[,"Natural.Region"])))
+col.catNR <- wheel(colour, num = length(unique(sta[,"Natural.Region"])))
 sta$ColsNR <- col.catNR[sta[,"Natural.Region"]]
 
 sta[,"Land.Unit.Code"] <- factor(sta[,"Land.Unit.Code"])
-col.catLUC <- wheel(colour, num = length(levels(sta[,"Land.Unit.Code"])))
+col.catLUC <- wheel(colour, num = length(unique(sta[,"Land.Unit.Code"])))
 sta$ColsLUC <- col.catLUC[sta[,"Land.Unit.Code"]]
 
 sta[,"Land.Use.Type"] <- factor(sta[,"Land.Use.Type"])
-col.catLUT <- wheel(colour, num = length(levels(sta[,"Land.Use.Type"])))
+col.catLUT <- wheel(colour, num = length(unique(sta[,"Land.Use.Type"])))
 col.catLUT <- col.catLUT[order(col.catLUT, decreasing = TRUE)] # have Water as blue
 sta$ColsLUT <- col.catLUT[sta[,"Land.Use.Type"]]
 
@@ -339,12 +337,12 @@ dat_count$Land.Use.Type <- sta$Land.Use.Type[match(dat_count$Location.Name, sta$
 
 
 ###--- create volancy covariate
-yday("2021-07-10") # 191 = July 10 (general date of volancy)
+July10 <- yday("2021-07-10") # 191 = July 10 (general date of volancy)
 # if using one date for entire province, relevel with "Pre" as first category
-dat_count$Volancy <- as.factor(ifelse(dat_count$jDay<191, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
+dat_count$Volancy <- as.factor(ifelse(dat_count$jDay<July10, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
 dat_count %>% group_by(Volancy, Deployment.ID) %>% summarise(min(jDay), max(jDay))
 
-dat_summary$Volancy <- as.factor(ifelse(dat_summary$jDay<191, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
+dat_summary$Volancy <- as.factor(ifelse(dat_summary$jDay<July10, "Pre-volancy","Post-volancy")) %>% relevel("Pre-volancy")
 dat_summary %>% group_by(Volancy, Deployment.ID) %>% summarise(min(jDay), max(jDay))
 
 col.catVol <- as.character(c("#2028B2","#B2AA20"))
@@ -546,9 +544,10 @@ knitr::include_graphics("./Input/WNS_spread_map_2022-02-26.png")
 All analyses were conducted in R (version 4.1.2; 2021), within RStudio (version 1.2.5033) using rmarkdwon (version 2.11; Allaire et al. 2020) for reproducible results. Unless otherwise noted, results are reported as the mean ± 1 SE. 
 
 ### Results – Survey Representation
-In `r Year_interest` there were passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==1,]$n` stations) and `r max(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==4,]$n` station) stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat.100km$Min),1)` km ± `r round(se(dist.mat.100km$Min),1)`. Within 10 km of a station, there were an average of `r round(mean(dist.mat.100km$n),1)` ± `r round(se(dist.mat.100km$n),1)` neighbouring stations. There were `r dist.mat.100km %>% filter(n==0) %>% nrow` stations where the next nearest station was >10 km away (Figure 2). While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window or for other objectives such as monitoring migratory routes [RDR] or to collect WNS baseline data [BNP, WLNP]).
+In `r Year_interest` there were passive acoustic surveys at `r n.stat` unique locations (i.e., stations) within `r n.GRTS` NABat grid cells (Figure 1). On average, each grid cell had `r round(mean(det.per.GRTS$n),1)` ± `r round(se(det.per.GRTS$n),1)` (1 SE) stations, with between `r min(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==1,]$n` stations) and `r max(det.per.quad[,1])` (`r det.per.quad[det.per.quad$Stn_Num==4,]$n` station) stations per quadrat. The average minimum distance between stations was `r round(mean(dist.mat$stn_dist_min_km),1)` km ± `r round(se(dist.mat$stn_dist_min_km),1)`. Neighbouring stations ranged from  `r round(min(dist.mat[dist.mat$stn_dist_min_km!=0,]$stn_dist_min_km),1)` km to `r round(max(dist.mat[dist.mat$stn_dist_min_km!=0,]$stn_dist_min_km),1)` km apart.  While most (i.e., `r NABat.smp.yes` or `r round(NABat.smp.yes/nrow(sta)*100,0)`%) stations were surveyed specifically for NABat monitoring, some (i.e., `r NABat.smp.no` or `r round(NABat.smp.no/nrow(sta)*100,0)`%) stations were surveyed following similar NABat protocols but not for NABat monitoring per se (e.g., outside of the recommended survey temporal window or for other objectives such as monitoring migratory routes [REDR] or to collect WNS baseline data [BANP, WLNP]).
 
 ```{r Table 1 bat survey location, echo=F}
+
 sta.count <- sta %>% count(NP, Natural.Region, Land.Unit.Code)
 
 sta.count2 <- sta %>% group_by(NP, Natural.Region, Land.Unit.Code) %>% count(GRTS.Cell.ID)
@@ -569,20 +568,25 @@ sta.count$Count.Grid.Cells <- as.vector(sta.count3[,4])
 sta.count <- left_join(sta.count, sta.count4 %>% select(-NABat.Sample), 
                   by = c("NP" = "NP", "Natural.Region" = "Natural.Region", "Land.Unit.Code" = "Land.Unit.Code"))
 
+dist.mat.LUC <- dist.mat %>% group_by(Land.Unit.Code) %>% summarise(`Min Stn Dist (km)` = min(stn_dist_min_km),
+                                                                    `Mean Stn Dist (km)` = mean(stn_dist_min_km), 
+                                                                    `Max Stn Dist (km)` = max(stn_dist_min_km))
 
-colnames(sta.count) <- c("National Park", "Natural Region", "Land Unit", "Total Stations", "Total Grid Cells", "NABat Stations")
-sta.count <- sta.count[,c("National Park", "Natural Region", "Land Unit","Total Grid Cells","Total Stations","NABat Stations")]
+sta.count <- left_join(sta.count, dist.mat.LUC)
+colnames(sta.count)[1:6] <- c("National Park", "Natural Region", "Land Unit", "Total Stns", "Total Grid Cells", "NABat Stns")
+sta.count <- sta.count[,c("National Park", "Natural Region", "Land Unit","Total Grid Cells","Total Stns","NABat Stns","Min Stn Dist (km)","Mean Stn Dist (km)", "Max Stn Dist (km)")]
+names(sta.count)
 
-opts <- options(knitr.kable.NA = "0")
+opts <- options(knitr.kable.NA = "0", digits=1)
 
 knitr::kable(sta.count,
              caption="The number of stations and NABat grid cells in Natural Regions and Land Units (i.e., National Parks or Land-use Framework Regions). Land Unit abbreviations are as follows: BANP = Banff National Park, EINP = Elk Island National Park, JANP = Jasper National Park, WBNP = Wood Buffalo National Park, WLNP = Waterton Lakes National Park, LOAR = Lower Athabasca Region, LOPR = Lower Peace Region, NOSR = North Saskatchewan Region, REDR = Red Deer Region, SOSR = South Saskatchewan Region, UPAR = Upper Athabasca Region, and UPPR = Upper Peace Region.",
-             align = "lllrrr")
+             align = "lllrrrrrr")
 ```
 
 
-```{r TerraSolis pdf map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap="Bat Survey Locations 2015-2020", echo=FALSE}
-knitr::include_graphics("./Input/Bats_finaldata.pdf")
+```{r Provincial png map, out.width="0.3\\linewidth", include=TRUE, fig.align="center", fig.cap="Bat Survey Locations 2015-2021", echo=FALSE}
+knitr::include_graphics("./Output/Fig_provincial.plot.png")
 ```
 
 ##### Figure 1. Bats were acoustically surveyed, following NABat protocols, at `r n.stat` stations across Alberta in `r Year_interest`. Please note that the 4 EINP stations were not included on the map as data was obtained after the map was produced.
@@ -597,7 +601,7 @@ calls.per.night.locn$Night.Count <- 1
 
 
 NightLUC.hist <- ggplot(data = calls.per.night.locn, aes(x = jDay, y = Night.Count, fill=Land.Unit.Code)) + 
-  geom_vline(xintercept = 192, linetype="dotted", color = "gray", size=0.5)+
+  geom_vline(xintercept = July10, linetype="dotted", color = "gray", size=0.5)+
   geom_bar(stat = "identity") + 
   scale_fill_manual(values=unique(sta$ColsLUC))+
   scale_x_continuous(breaks = c(153, 183, 214, 245),
@@ -842,6 +846,6 @@ knitr::include_graphics(c(paste("./Output/activity_overlap_LACI Pre-volancy-LACI
 
 ### Acknowledgements
 
-Thank you to Lisa Wilkinson for having the foresight and enthusiasm to start NABat monitoring in Alberta and her continued support of the program, to Jason Headley for providing the cover photo, and to all of the biologists who generously provided their time and energy in gathering and providing bat acoustic data: Barb Johnston, Brenda Shepard, Cory Olson, Courtney Hughes, David Bruinsma, Erin Bayne, Greg Brooke, Greg Horne, Geoffrey Prophet, Helena Mahoney, Jason Unruh, Jennifer Carpenter, Lisa Wilkinson, Matina Kalcounis-Rueppell, Natalka Melnycky, Rolanda Steenweg, Saakje Hazenberg, Sandi Robertson, and Sharon Irwin. Thank you also to Sandra Frey for providing helpful R code and advice on temporal niche partitioning. Lastly, thanks to Alex MacPhail, Cami Hurtado, and Monica Kohler for providing access to ABMIs data, to Rhonda Connors (TerraSolis Inc.) for answering mapping and GIS questions, and to Brandon Aubie for responding so quickly to, and troubleshooting any, issues with Alberta eBat.
+Thank you to Lisa Wilkinson for having the foresight and enthusiasm to start NABat monitoring in Alberta and her continued support of the program, to Jason Headley for providing the cover photo, and to all of the biologists who generously provided their time and energy in gathering and providing bat acoustic data: Barb Johnston, Brenda Shepard, Cory Olson, Courtney Hughes, David Bruinsma, Erin Bayne, Greg Brooke, Greg Horne, Geoffrey Prophet, Helena Mahoney, Jason Unruh, Jennifer Carpenter, Lisa Wilkinson, Matina Kalcounis-Rueppell, Natalka Melnycky, Rolanda Steenweg, Saakje Hazenberg, Sandi Robertson, and Sharon Irwin. Thank you also to Sandra Frey for providing helpful R code and advice on temporal niche partitioning. Lastly, thanks to Alex MacPhail, Cami Hurtado, and Monica Kohler for providing access to ABMIs data, and to Brandon Aubie for responding so quickly to, and troubleshooting any, issues with Alberta eBat.
 
 
