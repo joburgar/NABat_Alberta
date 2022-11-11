@@ -3,14 +3,15 @@ title: "NABat_Annual_Report_Appendices"
 author: "Created by Joanna Burgar"
 date: "Report generated on `r format(Sys.time(), '%d %B, %Y')`"
 output: word_document
+
 params:
-  GRTS.Cell.ID: 296805
+  GRTS.Cell.ID: 474
   
 ---
 ```{r setup, include = FALSE}
-
-knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=9)
-
+# 
+# knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, fig.width=9)
+# 
 # #Load Packages
 # list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
 # # Check you have them and load them
@@ -24,9 +25,9 @@ knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, 
 
 ```
 
-## NABat 2020 Report Appendix
+## NABat 2021 Report Appendix
 
-``` {r map with inset}
+``` {r map with inset, echo=F, warning=F, message=F}
   grid.newpage()
   vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)  # the larger map
   vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  # the inset in upper right
@@ -37,7 +38,7 @@ knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, 
         geom_sf(data = NR, mapping = aes(fill=NR), lwd=0) + 
         scale_fill_manual(name = "Natural Regions",
                           values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
-        geom_sf(data = NABat_grid, col="azure2", lwd=0.8) +
+        geom_sf(data = NABat_grid_3857, col="azure2", lwd=0.8) +
         geom_sf(data = NABat_grid %>% dplyr::filter(GRTS_ID==params$GRTS.Cell.ID), col="black", lwd=1) +
         #annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
         coord_sf() +
@@ -46,12 +47,12 @@ knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, 
       vp = vpa_)
 ```
 
-##### Figure 1. GRTS Cell `r params$GRTS.Cell.ID` (black square) with stations survyed in `r unique(dat_count$Deployment.ID)` and inset map showing grid location compared to other grid cells (gray) surveyed in `r unique(dat_count$Deployment.ID)` throughout Alberta. 
+##### Figure 1. GRTS Cell `r params$GRTS.Cell.ID` (black square) with stations survyed in `r unique(dat_count$Year)` and inset map showing grid location compared to other grid cells (gray) surveyed in `r unique(dat_count$Year)` throughout Alberta. 
 
 
 ##### Table 1. NABat station meta data for GRTS Cell `r params$GRTS.Cell.ID`.  
 
-``` {r Table 1}
+``` {r Table 1, echo=F,warning=F, message=F}
 ###- Appendix Table 1 (formatting/structuring in Appendix_read)
   opts <- options(knitr.kable.NA = "")
   knitr::kable(t(Appendix.Table1 %>% dplyr::filter(GRTS.Cell.ID==params$GRTS.Cell.ID) %>% select(-GRTS.Cell.ID)),
@@ -63,24 +64,24 @@ knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, fig.height=8, 
 
 ##### Table 2. Minimum and maximum nightly survey weather conditions - Temperature (°C), Humidity (%), and Wind Speed (km/hr) - for GRTS Cell `r params$GRTS.Cell.ID`.  
 
-``` {r Table 2}
+``` {r Table 2, echo=F, warning=F, message=F}
   
 ###- Appendix Table 2
   knitr::kable(Appendix.Table2 %>% dplyr::filter(grepl(params$GRTS.Cell.ID, Location.Name)) %>% select(-Location.Name),
-             caption = paste("Table 2 - NABat Survey Weather Conditions for GRTS Cell",params$GRTS.Cell.ID),
+             # caption = paste("Table 2 - NABat Survey Weather Conditions for GRTS Cell",params$GRTS.Cell.ID),
              digits=1)
 ```
 
 
 
-``` {r Figure 2}
+``` {r Figure 2, fig.height=6, fig.width=7, echo=F, warning=F, message=F}
 ###- Appendix Figure 2
   # only graph species / species groups with >100 calls
-sp.to.use <- call_count.Sp %>% group_by(GRTS.Cell.ID, Classification) %>% summarise(Sum = sum(Count)) %>% filter(Sum>100)
+sp.to.use <- call_count.Sp %>% group_by(GRTS.Cell.ID, Classification,Year) %>% summarise(Sum = sum(Count))
   
   
   # group data for overall mean nightly bat calls by year with volancy
-app.Calls <- call_count.Sp%>% group_by(GRTS.Cell.ID, Classification, Deployment.ID) %>% summarise(Mean = mean(Count), SE = se(Count))
+app.Calls <- call_count.Sp%>% group_by(GRTS.Cell.ID, Classification, Year) %>% summarise(Mean = mean(Count), SE = se(Count))
   
   
   app.calls.Sp <- app.Calls %>% dplyr::filter(GRTS.Cell.ID==params$GRTS.Cell.ID) %>% 
@@ -94,17 +95,17 @@ app.Calls <- call_count.Sp%>% group_by(GRTS.Cell.ID, Classification, Deployment.
     geom_linerange(aes(Classification, ymin = Mean-SE, ymax = Mean+SE)) +
     theme_classic()+
     theme(axis.text.y = element_text(size=12), axis.title.x = element_blank())+
-    theme(axis.text.x = element_text(colour = "black", size = 10)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
     theme(legend.position = "none", legend.title = element_blank())+
-    facet_wrap(~Deployment.ID)
+    facet_wrap(~Year)
   
   app.calls.Sp
   
 ```  
   
-##### Figure 2. Mean (± 1 Standard Error) nightly bat calls for GRTS Cell `r params$GRTS.Cell.ID` in `r unique(dat_count$Deployment.ID)`. 
+##### Figure 2. Mean (± 1 Standard Error) nightly bat calls for GRTS Cell `r params$GRTS.Cell.ID` in `r unique(dat_count$Year)`. 
   
-``` {r Figure 3}
+``` {r Figure 3, fig.height=6, fig.width=7, echo=F, warning=F, message=F}
 ###- Appendix Figure 3
   
 app.hist.calls <- ggplot(data = call_count.Sp %>% dplyr::filter(GRTS.Cell.ID==params$GRTS.Cell.ID), aes(x = Classification, y = Count, fill= Location.Name)) + 
@@ -114,23 +115,32 @@ app.hist.calls <- ggplot(data = call_count.Sp %>% dplyr::filter(GRTS.Cell.ID==pa
     theme(legend.position="bottom", legend.title = element_blank()) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 10)) +
     theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
-    facet_wrap(~Deployment.ID)
+    facet_wrap(~Year)
   
 app.hist.calls
   
 ```
 
-##### Figure 3. Total bat calls for GRTS Cell `r params$GRTS.Cell.ID` in `r unique(dat_count$Deployment.ID)`. 
+##### Figure 3. Total bat calls for GRTS Cell `r params$GRTS.Cell.ID` in `r unique(dat_count$Year)`. 
 
 
 ##### Table 3. Nightly call counts for GRTS Cell `r params$GRTS.Cell.ID`, as identified by Alberta eBat to species / species groups, unknown, or as noise (i.e., not a bat).
 
-``` {r Table 3}
+``` {r Table 3, echo=F, warning=F, message=F}
 ###- Appendix Table 3 - Nightly call counts
   Appendix.Table3 <- dat_count %>% group_by(Location.Name, SurveyNight, Classification) %>%
     summarise(Call.Count = sum(Count))
   
   Appendix.Table3 <- Appendix.Table3 %>% pivot_wider(names_from = Classification, values_from = Call.Count)
+  
+  potential.bat.sp <- c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU","MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k", "unknown","noise")
+  actual.bat.sp <- names(Appendix.Table3)[3:ncol(Appendix.Table3)]
+  not.detected.bat.sp <- potential.bat.sp[!(potential.bat.sp%in% actual.bat.sp)]
+
+  # add in null columns (sp not detected)
+  Appendix.Table3[not.detected.bat.sp] <- as.character(NA)
+  
+  # put in the same order for all appendices
   Appendix.Table3 <- Appendix.Table3[,c("Location.Name","SurveyNight","EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU","MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k", "unknown","noise")]
   colnames(Appendix.Table3)[1:2] <- c("Station", "Date")
   
