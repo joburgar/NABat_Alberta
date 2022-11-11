@@ -30,10 +30,11 @@ unique.GRTS.Cell.ID = unique(sta$GRTS.Cell.ID)
 #                     output_file=paste0("Appendices/Appendix_", GRTS.Cell.ID, ".docx"))
 # }
 
+unique.GRTS.Cell.ID
+
 
 for(GRTS.Cell.ID in unique.GRTS.Cell.ID){
   render_one(GRTS.Cell.ID)  
 }
-
 
 
