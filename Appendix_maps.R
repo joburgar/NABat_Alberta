@@ -15,21 +15,31 @@ lapply(list.of.packages, require, character.only = TRUE)
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- "922"
-# Year_interest <- year(as.Date("2015-01-01"))
-# 
+Year_interest <- year(as.Date("2021-01-01"))
+ 
 # load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
+# subsetting for Banff GRTS for sample to work with
+# dat_count <- dat_count %>% filter(Land.Unit.Code == "BANP")
+# call_count <- call_count %>% filter(Land.Unit.Code == "BANP")
+# BANP_GRTS <- unique(dat_count$GRTS.Cell.ID)
+# dat_summary <- dat_summary %>% filter(GRTS.Cell.ID %in% BANP_GRTS)
+# eff <- eff %>% filter(GRTS.Cell.ID %in% BANP_GRTS)
+# sta <- sta %>% filter(GRTS.Cell.ID %in% BANP_GRTS)
+# save(dat_count, dat_summary, call_count, eff, sta, NABat_grid, file = paste("NABat_Annual_Report_Banff_",Year_interest,".RDS", sep=""))
+
+load(paste("NABat_Annual_Report_Banff_",Year_interest,".RDS", sep=""))
 
 
 #############################################################################
 
 dat_count <- droplevels(dat_count)
 dat_summary <- droplevels(dat_summary)
-dat_time <- droplevels(dat_time)
+call_count <- droplevels(call_count)
 eff <- droplevels(eff)
 sta <- droplevels(sta)
-names(eff)
+# names(eff)
 
-call_count.Sp <- call_count %>% group_by(Classification, Deployment.ID, Volancy)
+call_count.Sp <- call_count %>% group_by(Classification, Year, Volancy)
 call_count.Sp <- droplevels(call_count.Sp)
 call_count.Sp$GRTS.Cell.ID <- as.character(call_count.Sp$GRTS.Cell.ID)
 
@@ -54,18 +64,18 @@ call_count.Sp$GRTS.Cell.ID <- as.character(call_count.Sp$GRTS.Cell.ID)
 # nrow(sta)
 # sta %>% filter(GRTS.Cell.ID == i) # now only 113 stations
 
-# modify the GIS covariates to suit the analysis
-### Road type and distance
-sta %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
-sta$Road.Type <- as.character(sta$Road.Type)
-
-# if Road is within 100 m, keep as Road.Type.Ord but if >200 then change to 1, i.e., "No Road"
-sta$Road.Type <- case_when(sta$Road.Distance > 200 ~ "No Road",
-                           TRUE ~ as.character(sta$Road.Type))
-# recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
-sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
-  recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4,
-         "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
+# # modify the GIS covariates to suit the analysis (not necessary for 2021 and beyond)
+# ### Road type and distance
+# sta %>% count(Road.Type) # change road type to ordinal scale from 1 = no road to 8 = divided paved road
+# sta$Road.Type <- as.character(sta$Road.Type)
+# 
+# # if Road is within 100 m, keep as Road.Type.Ord but if >200 then change to 1, i.e., "No Road"
+# sta$Road.Type <- case_when(sta$Road.Distance > 200 ~ "No Road",
+#                            TRUE ~ as.character(sta$Road.Type))
+# # recode to ordinal scale, also changing NA to No Road as it meant no road within 1000 m
+# sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
+#   recode("No Road"=1, "Driveway"=2,"Truck Trail"=2, "Unimproved Road"=3, "One Lane Gravel Road"=4,
+#          "Two Lane Gravel Road"=5, "Two Lane Undivided Paved Road"=6, "Divided Paved Road"=7)
 
 ### Water type and distance
 # sta %>% filter(is.na(Waterbody.Distance)) %>% count(Stream.Type)
@@ -75,9 +85,8 @@ sta$Road.Type.Ord <- sta$Road.Type %>% replace_na("No Road") %>%
 # select(Location.Name, Stream.Distance, Waterbody.Distance, Stream.Type, Waterbody.Type)
 
 # sta$Water.Distance <- with(sta, pmin(Stream.Distance, Waterbody.Distance, na.rm=T))
-# to remove NAs, will change this to ordinal scale later as actually >1000 but unknown
 sta$Water.Distance <- sta$Waterbody.Distance
-sta$Water.Distance <- replace_na(sta$Water.Distance, 1001)
+# sta <- sta %>% filter(GRTS.Cell.ID %in% GRTS_interest)
 
 # sta$Water.Type <- case_when(sta$Waterbody.Distance < sta$Stream.Distance ~ as.character(sta$Waterbody.Type),
 #                             TRUE ~ as.character(sta$Stream.Type))
@@ -85,19 +94,20 @@ sta$Water.Distance <- replace_na(sta$Water.Distance, 1001)
 
 sta$Water.Type <- sta$Waterbody.Type
 ### Human Footprint type and distance
-as.data.frame(sta %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report
-sta$Human.Footprint.Distance <- replace_na(sta$Human.Footprint.Distance, 1001)
-sta$Human.Footprint.Sublayer <- ifelse(sta$Human.Footprint.Type %in%
-                                         c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
-                                           "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
-                                       ifelse(sta$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
-                                              ifelse(sta$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
-                                                     ifelse(sta$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
-                                                            ifelse(sta$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
-                                                                   ifelse(sta$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
-
-sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 200 ~ "No Human Footprint",
-                                          TRUE ~ as.character(sta$Human.Footprint.Sublayer))
+# For 2021 and beyond don't include Human Footprint as getting outdated
+# as.data.frame(sta %>% count(Human.Footprint.Type)) # consolidate to sublayer from ABMI HF 2014 metadata, similar as 2018 report
+# sta$Human.Footprint.Distance <- replace_na(sta$Human.Footprint.Distance, 1001)
+# sta$Human.Footprint.Sublayer <- ifelse(sta$Human.Footprint.Type %in%
+#                                          c("BORROWPIT-DRY","BORROWPITS","CONVENTIONAL-SEISMIC","GRVL-SAND-PIT","PIPELINE",
+#                                            "RIS-RECLAIMED-PERMANENT","RIS-SOIL-REPLACED","WELL-ABAND","WELL-OIL"), "Industrial",
+#                                        ifelse(sta$Human.Footprint.Type %in% c("CROP","CULTIVATION_ABANDONED","ROUGH_PASTURE", "TAME_PASTURE"), "Agriculture",
+#                                               ifelse(sta$Human.Footprint.Type %in% c("CLEARING-UNKNOWN", "GREENSPACE","RECREATION", "FACILITY-UNKNOWN"), "Greenspace" ,
+#                                                      ifelse(sta$Human.Footprint.Type %in% c("HARVEST-AREA"), "Forestry",
+#                                                             ifelse(sta$Human.Footprint.Type %in% c("TRAIL", "VEGETATED-EDGE-ROADS"), "Transportation",
+#                                                                    ifelse(sta$Human.Footprint.Type %in% c("RURAL-RESIDENCE", "URBAN-RESIDENCE"), "Residence", NA))))))
+# 
+# sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 200 ~ "No Human Footprint",
+#                                           TRUE ~ as.character(sta$Human.Footprint.Sublayer))
 
 
 # sta.table <- sta %>%
@@ -114,26 +124,32 @@ sta$Human.Footprint.Sublayer <- case_when(sta$Human.Footprint.Distance > 200 ~ "
 # for three sections: Nightly Temp (degree), Nightly Rel Hum (%); Wind speed (km/h)
 ## sta covariates: NR, LUT, HF + dist, Road + dist, Water + dist (for each station)
 # NABat_site_meta_template[,1]
-
-Appendix.Table1 <- sta[c("GRTS.Cell.ID","Location.Name", "Orig.Name","Latitude", "Longitude","Water.Distance","Water.Type","Road.Distance",
-                         "Road.Type", "Human.Footprint.Distance", "Human.Footprint.Sublayer", "Human.Footprint.Type",
-                         "Land.Use.Type","Land.Unit.Code")] 
 names(sta)
-nrow(Appendix.Table1)
-Appendix.Table1 <- left_join(Appendix.Table1, eff %>% select(Location.Name, Contact, Survey.Start.Time, Survey.End.Time, Deployment.ID))
+Appendix.Table1 <- sta[c("GRTS.Cell.ID","Location.Name", "Orig_Name","Latitude", "Longitude","Waterbody.Distance","Waterbody.Type","Road.Distance",
+                         "Road.Type", "Land.Use.Type","Land.Unit.Code")] 
+
+Appendix.Table1 <- left_join(Appendix.Table1, eff %>% select(Location.Name, Contact, Deployment.ID))
 Appendix.Table1 <- Appendix.Table1 %>% 
-  # filter(Deployment.ID==Year_interest) %>% 
+  filter(Deployment.ID==Year_interest) %>%
   dplyr::select(-Deployment.ID)
+
+# add in start and end dates for surveys, based on when recordings started and stopped (Survey Night)
+# head(Appendix.Table1)
+# head(call_count.Sp)
+survey.dates <- call_count.Sp %>% group_by(Location.Name) %>% summarise(Survey.Start.Time=min(SurveyNight), Survey.End.Time=max(SurveyNight))
+
+Appendix.Table1 <- left_join(Appendix.Table1, survey.dates)
+
 # add in null columns (NABat template)
 xx <- c("Detector","Detector.Serial.Number", "Microphone","Microphone.Serial.Number","Microphone.Orientation",
         "Microphone.Height","Clutter.Distance","Clutter.Type","Percent.Clutter","Weather.Proofing","Unusual.Occurrences")
 Appendix.Table1[xx] <- as.character(NA)
 
 # put in the same order as NABat template
-Appendix.Table1 <- Appendix.Table1[c("GRTS.Cell.ID","Location.Name", "Orig.Name","Latitude", "Longitude","Survey.Start.Time", 
+Appendix.Table1 <- Appendix.Table1[c("GRTS.Cell.ID","Location.Name", "Orig_Name","Latitude", "Longitude","Survey.Start.Time", 
                                      "Survey.End.Time", "Detector", "Detector.Serial.Number", "Microphone","Microphone.Serial.Number",
-                                     "Microphone.Orientation","Microphone.Height","Clutter.Distance","Clutter.Type",
-                                     "Water.Distance","Water.Type","Percent.Clutter","Road.Distance","Road.Type", "Human.Footprint.Distance", "Human.Footprint.Sublayer", "Human.Footprint.Type",
+                                     "Microphone.Orientation","Microphone.Height","Clutter.Distance","Clutter.Type", "Percent.Clutter",
+                                     "Waterbody.Distance","Waterbody.Type","Road.Distance","Road.Type",
                                      "Land.Use.Type","Land.Unit.Code","Contact","Weather.Proofing","Unusual.Occurrences")]
 # unique(Appendix.Table1$GRTS.Cell.ID)
 # i="296805"
@@ -152,40 +168,47 @@ Appendix.Table1 <- Appendix.Table1[c("GRTS.Cell.ID","Location.Name", "Orig.Name"
 # Create environmental covariate
 # load weather data
 # library(weathercan) # if not already loaded
-Year_interest <- c(2021)
-weather <- vector('list', seq_along(Year_interest))
-for(i in 1:length(Year_interest)){
-  weather_list <- read.csv(paste0("Input/NABat_",Year_interest[i],"_nightly_weather_sum.csv"), header=T)
-  weather[[i]] <- weather_list
-}
-glimpse(weather)
-ßweather <- rbindlist(weather, use.names = TRUE, fill=TRUE)
-weather <- weather %>% select(-X)
+# # Year_interest <- c(2021)
+# weather <- vector('list', seq_along(Year_interest))
+# for(i in 1:length(Year_interest)){
+#   weather_list <- read.csv(paste0("Input/NABat_",Year_interest[i],"_nightly_weather_sum.csv"), header=T)
+#   weather[[i]] <- weather_list
+# }
+# glimpse(weather)
+# weather <- rbindlist(weather, use.names = TRUE, fill=TRUE)
+# # weather <- weather %>% select(-X)
+# 
+# ECCC.stn <- sta[c("Latitude","Longitude")]
+# 
+# ECCC.stn.id <- vector('list',nrow(ECCC.stn))
+# for (i in 1:nrow(ECCC.stn)){
+#   ECCC.stn.id.list <- stations_search(coords = ECCC.stn[i,],
+#                                       interval = "hour", starts_latest=Year_interest, ends_earliest=Year_interest+1,
+#                                       quiet = T)
+#   ECCC.stn.id[i] <- ECCC.stn.id.list[1,c("station_id")]
+# }
+# 
+# sta$ECCC_stn_id <- unlist(ECCC.stn.id)
 
-ECCC.stn <- sta[c("Latitude","Longitude")]
+# head(weather)
+# colnames(weather) <- c("ECCC.stn.id", "SurveyNight", "Min.Tmp", "Min.RH", "Min.WS", "Mean.Tmp", "Mean.RH", "Mean.WS", "Max.Tmp", "Max.RH", "Max.WS")
+# weather$SurveyNight <- ymd(weather$SurveyNight)
+# nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
+# nightly.env.cov$ECCC.stn.id <- sta$ECCC_stn_id[match(nightly.env.cov$Location.Name, sta$Location.Name)]
+# nightly.env.cov <- nightly.env.cov %>% count(Location.Name, SurveyNight, ECCC.stn.id)
+# nightly.env.cov <- nightly.env.cov %>% select(-n)
+# nightly.env.cov <- left_join(nightly.env.cov, weather, by = c("SurveyNight","ECCC.stn.id"))
+# summary(nightly.env.cov)
+# nrow(nightly.env.cov)
+# glimpse(dat_summary)
+# dat_summary$min_temp <- as.numeric(dat_summary$min_temp)
 
-ECCC.stn.id <- vector('list',nrow(ECCC.stn))
-for (i in 1:nrow(ECCC.stn)){
-  ECCC.stn.id.list <- stations_search(coords = ECCC.stn[i,],
-                                      interval = "hour", starts_latest=Year_interest[1], ends_earliest=Year_interest[6]+1,
-                                      quiet = T)
-  ECCC.stn.id[i] <- ECCC.stn.id.list[1,c("station_id")]
-}
-
-sta$ECCC_stn_id <- unlist(ECCC.stn.id)
-
-head(weather)
-colnames(weather) <- c("ECCC.stn.id", "SurveyNight", "Min.Tmp", "Min.RH", "Min.WS", "Mean.Tmp", "Mean.RH", "Mean.WS", "Max.Tmp", "Max.RH", "Max.WS")
-weather$SurveyNight <- ymd(weather$SurveyNight)
-nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
-nightly.env.cov$ECCC.stn.id <- sta$ECCC_stn_id[match(nightly.env.cov$Location.Name, sta$Location.Name)]
-nightly.env.cov <- nightly.env.cov %>% count(Location.Name, SurveyNight, ECCC.stn.id)
-nightly.env.cov <- nightly.env.cov %>% select(-n)
-
-nightly.env.cov <- left_join(nightly.env.cov, weather, by = c("SurveyNight","ECCC.stn.id"))
+# if the weather is correctly captured from Alberta eBat output can simply use this code
+nightly.env.cov <- dat_summary %>% group_by(Location.Name,SurveyNight) %>%
+  summarise(across(min_temp:max_wind, ~mean(.x, na.rm=TRUE)))
 
 
-Appendix.Table2 <- nightly.env.cov[c("Location.Name","SurveyNight","Min.Tmp","Max.Tmp","Min.RH","Max.RH","Min.WS","Max.WS")] #%>% ungroup
+Appendix.Table2 <- nightly.env.cov[c("Location.Name","SurveyNight","min_temp","max_temp","min_hum","max_hum","min_wind","max_wind")] #%>% ungroup
 # opts <- options(knitr.kable.NA = "")
 # knitr::kable(Appendix.Table2 %>% filter(grepl(i, Location.Name)) %>% select(-Location.Name),
 #              caption = paste("Table 2 - NABat Survey Weather Conditions for GRTS Cell",i),
@@ -202,9 +225,8 @@ Appendix.Table2 <- nightly.env.cov[c("Location.Name","SurveyNight","Min.Tmp","Ma
 # to be used with NABat_Annual_Report.Rmd
 
 ###--- create map of GRTS and NABat stations
-NABatDir = c("/Users/joburgar/Documents/NABat/GIS/")
-
-NABat_grid <- read_sf(dsn = NABatDir,layer = "master_sample_Alberta")
+# NABatDir = c("/Volumes/LaCie_2TB/NABat/GIS/")
+# NABat_grid <- read_sf(dsn = NABatDir,layer = "master_sample_Alberta")
 #st_geometry(NABat_grid) # no ESPG
 NABat_grid <- st_transform(NABat_grid, crs=4326) # now espg 4326
 #NABat_grid
@@ -288,63 +310,72 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
   
 }
 
-
-
+# Run for each inset map to have prior to running appendices
+# sta$GRTS.Cell.ID
+# slices <- unique(sta$GRTS.Cell.ID)
 # for(i in slices){
 # GRTS_map <- GRTS.plot(GRTS.Cell.ID = GRTS.Cell.ID, v.just=-2, h.just=-0.1)
 #   ggsave(file=paste("Output/Maps/GRTSID_",i,"_map.png",sep=""))
-
+# }
 ######################################
 #- overall AB map
-theme_set(theme_bw())
-nr <- read_sf(dsn = paste(NABatDir,"/Natural_Regions_Subregions_of_Alberta", sep=""),
-              layer = "Natural_Regions_Subregions_of_Alberta")
+# theme_set(theme_bw())
+# nr <- read_sf(dsn = paste(NABatDir,"/Natural_Regions_Subregions_of_Alberta", sep=""),
+#               layer = "Natural_Regions_Subregions_of_Alberta")
+# 
+# NR.NRNAME <-nr %>% group_by(NRNAME) %>%
+#   summarise(across(geometry, ~ st_union(.)), .groups = "keep") %>%
+#   summarise(across(geometry, ~ st_combine(.)))
+# 
+# nr$area <- st_area(nr)
+# 
+# Alberta <-
+#   nr %>%
+#   summarise(area = sum(area))
+# 
+# unique(nr$NRNAME)
+# RM <-nr %>%
+#   filter(NRNAME =="Rocky Mountain") %>%
+#   summarise(area = sum(area))
+# RM$NR <- "Rocky Mountain"
+# 
+# BO <-nr %>%
+#   filter(NRNAME =="Boreal") %>%
+#   summarise(area = sum(area))
+# BO$NR <- "Boreal"
+# 
+# PA <-nr %>%
+#   filter(NRNAME =="Parkland") %>%
+#   summarise(area = sum(area))
+# PA$NR <- "Parkland"
+# 
+# GA <-nr %>%
+#   filter(NRNAME =="Grassland") %>%
+#   summarise(area = sum(area))
+# GA$NR <- "Grassland"
+# 
+# CS <-nr %>%
+#   filter(NRNAME =="Canadian Shield") %>%
+#   summarise(area = sum(area))
+# CS$NR <- "Canadian Shield"
+# 
+# FH <-nr %>%
+#   filter(NRNAME =="Foothills") %>%
+#   summarise(area = sum(area))
+# FH$NR <- "Foothills"
+# 
+# NR <- rbind(RM, BO, PA, GA, CS, FH)
+# NR
+# 
+# NABat_AppendixMap_sf = list(NR = NR, Alberta=Alberta)
+# saveRDS(NABat_AppendixMap_sf, "NABat_AppendixMap_sf.RDS")
+# rm(list=ls())
 
-NR.NRNAME <-NR %>% group_by(NRNAME) %>%
-  summarise(across(geometry, ~ st_union(.)), .groups = "keep") %>%
-  summarise(across(geometry, ~ st_combine(.)))
+NABat_AppendixMap_sf = readRDS("NABat_AppendixMap_sf.RDS")
+Alberta <- NABat_AppendixMap_sf$Alberta
+NR <- NABat_AppendixMap_sf$NR
 
 
-nr$area <- st_area(nr)
-
-Alberta <-
-  nr %>%
-  summarise(area = sum(area))
-
-unique(nr$NRNAME)
-RM <-nr %>%
-  filter(NRNAME =="Rocky Mountain") %>%
-  summarise(area = sum(area))
-RM$NR <- "Rocky Mountain"
-
-BO <-nr %>%
-  filter(NRNAME =="Boreal") %>%
-  summarise(area = sum(area))
-BO$NR <- "Boreal"
-
-PA <-nr %>%
-  filter(NRNAME =="Parkland") %>%
-  summarise(area = sum(area))
-PA$NR <- "Parkland"
-
-GA <-nr %>%
-  filter(NRNAME =="Grassland") %>%
-  summarise(area = sum(area))
-GA$NR <- "Grassland"
-
-CS <-nr %>%
-  filter(NRNAME =="Canadian Shield") %>%
-  summarise(area = sum(area))
-CS$NR <- "Canadian Shield"
-
-FH <-nr %>%
-  filter(NRNAME =="Foothills") %>%
-  summarise(area = sum(area))
-FH$NR <- "Foothills"
-
-NR <- rbind(RM, BO, PA, GA, CS, FH)
-
-rm(nr)
 # Two.DT <- unique(eff %>% filter(grepl("churtado|EINP", Contact)) %>% select(GRTS.Cell.ID))
 # One.DT <-   unique(eff %>% filter(!grepl("churtado|EINP", Contact)) %>% select(GRTS.Cell.ID))
 # 
