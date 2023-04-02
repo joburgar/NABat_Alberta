@@ -7,14 +7,74 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 
+se <- function(x) sqrt(var(x)/length(x))
 #############################################################################################
 # Read station covariates csv
-getwd()
-setwd("//Volumes/LaCie/NABat_Alberta/Input/")
-sta <- read.csv("NABat_Station_Covariates_2021.csv", header=T, na.string=c("","NA", "<NA>",-1))
+# setwd("//Volumes/LaCie/NABat_Alberta/Input/")
+sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1))
+sta %>% as_tibble
+
+eff <- read.csv("Input/NABat_Deployment_Data.csv")
+eff %>% as_tibble
+num.yrs.survey <- eff %>% group_by(GRTS.Cell.ID,Location.Name, Orig.Name) %>% count(Deployment.ID)
+num.yrs.survey <- num.yrs.survey %>% pivot_wider(names_from = Deployment.ID, values_from=n, values_fill = 0)
+num.yrs.survey <- num.yrs.survey[c("GRTS.Cell.ID","Location.Name", "Orig.Name","2014","2015","2016","2017","2018","2019","2020","2021","2022")]
+
+num.yrs.survey[rowSums(num.yrs.survey[,4:12] > 1) > 0, ] # 2020 has duplicates because deployed twice at same site so not true duplicates
+num.yrs.survey$`2020` <- ifelse(num.yrs.survey$`2020` > 0,1,0)
+num.yrs.survey$num.years <- rowSums(num.yrs.survey[,4:12])
+num.yrs.survey %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
+# min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
+#             1              1.87                8          0.0822
+num.yrs.survey %>% ungroup() %>% count(num.years)
+# num.years     n
+#          1   262
+#          2    30
+#          3    38
+#          4    14
+#          5    10
+#          6    19
+#          7     2
+#          8     5
+
+GRTS.yrs.survey <- eff %>% group_by(GRTS.Cell.ID) %>% count(Deployment.ID)
+GRTS.yrs.survey <- GRTS.yrs.survey %>% pivot_wider(names_from = Deployment.ID, values_from=n, values_fill = 0)
+GRTS.yrs.survey <- GRTS.yrs.survey[c("GRTS.Cell.ID","2014","2015","2016","2017","2018","2019","2020","2021","2022")]
+
+GRTS.yrs.survey$`2014` <- ifelse(GRTS.yrs.survey$`2014` > 0,1,0)
+GRTS.yrs.survey$`2015` <- ifelse(GRTS.yrs.survey$`2015` > 0,1,0)
+GRTS.yrs.survey$`2016` <- ifelse(GRTS.yrs.survey$`2016` > 0,1,0)
+GRTS.yrs.survey$`2017` <- ifelse(GRTS.yrs.survey$`2017` > 0,1,0)
+GRTS.yrs.survey$`2018` <- ifelse(GRTS.yrs.survey$`2018` > 0,1,0)
+GRTS.yrs.survey$`2019` <- ifelse(GRTS.yrs.survey$`2019` > 0,1,0)
+GRTS.yrs.survey$`2020` <- ifelse(GRTS.yrs.survey$`2020` > 0,1,0)
+GRTS.yrs.survey$`2021` <- ifelse(GRTS.yrs.survey$`2021` > 0,1,0)
+GRTS.yrs.survey$`2022` <- ifelse(GRTS.yrs.survey$`2022` > 0,1,0)
+
+GRTS.yrs.survey$num.years <- rowSums(GRTS.yrs.survey[,2:10])
+GRTS.yrs.survey %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
+#   `min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
+#                 1              1.85                9           0.106
+GRTS.yrs.survey %>% ungroup() %>% count(num.years)
+# num.years     n
+#          1   158
+#          2    21
+#          3    29
+#          4     5
+#          5     3
+#          6     8
+#          7     5
+#          8     2
+#          9     1
+
+###########
+na.sta <- sta_sf %>% filter(is.na(`2014`))
+eff %>% filter(Location.Name %in% na.sta$LocName)
+
+sta <- left_join(sta, num.yrs.survey, by=c("LocName"= "Location.Name"))
 
 sta$NP <- as.factor(ifelse(sta$LandUnitCo %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
-summary(sta)
+sta %>% as_tibble
 # convert sta to spatial layer, in latitude / longitude (crs = 4326)
 sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326) 
 sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
@@ -23,26 +83,45 @@ sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (For
 ggplot()+
   geom_sf(data = sta_sf) 
 
+nrow(sta_sf) # 362
+nrow(sta_sf %>% filter(X2022==1)) #164 sites surveyed in 2022
+GRTS.sryvd.2022 <- sta_sf %>% filter(X2022==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 114 GRTS celss surveyed
+GRTS.sryvd.2022 %>% summarise(mean(n), min(n), max(n), se(n))
+hist(GRTS.sryvd.2022$n)
+# mean(n) min(n) max(n)      se(n)
+# 1.438596      1      7 0.08174001 # sites surveyed within a GRTS cell in 2022
+GRTS.sryvd.2022 %>% count(n)
+# n nn
+# 1 80
+# 2 25
+# 3  5
+# 4  3
+# 7  1
+
 #############################################################################################
 # Set GIS Dir for uploading GIS layers
-GISDir <- c("/Volumes/LaCie/NABat/GIS")
+GISDir <- c("/Volumes/LaCie_2TB/NABat/GIS")
 
 # Read in Alberta GIS layers and determine distance to bat survey stations
 
 # Landcover Polygons 2010 - ABMI, their source data: ABMI Remote Sensing Group 2013, based on the EOSD and NLWIS 2000 raster datasets and on hydrography and access GIS layers from the Government of Alberta. Update to 2010 based on ABMI Human Footprint dataset.
 LC <- st_read(paste(GISDir,"/2010LanCoverShapeFiles", sep=""), layer="Lancover_Polygons_2010")
-# what about st_join (left=TRUE)? might be faster...
-LC.dist <- st_nn(sta_sf, LC, k=1, returnDist = T) 
-sta_sf$LC_dist <- unlist(LC.dist$dist)
-sta_sf$LC_type <- unlist(LC.dist$nn)
-sta_sf$LC_type <- LC$LC_class[match(sta_sf$LC_type,rownames(LC))]
-summary(sta_sf)
+sta_sf <- st_join(sta_sf, LC %>% select(LC_class), left=TRUE)
+sta_sf %>% filter(is.na(Land.Cover))
+tail(sta_sf)
 
-sta_sf$Land.Cover <- as.factor(sta_sf$LC_type)
-levels(sta_sf$LC_type)
-sta_sf$Land.Cover <- sta_sf$LC_type %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
+# # previous code, a bit slower
+# LC.dist <- st_nn(sta_sf, LC, k=1, returnDist = T) 
+# sta_sf$LC_dist <- unlist(LC.dist$dist)
+# sta_sf$LC_type <- unlist(LC.dist$nn)
+# sta_sf$LC_type <- LC$LC_class[match(sta_sf$LC_type,rownames(LC))]
+# summary(sta_sf)
+
+sta_sf$Land.Cover <- as.factor(sta_sf$LC_class)
+levels(sta_sf$Land.Cover)
+sta_sf$Land.Cover <- sta_sf$LC_class %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
                                             "120"="Agriculture", "210"="Coniferous Forest", "220"="Broadleaf Forest", "230"="Mixed Forest")
-
+glimpse(sta_sf)
 
 # # Human Footprint 2018 - ABMI Human Footprint (gdb)
 # st_layers("/Users/joburgar/Documents/NABat/GIS/HFI_2018_v1.gdb")
@@ -50,15 +129,14 @@ sta_sf$Land.Cover <- sta_sf$LC_type %>% recode("20"="Water", "33"="Exposed Land"
 
 # Natural_Regions_Subregions_of_Alberta
 NR <- st_read(paste(GISDir,"/Natural_Regions_Subregions_of_Alberta", sep=""), layer="Natural_Regions_Subregions_of_Alberta")
-NR.dist <- st_nn(sta_sf, NR %>% st_transform(crs=3400), k=1, returnDist = T) 
-names(NR)
-sta_sf <- st_join(sta_sf, NR %>% select(NSRNAME, NRNAME), left=TRUE)
+# NR.dist <- st_nn(sta_sf, NR %>% st_transform(crs=3400), k=1, returnDist = T) 
+# names(NR)
+sta_sf <- st_join(sta_sf %>% dplyr::select(-NSRNAME, -NRNAME), NR %>% select(NSRNAME, NRNAME), left=TRUE)
 
 
 # Land-Use Framework Regions
 LU <- st_read(GISDir, layer="LUF_AB")
-sta_sf <- st_join(sta_sf, LU %>% select(LUF_NAME), left=TRUE)
-
+sta_sf <- st_join(sta_sf %>% select(-LUF_NAME), LU %>% select(LUF_NAME), left=TRUE)
 
 # Water - AltaLis 
 # Base Waterbody Polygon: Base Features, obtained from AltaLis, by Alberta Environment and Parks, GoA
@@ -96,6 +174,9 @@ sta_sf$Longitude <- coords[,1]
 sta_sf$Latitude <- coords[,2]
 
 write.csv (sta_sf %>% st_drop_geometry(), "NABat_Station_Covariates.csv", row.names = FALSE)
+st_write(sta_sf %>% 
+           dplyr::select(GRTS.Cell.ID, LocName, Orig_Name, X2014,X2015,X2016,X2017,X2018,X2019,X2020,X2021,X2022,num.years), "NABat_Station_Covariates.shp")
+getwd()
 # sta <- read.csv("NABat_Station_Covariates.csv")
 # sta_sf$Surveyed2021 <- sta$Surveyed2021
 ###--- Create provincial map
@@ -108,24 +189,17 @@ Alberta <-
   NR.NRNAME %>%
   summarise(area = sum(area))
 
-names(sta)
-
-
-sta_sfggplot()+
-  geom_sf(data=NR.NRNAME, aes(fill=NRNAME, colour=NRNAME))+
-  geom_sf(data=sta_sf %>% filter(Surveyed2021=="no"), col="white")+
-  geom_sf(data=sta_sf %>% filter(Surveyed2021=="yes"), col="black")+
-  theme_minimal()
-
-prev.survey <- sta_sf %>% filter(Surveyed2021=="no") %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
-this.survey <- sta_sf %>% filter(Surveyed2021=="yes") %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
-
 ###--- create map of GRTS and NABat stations
-NABatDir = c("/Volumes/LaCie/NABat/GIS/")
+sta <- read.csv("NABat_Station_Covariates.csv")
+sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326)
+
+prev.survey <- sta_sf %>% filter(X2022==0) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+this.survey <- sta_sf %>% filter(X2022==1) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+
+
+NABatDir = c("/Volumes/LaCie_2TB/NABat/GIS/")
 NABat_grid <- read_sf(dsn = NABatDir,layer = "master_sample_Alberta")
 NABat_grid <- st_transform(NABat_grid, crs=4326) # now espg 4326
-
-
 
 Fig_provincial.plot <- ggplot() + 
   geom_sf(data = Alberta %>%st_transform(crs=4326)) +
@@ -138,7 +212,7 @@ Fig_provincial.plot <- ggplot() +
   coord_sf() +
   theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
 
-Cairo(file="Fig_provincial.plot_2021.PNG",
+Cairo(file="Fig_provincial.plot_2022.PNG",
       type="png",
       width=1500,
       height=2000,
@@ -148,24 +222,64 @@ Cairo(file="Fig_provincial.plot_2021.PNG",
 Fig_provincial.plot
 dev.off()
 
+Fig_provincial_yrssrvyd.plot <- ggplot() + 
+  geom_sf(data = Alberta %>%st_transform(crs=4326)) +
+  geom_sf(data = NR.NRNAME %>% st_transform(crs=4326), mapping=aes(fill=NRNAME), lwd=0) +
+  scale_fill_manual(name = "Natural Regions",
+                    values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+  geom_sf(data = sta_sf, aes(col=num.years)) +
+  annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+  coord_sf() +
+  theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
+
+Cairo(file="Fig_provincial.plot.yrssryvd_2022.PNG",
+      type="png",
+      width=1500,
+      height=2000,
+      pointsize=14,
+      bg="white",
+      dpi=300)
+Fig_provincial_yrssrvyd.plot
+dev.off()
+
+grts.year <- sta_sf %>% filter(X2022==1)
+plot.yr <- 2022
+
+Fig_provincial_year <- ggplot() + 
+  geom_sf(data = Alberta %>%st_transform(crs=4326)) +
+  geom_sf(data = NR.NRNAME %>% st_transform(crs=4326), mapping=aes(fill=NRNAME), lwd=0) +
+  scale_fill_manual(name = "Natural Regions",
+                    values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% grts.year$GRTS.Cell.ID), col="black", lwd=0.8) +
+  annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+  ggtitle(paste0("NABat Grid Cells Surveyed in ",plot.yr))+
+  coord_sf() +
+  theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
+
+Cairo(file=paste0("Fig_provincial_",plot.yr,".PNG"),
+      type="png",width=1500,height=2000,pointsize=14,bg="white",dpi=300)
+Fig_provincial_year
+dev.off()
+
+
+
 #####--- Create distance matrix
 # library(units)
-sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326)
-sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
+# sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
 
-sta_2021 <- sta_sf %>% filter(Surveyed2021=="yes") %>% st_transform(crs=3400)
-summary(sta_2021)
-summary(sta_sf)
+sta_2022 <- sta_sf %>% filter(X2022==1) %>% st_transform(crs=3400)
+nrow(sta_2022)
+nrow(sta_sf)
 
 ggplot()+
-  geom_sf(data=sta_2021)
+  geom_sf(data=sta_2022)
 
-stn_dist <- as.data.frame(st_distance(sta_2021, sta_2021, by_element = FALSE))
+stn_dist <- as.data.frame(st_distance(sta_2022, sta_2022, by_element = FALSE))
 # library(units)
 stn_dist <- drop_units(stn_dist)
 head(stn_dist)
 stn_dist[stn_dist==0]<- NA
-write.csv(stn_dist, "DistanceMatrixTable_2021.csv")
+write.csv(stn_dist, "DistanceMatrixTable_2022.csv")
 
 save.image("GIS.sta.covariates.RData")
 #load("GIS.sta.covariates.RData")
