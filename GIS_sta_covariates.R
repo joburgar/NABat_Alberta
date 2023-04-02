@@ -85,9 +85,8 @@ ggplot()+
 
 nrow(sta_sf) # 362
 nrow(sta_sf %>% filter(X2022==1)) #164 sites surveyed in 2022
-GRTS.sryvd.2022 <- sta_sf %>% filter(X2022==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 114 GRTS celss surveyed
+GRTS.sryvd.2022 <- sta_sf %>% filter(X2022==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 114 GRTS cells surveyed
 GRTS.sryvd.2022 %>% summarise(mean(n), min(n), max(n), se(n))
-hist(GRTS.sryvd.2022$n)
 # mean(n) min(n) max(n)      se(n)
 # 1.438596      1      7 0.08174001 # sites surveyed within a GRTS cell in 2022
 GRTS.sryvd.2022 %>% count(n)
