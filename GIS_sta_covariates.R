@@ -13,6 +13,7 @@ se <- function(x) sqrt(var(x)/length(x))
 # setwd("//Volumes/LaCie/NABat_Alberta/Input/")
 sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","NA", "<NA>",-1))
 sta %>% as_tibble
+tail(sta)
 
 eff <- read.csv("Input/NABat_Deployment_Data.csv")
 eff %>% as_tibble
@@ -25,16 +26,16 @@ num.yrs.survey$`2020` <- ifelse(num.yrs.survey$`2020` > 0,1,0)
 num.yrs.survey$num.years <- rowSums(num.yrs.survey[,4:12])
 num.yrs.survey %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
 # min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
-#             1              1.87                8          0.0822
+#             1              1.89                8          0.0845
 num.yrs.survey %>% ungroup() %>% count(num.years)
 # num.years     n
-#          1   262
-#          2    30
+#          1   258
+#          2    32
 #          3    38
-#          4    14
-#          5    10
-#          6    19
-#          7     2
+#          4    13
+#          5     9
+#          6    18
+#          7     5
 #          8     5
 
 GRTS.yrs.survey <- eff %>% group_by(GRTS.Cell.ID) %>% count(Deployment.ID)
@@ -54,29 +55,33 @@ GRTS.yrs.survey$`2022` <- ifelse(GRTS.yrs.survey$`2022` > 0,1,0)
 GRTS.yrs.survey$num.years <- rowSums(GRTS.yrs.survey[,2:10])
 GRTS.yrs.survey %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
 #   `min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
-#                 1              1.85                9           0.106
+#                 1              1.87                9           0.110
 GRTS.yrs.survey %>% ungroup() %>% count(num.years)
 # num.years     n
 #          1   158
 #          2    21
 #          3    29
 #          4     5
-#          5     3
-#          6     8
-#          7     5
-#          8     2
+#          5     2
+#          6     9
+#          7     2
+#          8     5
 #          9     1
 
 ###########
-na.sta <- sta_sf %>% filter(is.na(`2014`))
-eff %>% filter(Location.Name %in% na.sta$LocName)
+# na.sta <- sta_sf %>% filter(is.na(`2014`))
+# eff %>% filter(Location.Name %in% na.sta$LocName)
 
 sta <- left_join(sta, num.yrs.survey, by=c("LocName"= "Location.Name"))
 
 sta$NP <- as.factor(ifelse(sta$LandUnitCo %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
 sta %>% as_tibble
 # convert sta to spatial layer, in latitude / longitude (crs = 4326)
-sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326) 
+tail(sta)
+
+# just run for sites you still need
+sta.needs <- sta %>% filter(is.na(NSRNAME))
+sta_sf <- st_as_sf(sta.needs, coords = c("Longitude","Latitude"), crs = 4326) 
 sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
 
 # quick plotting check
@@ -109,16 +114,10 @@ sta_sf <- st_join(sta_sf, LC %>% select(LC_class), left=TRUE)
 sta_sf %>% filter(is.na(Land.Cover))
 tail(sta_sf)
 
-# # previous code, a bit slower
-# LC.dist <- st_nn(sta_sf, LC, k=1, returnDist = T) 
-# sta_sf$LC_dist <- unlist(LC.dist$dist)
-# sta_sf$LC_type <- unlist(LC.dist$nn)
-# sta_sf$LC_type <- LC$LC_class[match(sta_sf$LC_type,rownames(LC))]
-# summary(sta_sf)
 
-sta_sf$Land.Cover <- as.factor(sta_sf$LC_class)
+sta_sf$Land.Cover <- as.factor(sta_sf$LC_class.y)
 levels(sta_sf$Land.Cover)
-sta_sf$Land.Cover <- sta_sf$LC_class %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
+sta_sf$Land.Cover <- sta_sf$LC_class.y %>% recode("20"="Water", "33"="Exposed Land", "34"="Developed", "50"="Shrubland", "110"="Grassland",
                                             "120"="Agriculture", "210"="Coniferous Forest", "220"="Broadleaf Forest", "230"="Mixed Forest")
 glimpse(sta_sf)
 
@@ -163,6 +162,9 @@ RD.dist <- st_nn(sta_sf, RD %>% st_transform(crs=3400), k=1, returnDist = T)
 sta_sf$RD.dist <- unlist(RD.dist$dist)
 sta_sf$RD_Type <- unlist(RD.dist$nn)
 sta_sf$RD_Type <- RD$ROAD_CLASS[match(sta_sf$RD_Type,rownames(RD))]
+
+write.csv (sta_sf %>% st_drop_geometry(), "NABat_Station_Covariates_newsites.csv", row.names = FALSE)
+
 
 save.image("GIS.sta.covariates.RData")
 #load("GIS.sta.covariates.RData")
