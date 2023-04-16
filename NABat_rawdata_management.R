@@ -22,6 +22,7 @@ OutputDir = paste(getwd(),"Output",sep="/")
 library(tidyverse)    # data manipulation, plotting
 library(Cairo)   # printing maps for report quality output
 library(R.utils) # for moving file directory
+library(filesstrings)
 
 ######################################################################################################
 # LOAD PACKAGES (END)
@@ -315,3 +316,47 @@ head(NABat_deploy)
 
 getwd()
 sapply(new_folder_path, dir.create)
+
+######################################################################################################
+# MOVE FILES INTO APPROPRIATE FOLDERS #
+######################################################################################################
+getwd()
+
+files_to_move <- list.files("./Input/NABat_ProcessedFiles/To_Be_Sorted")
+GRTS_cells <- word(files_to_move,1,sep="_")
+GRTS_cells <- GRTS_cells[!grepl("M",GRTS_cells)] # remove the "mobile" grts cells
+
+GRTS_cells
+
+current_GRTS_cells <- list.files("./Input/NABat_ProcessedFiles")
+current_GRTS_cells <- current_GRTS_cells[!grepl("To_Be",current_GRTS_cells)] # remove the to be sorted folder
+
+setwd("./Input/NABat_ProcessedFiles")
+for(i in 1:length(GRTS_cells)){
+  ifelse(!dir.exists(GRTS_cells[i]), dir.create(GRTS_cells[i]), "Folder exists already")
+}
+
+NABat_stations <- word(files_to_move,1,3,sep="_")
+NABat_stations <- NABat_stations[!grepl("M",NABat_stations)] # remove the "mobile" grts cells
+
+for(i in 1:length(NABat_stations)){
+  setwd(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_")))
+  ifelse(!dir.exists(NABat_stations[i]), dir.create(NABat_stations[i]), "Folder exists already")
+}
+
+for(i in 1:length(NABat_stations)){
+  setwd(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_"),"/",NABat_stations[i]))
+  ifelse(!dir.exists("2022"), dir.create("2022"), "Folder exists already")
+}
+
+for(i in 1:length(NABat_stations)){
+  file_to_copy <- files_to_move[grepl(NABat_stations[i], NABat_stations)]
+  copy_to_folder<- paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_"),"/",NABat_stations[i],"/2022")
+  file.copy(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/To_Be_Sorted/",file_to_copy), copy_to_folder)
+  }
+
+
+
+NABat_deploy <- read.csv("NABat_Deployment_Data.csv", header = TRUE, stringsAsFactors = NA) 
+glimpse(NABat_deploy)
+
