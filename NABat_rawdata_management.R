@@ -43,7 +43,7 @@ dat_summary %>% count(Pfolder)
 
 # fs::dir_ls(path=paste("/Volumes/LaCie_5TB/NABat_from_FTP"), recurse = 1)
 
-sta <- read.csv("NABat_Station_Covariates.csv") %>% filter(X2022==1)
+sta <- read.csv("Input/NABat_Station_Covariates.csv") %>% filter(X2022==1)
 sta %>% select(Orig_Name, Orig.Name)
 
 sta.sub <- sta[c("GRTSCellID","LocName","Orig_Name")] %>% as_tibble() 
@@ -61,18 +61,19 @@ dat_summary <- left_join(dat_summary, sta.sub %>% select(-match), by=c("Site"="O
 dat_summary <- dat_summary %>% rename(GRTS.Cell.ID = GRTSCellID, Location.Name=LocName)
 
 dat_summary %>% count(Location.Name) %>% print(n=100)
-
-dat_summary %>% select(source, Filename) %>% filter(grepl("WCS", source))
+dat_summary %>% count(Pfolder)
 
 dat_summary %>% count(Site) %>% print(n=100)
 Pfolder.names <- unique(dat_summary$Pfolder)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[9]) %>% count(Site) %>% print(n=50)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[6])
+dat_summary %>% filter(Pfolder %in% Pfolder.names[3]) %>% count(Site) %>% print(n=50)
 
 # add in the correct Location Names.
 dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="3667_Sarchuk" &  Site == "UNIT2" ~ "3667_NE_01",
                                                                 Pfolder=="3667_Sarchuk" &  Site == "UNIT3" ~ "3667_SW_01",
                                                                 Pfolder=="3667_Sarchuk" &  Site == "UNIT4" ~ "3667_SE_01",
+                                                                
+                                                                Pfolder=="AB_Conservation" &  Site == "SS1" ~ "72071_SE_01",
+                                                                Pfolder=="AB_Conservation" &  Site == "SS2" ~ "203655_SW_01",
                                                                 
                                                                 Pfolder=="ABMI_Bayne" &  Site == "BP-96N" ~ "219731_SW_01",
 
@@ -222,8 +223,8 @@ dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("M",GRTS.Ce
 
 dat_summary <- dat_summary %>% filter(!is.na(Location.Name))
 
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 121 GRTS cells
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 164 stations
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 123 GRTS cells
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 166 stations
 
 dat_summary %>% filter(Date > "2022-01-01") %>% summarise(min(Date), max(Date), mean(Date))
 dat_summary %>% filter(Date < "2022-01-01") %>% summarise(min(Date), max(Date), mean(Date))
