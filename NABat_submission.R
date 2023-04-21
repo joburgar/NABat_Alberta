@@ -13,11 +13,11 @@ lapply(list.of.packages, require, character.only = TRUE)
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- "922"
-Year_interest <- year(as.Date("2021-01-01"))
+Year_interest <- year(as.Date("2022-01-01"))
 
 # depending on what has been previously been run, load either annual report data or submission data
-# load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
-load(paste0("NABat_",Year_interest,"_data_for_submission.RDS"))
+load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
+# load(paste0("/NABat_",Year_interest,"_data_for_submission.RDS"))
 
 ###- Appendix Table 3 - Nightly call counts
 ###---recode Classification to "AutoID" and use NABat 4-6 letter codes for NABat submission
@@ -39,7 +39,7 @@ SA_call_data$Timep <- case_when(is.na(SA_call_data$Timep) ~
 SA_call_data$Timep <- case_when(is.na(SA_call_data$Timep) ~
                                      as.POSIXct(strptime(substr(SA_call_data$Filename,21,26),tz=tz, format="%H%M%S")),
                                    TRUE ~ as.POSIXct(SA_call_data$Timep))
-
+glimpse(SA_call_data)
 
 # create survey start date and survey end date from recording dates (may not be accurate in eff dataframe)
 SA_call_data$SurveyYear <- year(SA_call_data$SurveyNight)
@@ -51,6 +51,8 @@ summary(SA_call_data$Timep)
 SA_call_data$SurveyDate <- case_when(SA_call_data$Timep > paste(Sys.Date(),"12:00:00") ~ SA_call_data$SurveyNight,
                                      SA_call_data$Timep < paste(Sys.Date(),"12:00:00") ~ SA_call_data$SurveyNight + 1,
                                      TRUE ~ as.Date(SA_call_data$SurveyNight))
+
+SA_call_data %>% as_tibble()
 
 SA_call_data$Time <- as.character(SA_call_data$Timep, "%H:%M:%S")
 
@@ -65,32 +67,51 @@ SA_call_data$Classification <- case_when(SA_call_data$Classification=="MYEV-MYSE
 
 SA_call_data %>% count(Classification)
 
-glimpse(SA_call_data)
 SA_call_data2 <- left_join(SA_call_data, Survey.Dates, by = c("SurveyYear", "Location.Name"))
+SA_call_data2$Survey.End.Date <- SA_call_data2$Survey.End.Date+1 # have the survey end the following day so that entries from the early morning make it in
 
 # if the weather is correctly captured from Alberta eBat output can simply use this code
-nightly.env.cov <- dat_summary %>% group_by(Location.Name,SurveyNight) %>%
-  summarise(across(min_temp:max_wind, ~mean(.x, na.rm=TRUE)))
+# nightly.env.cov <- dat_summary %>% group_by(Location.Name,SurveyNight) %>%
+#   summarise(across(min_temp:max_wind, ~mean(.x, na.rm=TRUE)))
 # summary(nightly.env.cov)
+
+# if weather is downloaded from ECCC weathercan package, use this code
+
+staweather <- read.csv("Input/NABat_Station_Covariates_2022_weatherstn.csv")
+weather <- read.csv(paste0("Input/NABat_",Year_interest,"_nightly_weather_sum.csv"))
+head(weather)
+colnames(weather) <- c("ECCC.stn.id", "SurveyNight", "Min.Tmp", "Min.RH", "Min.WS", "Mean.Tmp", "Mean.RH", "Mean.WS", "Max.Tmp", "Max.RH", "Max.WS")
+weather$SurveyNight <- ymd(weather$SurveyNight)
+nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
+nightly.env.cov$ECCC.stn.id <- staweather$ECCC.stn[match(nightly.env.cov$Location.Name, staweather$LocName)]
+nightly.env.cov <- nightly.env.cov %>% count(Location.Name, SurveyNight, ECCC.stn.id)
+nightly.env.cov <- nightly.env.cov %>% select(-n)
+nightly.env.cov <- left_join(nightly.env.cov, weather, by = c("SurveyNight","ECCC.stn.id"))
+summary(nightly.env.cov)
+nrow(nightly.env.cov)
+glimpse(SA_call_data2)
+glimpse(nightly.env.cov)
 
 Bulk_call_data <- left_join(SA_call_data2 %>% dplyr::select(-SurveyYear), nightly.env.cov, by = c("SurveyNight", "Location.Name"))
 Bulk_call_data$SurveyDate <- format(as.Date(Bulk_call_data$SurveyDate), '%m/%d/%Y')
 Bulk_call_data$`Audio Recording Time` <- paste(Bulk_call_data$SurveyDate, Bulk_call_data$Time)
+names(Bulk_call_data)
+
+Bulk_call_data <- Bulk_call_data %>% select(Location.Name, Min.Tmp, Max.Tmp, Min.RH, Max.RH, Min.WS, Max.WS, Filename, `Audio Recording Time`, Classification, Survey.Start.Date, Survey.End.Date)
+
 glimpse(Bulk_call_data)
-Bulk_call_data <- Bulk_call_data %>% select(Location.Name, min_temp, max_temp, min_hum, max_hum, min_wind, max_wind, Filename, `Audio Recording Time`, Classification, Survey.Start.Date, Survey.End.Date)
-
-
-colnames(Bulk_call_data) <- c("Location Name", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity", "Nightly High Relative Humidity",
+colnames(Bulk_call_data) <- c("| Location Name", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity", "Nightly High Relative Humidity",
                               "Nightly Low Wind Speed", "Nightly High Wind Speed", "Audio Recording Name", "Audio Recording Time", "Auto Id", "Survey Start Time", "Survey End Time")
 
+                              
 # add in null columns (NABat template)
-xx <- c("Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Software Type", "Manual Id","Species List")
+xx <- c("Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Software Type", "Manual Id","Species List", "Manual Vetter")
 Bulk_call_data[xx] <- NA
 
 names(Bulk_call_data)
-Bulk_call_data <- Bulk_call_data[c("Location Name", "Survey Start Time", "Survey End Time", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity",
+Bulk_call_data <- Bulk_call_data[c("| Location Name", "Survey Start Time", "Survey End Time", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity",
                                    "Nightly High Relative Humidity", "Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Wind Speed", "Nightly High Wind Speed",
-                                   "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Audio Recording Name", "Audio Recording Time", "Software Type","Auto Id", "Manual Id","Species List")]
+                                   "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Audio Recording Name", "Audio Recording Time", "Software Type","Auto Id", "Manual Id","Species List","Manual Vetter" )]
 
 Bulk_call_data$`Software Type` <- "Alberta eBat"
 Bulk_call_data$`Species List` <- "Alberta_01"
@@ -104,7 +125,7 @@ cols.as.numeric <- c("Nightly Low Temperature",	"Nightly High Temperature",	"Nig
 
 Bulk_call_data[cols.as.numeric]<- sapply(Bulk_call_data[cols.as.numeric],as.numeric)
 
-cols.as.character <- c("Location Name","Nightly High Weather Event",	"Nightly Low Weather Event",	"Auto Id", "Manual Id")
+cols.as.character <- c("| Location Name","Nightly High Weather Event",	"Nightly Low Weather Event",	"Auto Id", "Manual Id", "Manual Vetter")
 Bulk_call_data[cols.as.character]<- sapply(Bulk_call_data[cols.as.character],as.character)
 
 sapply(Bulk_call_data, class)
@@ -113,7 +134,7 @@ glimpse(Bulk_call_data)
 # need to format dates to mm/dd/YYYY
 Bulk_call_data$`Survey Start Time` <- paste(format(as.Date(Bulk_call_data$`Survey Start Time`), '%m/%d/%Y'), "12:00:00")
 Bulk_call_data$`Survey End Time` <- paste(format(as.Date(Bulk_call_data$`Survey End Time`), '%m/%d/%Y'), "12:00:00")
-glimpse(Bulk_call_data)
+Bulk_call_data %>% as_tibble()
 
 ###--- If want to exclude submissions based within some NP
 # NABat_NPsubmit <- eff %>% filter(Land.Unit.Code %in% c("BANP","JANP","WLNP")) %>% count(Location.Name)
@@ -171,7 +192,7 @@ Bulk_site_meta[cols.as.numeric]<- sapply(Bulk_site_meta[cols.as.numeric],as.nume
 glimpse(Bulk_site_meta)
 nrow(Bulk_site_meta)
 # Export
-write.table(Bulk_site_meta, "NABat_submit/Bulk_site_meta_2021.csv",na = "",row.names = FALSE,sep = ",")
+write.table(Bulk_site_meta, paste0("NABat_submit/Bulk_site_meta_",Year_interest,".csv"),na = "",row.names = FALSE,sep = ",")
 
 # write.table(Bulk_site_meta, "Bulk_site_meta.csv",na = "",row.names = FALSE,sep = ",")
 
