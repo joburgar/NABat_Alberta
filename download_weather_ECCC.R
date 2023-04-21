@@ -50,11 +50,11 @@ for(i in 1:nrow(ECCC.stn)){
 
 NABat_stns <- unlist(NABat_stns)
 NABat_stns_unique <- unique(NABat_stns)
-NABat_stns_unique[18]
+NABat_stns_unique[20]
 
 stn$ECCC.stn <- NABat_stns
 
-for(i in 19:length(NABat_stns_unique)){
+for(i in 21:length(NABat_stns_unique)){
   
   stn.weather <- weather_dl(station_ids = NABat_stns_unique[i], 
                             start = paste0(Year_interest,"-04-01"), end = paste0(Year_interest,"-10-31"))  %>% 
@@ -81,7 +81,7 @@ stn$ECCC.stn <- case_when(stn$ECCC.stn==30724 ~ 49490, TRUE ~ stn$ECCC.stn)
 NABat.weather <- rbind(far.stn, NABat.weather)
 
 NABat.weather %>% count(station_id)
-glimpse(NABat_weather)
+glimpse(NABat.weather)
 NABat.weather  %>% summarise(min(hour),  max(hour))
 
 morning <- c("00:00","01:00", "02:00", "03:00", "04:00", "05:00")
