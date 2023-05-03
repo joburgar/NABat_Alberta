@@ -310,6 +310,5 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
 # saveRDS(NABat_AppendixMap_sf, "NABat_AppendixMap_sf.RDS")
 # rm(list=ls())
 
-# NABat_AppendixMap_sf = readRDS("NABat_AppendixMap_sf.RDS")
 Alberta <- NABat_AppendixMap_sf$Alberta
 NR <- NABat_AppendixMap_sf$NR

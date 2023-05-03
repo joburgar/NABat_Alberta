@@ -297,7 +297,6 @@ n.GRTS <- length(unique(sta$GRTS.Cell.ID))
 # Find mean and SE detectors per GRTS cell and number of detectors per quadrant
 det.per.GRTS <- sta %>% group_by(GRTS.Cell.ID) %>% count(GRTS.Cell.ID)
 det.per.quad <- sta %>% count(Stn_Num)
-
 det.per.GRTS %>% ungroup() %>% count(n)
 
 # Count the total number of stations sampled for NABat
@@ -598,12 +597,25 @@ length(unique(dat_time_agg$SurveyNight))
 
 # Create a call df without the noise files
 call_count <- dat_time_agg %>% ungroup () # no noise files but keeping this to keep the same code below, to use with dat_tmime_agg
+call_sum_class <- call_count %>% group_by(Classification) %>% summarise(Total = sum(Count))
+arrange(call_sum_class, Total)
+call_count %>%  summarise(sum(Count))
+call_count %>% group_by(Volancy)%>% summarise(sum(Count))
+(1769 +8830)  / 196856
+
+77589 / 196856
 unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
+
+MYLU.calls <- call_count %>% filter(Classification=="MYLU") %>% summarise(sum(Count)) / sum(call_count$Count)
 
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, Year) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 3359 survey nights
+sum(total.effort$Diff) # 3367 survey nights
+# total.effort %>% group_by(Volancy) %>% summarise(sum(Diff))
+# 2011 / 3347 
+total.effort %>% ungroup()  %>% summarise(min(Min), max(Max), min(Diff), max(Diff), mean(Diff)) 
+
 
 ### temporal summaries
 # create activity overlap plots for all bats in/out of parks 
@@ -638,6 +650,7 @@ volancy_overlap.fn <- function(Classification=Classification){
 
 
 save.image(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
+# load("NABat_Annual_Report_2022.RDS")
 
 # run through each classification, except "unknown" and any classification with <100 calls
 unknown.call.types <- c("unknown","25k","40k","LowF","HighF")
@@ -773,6 +786,9 @@ NightLUC.hist
 
 ```{r mean nightly call by NR, echo=F, fig.height=6, fig.width=7, warning=FALSE}
 call_count.NR <- call_count %>% group_by(Natural.Region, Year, Volancy)
+# call_count.NR %>% group_by(Natural.Region) %>% summarise(sum(Count))
+# call_count.NR %>% ungroup() %>% summarise(sum(Count))
+
 # summary(call_count.NR)
 
 # subset data for overall mean nightly bat calls by year for each Natural Region
@@ -851,7 +867,7 @@ as.data.frame(GRTS.Calls.Yr %>% filter(Mean <2))
 
 call_count2 %>% group_by(Land.Unit.Code, Year, GRTS.Cell.ID) %>%  summarise(sum = sum(Count)) %>% filter(sum<20)
 call_count2 %>% group_by(Volancy) %>% summarise(sum(Count))
-112745/(112745+135809)
+77589/(77589+119267)
 
 summary(GRTS.Calls.Yr$Mean)
 fcalls.GRTS <- GRTS.Calls.Yr %>%
@@ -927,7 +943,7 @@ eBat_param
 # Generate colours to display the species levels
 call_count$Classification <- droplevels(call_count$Classification)
 
-Sp.hist.data <- call_count %>% group_by(Year, Natural.Region, Land.Use.Type) %>% count(Classification)
+Sp.hist.data <- call_count %>% group_by(Year, Natural.Region, Land.Use.Type, Classification) %>% summarise(n = sum(Count))
 
 Sp.hist.NR <- ggplot(data = Sp.hist.data, aes(x = Classification, y = n, fill= Natural.Region)) + 
   geom_bar(stat = "identity") + 
