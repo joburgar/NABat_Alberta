@@ -88,19 +88,40 @@ sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (For
 ggplot()+
   geom_sf(data = sta_sf) 
 
-nrow(sta_sf) # 362
-nrow(sta_sf %>% filter(X2022==1)) #164 sites surveyed in 2022
+nrow(sta_sf) # 345
+nrow(sta_sf %>% filter(X2022==1)) #173 sites surveyed in 2022
 GRTS.sryvd.2022 <- sta_sf %>% filter(X2022==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 114 GRTS cells surveyed
 GRTS.sryvd.2022 %>% summarise(mean(n), min(n), max(n), se(n))
 # mean(n) min(n) max(n)      se(n)
-# 1.438596      1      7 0.08174001 # sites surveyed within a GRTS cell in 2022
+# 1.453782      1      7 0.07893673 # sites surveyed within a GRTS cell in 2022
 GRTS.sryvd.2022 %>% count(n)
 # n nn
-# 1 80
-# 2 25
+# 1 81
+# 2 29
 # 3  5
 # 4  3
 # 7  1
+
+
+sta_sf %>% filter(X2022==1) %>% summarise(min(num.years), mean(num.years), max(num.years), se(num.years)) %>% st_drop_geometry()
+# min(num.years) mean(num.years) max(num.years) se(num.years)
+# 1              1        2.121387              8     0.1473942
+
+GRTS.num.years.2022 <- sta_sf %>% filter(X2022==1) %>% group_by(GRTS.Cell.ID) %>% count(num.years) %>% st_drop_geometry()
+GRTS.num.years.2022.sum <- GRTS.num.years.2022 %>% group_by(GRTS.Cell.ID) %>% arrange(desc(num.years)) %>% filter(row_number()==1)
+GRTS.num.years.2022.sum %>% ungroup() %>% summarise(min(num.years), max(num.years), mean(num.years), se(num.years))
+# `min(num.years)` `max(num.years)` `mean(num.years)` `se(num.years)`
+#               1                8              1.89           0.162
+GRTS.num.years.2022.sum %>% ungroup() %>% count(num.years)
+# num.years     n
+#         1    84
+#         2     8
+#         3    14
+#         4     2
+#         5     1
+#         6     3
+#         7     4
+#         8     3
 
 #############################################################################################
 # Set GIS Dir for uploading GIS layers
@@ -176,8 +197,19 @@ sta_sf$Latitude <- coords[,2]
 
 write.csv (sta_sf %>% st_drop_geometry(), "NABat_Station_Covariates.csv", row.names = FALSE)
 st_write(sta_sf %>% 
-           dplyr::select(GRTS.Cell.ID, LocName, Orig_Name, X2014,X2015,X2016,X2017,X2018,X2019,X2020,X2021,X2022,num.years), "NABat_Station_Covariates.shp")
-getwd()
+           dplyr::select(GRTS.Cell.ID, LocName, Orig_Name, X2014,X2015,X2016,X2017,X2018,X2019,X2020,X2021,X2022,num.years), "NABat_Station_Covariates.shp", delete_layer = TRUE)
+
+
+ggplot()+
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% unique(GRTS.num.years.2022.sum$GRTS.Cell.ID)))
+
+st_write(NABat_grid %>%
+           filter(GRTS_ID %in% unique(GRTS.num.years.2022.sum$GRTS.Cell.ID)),"NABat_AB2022_grids.shp") 
+
+st_write(NABat_grid %>%
+           filter(GRTS_ID %in% unique(sta_sf$GRTS.Cell.ID)),"NABat_AB_grids.shp") 
+
+
 # sta <- read.csv("NABat_Station_Covariates.csv")
 # sta_sf$Surveyed2021 <- sta$Surveyed2021
 ###--- Create provincial map
@@ -191,8 +223,10 @@ Alberta <-
   summarise(area = sum(area))
 
 ###--- create map of GRTS and NABat stations
-sta <- read.csv("NABat_Station_Covariates.csv")
+sta <- read.csv("Input/NABat_Station_Covariates.csv")
 sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326)
+
+sta_sf %>% filter(LandUnitCo=="WLNP")
 
 prev.survey <- sta_sf %>% filter(X2022==0) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
 this.survey <- sta_sf %>% filter(X2022==1) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
@@ -262,7 +296,17 @@ Cairo(file=paste0("Fig_provincial_",plot.yr,".PNG"),
 Fig_provincial_year
 dev.off()
 
+####---
+sta_sf %>% filter(LandUnitCo=="WLNP") %>% filter(NABat_Samp=="Yes")
 
+
+ggplot() + 
+  geom_sf(data = Alberta %>%st_transform(crs=4326)) +
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% grts.year$GRTS.Cell.ID), col="black", lwd=0.8) +
+  annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
+  ggtitle(paste0("NABat Grid Cells Surveyed in ",plot.yr))+
+  coord_sf() +
+  theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
 
 #####--- Create distance matrix
 # library(units)

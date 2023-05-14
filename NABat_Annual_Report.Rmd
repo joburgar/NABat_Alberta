@@ -40,7 +40,7 @@ colour <- "lightseagreen"
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- c("72071","203655")
 
-Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2021-01-01"))
 
 # Check the listing of output files
 # fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
@@ -81,7 +81,7 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-Date)%>%
-  filter(Year==Year_interest) %>%
+  # filter(Year==Year_interest) %>%
   rename(Orig.Name=Site)
 
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
@@ -127,7 +127,7 @@ eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
 eff$Survey.End.Time - eff$Survey.Start.Time
 eff <- eff %>% filter(Deployment.ID>=as.numeric(Year_interest)) #%>% filter(GRTS.Cell.ID==GRTS_interest)
-as.data.frame(eff %>% group_by(Deployment.ID) %>% count(GRTS.Cell.ID)) # 119 NABat cells surveyed in 2022
+as.data.frame(eff %>% ungroup() %>% group_by(Deployment.ID) %>% count(GRTS.Cell.ID)) # 119 NABat cells surveyed in 2022
 
 eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
 dat.names <- dat_summary%>% group_by(Location.Name) %>% count(Orig.Name)
@@ -188,8 +188,10 @@ eff <- left_join(eff %>% select(-Land.Unit.Code),
 eff %>% filter(Deployment.ID=="2022") %>% count(GRTS.Cell.ID) # 119 GRTS cells surveyed
 nrow(eff %>% filter(Deployment.ID=="2022")) # 173 sites
 
-sta.sites <- sta %>% filter(X2022==1) %>% select(Location.Name); nrow(sta.sites) #173
-eff.sites <- eff %>% filter(Deployment.ID=="2022") %>% select(Location.Name, Orig.Name); nrow(eff.sites) #173
+# sta.sites <- sta %>% filter(X2022==1) %>% select(Location.Name); nrow(sta.sites) #173
+sta.sites <- sta %>% select(Location.Name); nrow(sta.sites) #173
+# eff.sites <- eff %>% filter(Deployment.ID=="2022") %>% select(Location.Name, Orig.Name); nrow(eff.sites) #173
+eff.sites <- eff %>% select(Location.Name, Orig.Name); nrow(eff.sites) #173
 names.join <- as.data.frame(full_join(sta.sites, eff.sites))
 eff.sites %>% filter(!Location.Name %in% sta.sites$Location.Name)
 
@@ -415,7 +417,7 @@ sta %>% filter(GRTS.Cell.ID %in% c(27242))
 # dat_sum_sub <- dat_sum_sub %>% filter(between(jDay, 161,222))
 # nrow(dat_sum_sub) # now down to 123837
 
-# create thresholds for noise and bat classificaitons
+# create thresholds for noise and bat classifications
 threshold_noise <- 0.8; threshold_bat <- 0.5
 # start with all call sequences as "unknown"
 dat_sum_sub$category <- "unknown"
@@ -649,6 +651,7 @@ volancy_overlap.fn <- function(Classification=Classification){
 }
 
 
+# save.image("NABat_Annual_Report_201522.RDS")
 save.image(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
 # load("NABat_Annual_Report_2022.RDS")
 
