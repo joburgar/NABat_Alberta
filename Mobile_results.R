@@ -64,7 +64,6 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles_DT/"),
 # dat_summary$min_wind <- as.numeric(dat_summary$min_wind)
 glimpse(dat_summary)
 dat_summary <- dat_summary[c("Orig.Name","Filename","n_calls","prob1","sp1","prob2","sp2","prob3","sp3","source","GRTS.Cell.ID","SurveyNight","Year","Month","jDay")]
-
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(paste(dat_summary$GRTS.Cell.ID, "Mobile", sep="_"))
@@ -85,11 +84,11 @@ dat_summary <- dat_summary %>% mutate(Cell_Date = case_when(grepl("264037_2022-0
                                                                 TRUE ~ as.character(Cell_Date)))
 dat_summary %>% group_by(Location.Name, Orig.Name) %>% count(Cell_Date)
 
-
 glimpse(dat_summary)
 
 # Create file type to differentiate zc from wav
 dat_summary$File.Type <- str_sub(dat_summary$Filename,-2,-1) %>% recode("0#" = "zc", "av"="wav")
+dat_summary %>% group_by(File.Type) %>% count(Orig.Name)
 nrow(dat_summary)
 # Extract the time from filename and put in date format
 dat_summary$Time.temp1 <- str_extract(dat_summary$Filename,"_[0-9]{6}.wav") %>% str_sub(2,7)
@@ -101,11 +100,8 @@ dat_summary$Time.temp2p <- as.POSIXct(strptime(dat_summary$Time.temp2, "%H-%M-%S
 dat_summary$Time.temp3p <- as.POSIXct(strptime(dat_summary$Time.temp3, "%H%M%S", tz))
 dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p)) %>%
   select(-c(Time.temp1, Time.temp2, Time.temp3, Time.temp1p, Time.temp2p, Time.temp3p))
-# 
-# # Create environmental covariate
-# nightly.max.env.cov <- dat_summary %>% group_by(Location.Name,SurveyNight) %>% dplyr::summarise_at(c("max_temp","max_hum","max_wind"), list(Mean = mean))
-# nightly.max.env.cov <- nightly.max.env.cov %>% rename(Max.Temp = "max_temp_Mean", Max.Hum = "max_hum_Mean", Max.Wind = "max_wind_Mean")
-# 
+
+
 # Read deployment data csv for station covariates
 eff <- read.csv("Input/NABat_Deployment_Data_DT_2022.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
@@ -139,14 +135,27 @@ dat_summary$Land.Unit.Code <- eff$Land.Unit.Code[match(dat_summary$GRTS.Cell.ID,
 
 dat_summaryT <- dat_summary[complete.cases(dat_summary$Timep),]
 
-# now use Alberta eBat criteria to classify species
+# now prep to use Alberta eBat criteria to classify species
 dat_sum_sub <- dat_summaryT[c("GRTS.Cell.ID","Location.Name","SurveyNight","Year","Month","jDay","Timep",
                               "Filename","n_calls","prob1","sp1","prob2","sp2","prob3","sp3")]
 
+# check for erroneous time stamps and remove entire survey
+Timepdate <- date(Sys.time())
+Timepdatetime1 <- as.POSIXct(paste(Timepdate,"08:00:00"), tz)
+Timepdatetime2 <- as.POSIXct(paste(Timepdate,"18:00:00"),tz)
+
+# 3 stations and 39 surveys with calls between 8 am and 6 pm - remove these survey periods from the temporal analysis
+timestamp.error <- as.data.frame(dat_sum_sub %>% filter(Timep >Timepdatetime1 & Timep<Timepdatetime2) %>% filter(sp1!="noise") %>% group_by(Location.Name) %>% select(Filename))
+unique(timestamp.error$Location.Name)
+unique(timestamp.error$Filename)
+
+dat_sum_sub %>% filter(Location.Name %in% timestamp.error$Location.Name) %>% count(GRTS.Cell.ID)
+dat_sum_sub <- dat_sum_sub %>% filter(!Filename%in%timestamp.error$Filename)
+
 call_count <- NABat_sum_to_count(dat_sum_sub = dat_sum_sub) # Creates a call df without the noise files and aggregates into 'count' style df
 
-nrow(dat_sum_sub) # 1441 files
-nrow(call_count) # 68
+nrow(dat_sum_sub) # 1431 files
+nrow(call_count) # 66
 
 call_count %>% as_tibble()
 
@@ -155,7 +164,7 @@ call_count %>% group_by(GRTS.Cell.ID.SurveyNight) %>% summarise(total.calls = su
 call_count %>% group_by(GRTS.Cell.ID.SurveyNight,Classification) %>% summarise(total.calls = sum(Count)) %>% arrange(desc(total.calls))
 unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
 
-# 0.1728395 % unknown calls
+# 0.1655076 % unknown calls
 
 # subset data for overall mean nightly bat calls by year for each GRTS
 call_count2 <- call_count %>% group_by(GRTS.Cell.ID, SurveyNight)
@@ -193,10 +202,9 @@ Cairo(file="Output/calls.2022.GRTS.plot.PNG",
 calls.GRTS
 dev.off()
 
-
-GRTS.Calls.SN <- call_count %>% group_by(GRTS.Cell.ID, Location.Name, SurveyNight) %>% 
+GRTS.Calls.SN <- call_count %>% group_by(GRTS.Cell.ID, SurveyNight) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
-GRTS.Calls.SN$SurveyNum <- c(1,2,1,2,3,1,2,3,1,2,1,2,1,1,2,3)
+GRTS.Calls.SN$SurveyNum <- c(1,2,1,2,3,1,2,3,1,2,1,1,2,3)
 GRTS.Calls.SN$Unique <- paste(GRTS.Calls.SN$GRTS.Cell.ID, GRTS.Calls.SN$SurveyNum, sep="_")
 
 fcalls.GRTS <- GRTS.Calls.SN %>%
@@ -231,7 +239,6 @@ eff$GRTS.Cell.ID.SurveyNight <- paste(eff$GRTS.Cell.ID, eff$Survey.Start.Time, s
 call_count$SurveyNum <- eff$SurveyNum[match(call_count$GRTS.Cell.ID.SurveyNight, eff$GRTS.Cell.ID.SurveyNight)]
 
 Sp.hist.mob.data <- call_count %>% group_by(GRTS.Cell.ID, Location.Name, SurveyNum, SurveyNight, Classification) %>% summarise(sum=Count)
-
 Sp.hist.mob <- ggplot(data = Sp.hist.mob.data, aes(x = Classification, y = sum, fill=as.factor(SurveyNum))) + 
   geom_bar(stat = "identity") + 
   scale_fill_brewer(palette = "Set1")+
