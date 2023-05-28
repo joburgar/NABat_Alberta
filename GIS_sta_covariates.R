@@ -330,7 +330,7 @@ save.image("GIS.sta.covariates.RData")
 #load("GIS.sta.covariates.RData")
 
 #####--- Find mobile cells and covariates
-mobile_meta <- read.csv("Input/NABat_Deployment_Data_DT_2021.csv", header=T)
+mobile_meta <- read.csv("Input/NABat_Deployment_Data_DT_2022.csv", header=T)
 glimpse(mobile_meta)
 summary(mobile_meta)
 mobile_sf <- st_as_sf(mobile_meta, coords = c("Longitude","Latitude"), crs = 4326)
@@ -345,11 +345,11 @@ NR.dist <- st_nn(mobile_sf, NR %>% st_transform(crs=3400), k=1, returnDist = T)
 mobile_sf <- st_join(mobile_sf, NR %>% select(NSRNAME, NRNAME), left=TRUE)
 
 # Land-Use Framework Regions
-LU <- st_read(GISDir, layer="LUF_AB") %>% st_transform(crs=3400)
-mobile_sf <- st_join(mobile_sf, LU %>% select(LUF_NAME), left=TRUE)
-mobile_sf$LUF_NAME
-mobile_meta$Land.Unit.Code[1:9] <- "LOAR"
-mobile_meta$Land.Unit.Code[11:12] <- "UPAR"
+# LU <- st_read(GISDir, layer="LUF_AB") %>% st_transform(crs=3400)
+# mobile_sf <- st_join(mobile_sf, LU %>% select(LUF_NAME), left=TRUE)
+# mobile_sf$LUF_NAME
+# mobile_meta$Land.Unit.Code[1:9] <- "LOAR"
+# mobile_meta$Land.Unit.Code[11:12] <- "UPAR"
 
 mobile_sf <- st_join(mobile_sf %>% st_transform(crs=4326), NABat_grid %>% select(GRTS_ID), left=TRUE)
 mobile_sf$GRTS.Cell.ID <- mobile_sf$GRTS_ID
@@ -360,7 +360,7 @@ mobile_sf$Longitude <- mobile_meta$Longitude
 # write.csv(mobile_sf %>% st_drop_geometry(), "Input/NABat_Deployment_Data_DT_2021_complete.csv")
 
 
-mobile_survey_per_GRTS <- mobile_sf %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+mobile_survey_per_GRTS <- mobile_sf %>% filter(SurveyNum!=4) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
 # mobile_survey_per_GRTS <- mobile_meta %>% count(GRTS.Cell.ID)
 NABat_grid <- NABat_grid %>% st_transform(crs=4326)
 
@@ -372,12 +372,13 @@ Fig_provincial.plot_mobile <- ggplot() +
                     values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
   geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==1,]$GRTS.Cell.ID), col="blue", lwd=0.8) +
   geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==2,]$GRTS.Cell.ID), col="black", lwd=0.8) +
-  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==4,]$GRTS.Cell.ID), col="white", lwd=0.8) +
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==3,]$GRTS.Cell.ID), col="white", lwd=0.8) +
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==4,]$GRTS.Cell.ID), col="black", lwd=0.8) +
   annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
   coord_sf() +
   theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
 
-Cairo(file="Fig_provincial.plot_2021_mobile.PNG",
+Cairo(file="Fig_provincial.plot_2022_mobile.PNG",
       type="png",
       width=1500,
       height=2000,
