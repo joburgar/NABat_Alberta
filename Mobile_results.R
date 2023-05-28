@@ -155,7 +155,7 @@ dat_sum_sub <- dat_sum_sub %>% filter(!Filename%in%timestamp.error$Filename)
 call_count <- NABat_sum_to_count(dat_sum_sub = dat_sum_sub) # Creates a call df without the noise files and aggregates into 'count' style df
 
 nrow(dat_sum_sub) # 1431 files
-nrow(call_count) # 66
+nrow(call_count) # 64
 
 call_count %>% as_tibble()
 
@@ -204,8 +204,14 @@ dev.off()
 
 GRTS.Calls.SN <- call_count %>% group_by(GRTS.Cell.ID, SurveyNight) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
-GRTS.Calls.SN$SurveyNum <- c(1,2,1,2,3,1,2,3,1,2,1,1,2,3)
+GRTS.Calls.SN$SurveyNum <- c(1,2,1,2,3,1,2,3,1,2,1,1,2)
 GRTS.Calls.SN$Unique <- paste(GRTS.Calls.SN$GRTS.Cell.ID, GRTS.Calls.SN$SurveyNum, sep="_")
+call_count %>%  group_by(GRTS.Cell.ID, SurveyNight) %>% summarise(Count = sum(Count)) %>% arrange(Count) %>% print(n=59)
+
+calls_per_night <- dat_summaryT %>% group_by(SurveyNight) %>% count(GRTS.Cell.ID) %>% arrange(n)
+calls_per_night %>% ungroup() %>% summarise(mean(n), min(n), max(n), se(n))
+summary(calls_per_night$n)
+dat_summaryT %>% group_by(GRTS.Cell.ID, SurveyNight) %>% summarise(max(Timep))
 
 fcalls.GRTS <- GRTS.Calls.SN %>%
   ggplot(aes(x = Unique, Mean), na.rm=T)+
@@ -251,7 +257,7 @@ Sp.hist.mob <- ggplot(data = Sp.hist.mob.data, aes(x = Classification, y = sum, 
 Cairo(file="Output/Sp.hist.2022.mob.plot.PNG", 
       type="png",
       width=2000, 
-      height=2000, 
+      height=1500, 
       pointsize=14,
       bg="white",
       dpi=300)
@@ -261,7 +267,7 @@ dev.off()
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, SurveyNum) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 16 survey nights
+sum(total.effort$Diff) # 15 survey nights
 
 # Determine total calls
 # call_count %>% filter(grepl("swift|SM2", Detector)) %>% group_by(Classification) %>% summarise(sum(Count))
@@ -277,3 +283,10 @@ knitr::kable(Table.Calls,
              caption=paste("Overall bat call count, percentage and call per night for mobile transects surveyed in 2022"),
              align = "lrrr")
 write.csv(Table.Calls, "Mobile_Table_Calls_2022.csv")
+
+call_count %>% count(GRTS.Cell.ID)
+call_count %>% summarise(min(SurveyNight), max(SurveyNight))
+dat_summary %>% count(Land.Unit.Code)
+call_count %>% summarise(sum(Count))
+111/719
+719-129
