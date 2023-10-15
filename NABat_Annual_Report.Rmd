@@ -40,7 +40,7 @@ colour <- "lightseagreen"
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- c("72071","203655")
 
-Year_interest <- year(as.Date("2021-01-01"))
+# Year_interest <- year(as.Date("2022-01-01"))
 
 # Check the listing of output files
 # fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
@@ -229,6 +229,11 @@ table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.S
 dat_summary$unique <- paste(dat_summary$Location.Name, dat_summary$Year, sep="_")
 # dat_summary$SurveyNight <- case_when(dat_summary$unique=="139715_SW_02_2000" ~ dat_summary$SurveyNight + 7456,
 #                                TRUE ~ as.Date(dat_summary$SurveyNight))
+# dat_summary$Deployment.ID <- case_when(dat_summary$Orig.Name=="30403" ~ "2021",
+#                                      dat_summary$Orig.Name=="38595" ~ "2021",
+#                                      dat_summary$Orig.Name=="42883" ~ "2021",
+#                                      TRUE ~ as.character(dat_summary$Deployment.ID))
+
 dat_summary <- dat_summary %>%  
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-unique)
@@ -247,17 +252,18 @@ length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 
 missing.dat.sta <- left_join(sta, dat_summary, by="Location.Name") %>% dplyr::select(Location.Name, Orig_Name, Orig.Name)
 missing.data.names <- missing.dat.sta[is.na(missing.dat.sta$Orig.Name),]  # will show missing count data (may just not have data for certain years)
 
-eff %>% count(Location.Name) #173 stations (15 with malfunctions or no files sent)
-eff %>% count(GRTS.Cell.ID) # 119
+sta %>% count(Location.Name) #173 stations (15 with malfunctions or no files sent)
+sta %>% count(GRTS.Cell.ID) # 119
 
 # 4c) Do you have all data represented in the deployment data? If yes, the value should be 0
-length(setdiff(unique(eff$Location.Name), unique(dat_summary$Location.Name))) # 15
-missing.dat.eff <- left_join(eff, dat_summary, by="Location.Name") %>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
-missing.dat.eff[is.na(missing.dat.eff$Orig.Name.y),] # will show missing deployment data covariates
+length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 15
+missing.dat.sta <- left_join(sta, dat_summary, by="Location.Name") %>% dplyr::select(Location.Name, Orig_Name, Orig.Name)
+missing.dat.sta[is.na(missing.dat.sta$Orig.Name),] # will show missing deployment data covariates
 
+# sta %>% filter(Location.Name=="323194_SW_01")
 
-eff %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(Location.Name) # 158 stations with data
-eff %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(GRTS.Cell.ID) # 116 grid cells with data
+sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(Location.Name) # 158 stations with data
+sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(GRTS.Cell.ID) # 116 grid cells with data
 
 # For 2021, Fenlands data was not sent - first time catching this so will call it a "no files sent and ask Barb for files for submission"
 
@@ -267,6 +273,7 @@ eff %>% group_by(Deployment.ID) %>% summarise(min(Survey.Start.Time), max(Survey
 yday("2021-05-01"); yday("2021-09-10")
 
 dat_summary %>% group_by(Deployment.ID) %>% count(Year) 
+nrow(dat_summary)
 dat_summary <- dat_summary %>% filter(between(jDay, 121, 253))
 
 # 6) # check to make sure pulling times from start and end of day
@@ -565,7 +572,7 @@ dat_time$Time <- format(dat_time$Timep, format = "%H:%M:%S")
 # covariates for overlap
 dat_time$Classification_Volancy <- as.factor(paste(dat_time$Classification, dat_time$Volancy))
 dat_time$NP <- sta$NP[match(dat_time$Location.Name, sta$Location.Name,)]
-dat_time$Land.Use.Type <- sta$Land.Use.Type[match(dat_time$Location.Name, sta$Location.Name,)]
+dat_time$Land.Use.Type <- sta$Land.Cover[match(dat_time$Location.Name, sta$Location.Name,)]
 dat_time$Natural.Region <- sta$Natural.Region[match(dat_time$Location.Name, sta$Location.Name,)]
 
 
@@ -582,8 +589,8 @@ dat_time_agg$Month <- month(dat_time_agg$SurveyNight)
 dat_time_agg$jDay <- yday(dat_time_agg$SurveyNight)
 dat_time_agg$NP <- sta$NP[match(dat_time_agg$Location.Name, sta$Location.Name,)]
 dat_time_agg$Natural.Region <- sta$Natural.Region[match(dat_time_agg$Location.Name, sta$Location.Name,)]
-dat_time_agg$Land.Unit.Code <- sta$Land.Unit.Code[match(dat_time_agg$Location.Name, sta$Location.Name,)]
-dat_time_agg$Land.Use.Type <- sta$Land.Use.Type[match(dat_time_agg$Location.Name, sta$Location.Name,)]
+dat_time_agg$Land.Unit.Code <- sta$LandUnitCo[match(dat_time_agg$Location.Name, sta$Location.Name,)]
+dat_time_agg$Land.Use.Type <- sta$Land.Cover[match(dat_time_agg$Location.Name, sta$Location.Name,)]
 
 
 dat_time_agg %>% ungroup() %>% summarise(min(SurveyNight), max(SurveyNight))
@@ -603,9 +610,9 @@ call_sum_class <- call_count %>% group_by(Classification) %>% summarise(Total = 
 arrange(call_sum_class, Total)
 call_count %>%  summarise(sum(Count))
 call_count %>% group_by(Volancy)%>% summarise(sum(Count))
-(1769 +8830)  / 196856
+(316359 + 346745)  / 663104
 
-77589 / 196856
+316359 / 663104
 unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
 
 MYLU.calls <- call_count %>% filter(Classification=="MYLU") %>% summarise(sum(Count)) / sum(call_count$Count)
@@ -613,11 +620,12 @@ MYLU.calls <- call_count %>% filter(Classification=="MYLU") %>% summarise(sum(Co
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, Year) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 3367 survey nights
+sum(total.effort$Diff) # 9912 survey nights from 2015 - 2022
 # total.effort %>% group_by(Volancy) %>% summarise(sum(Diff))
 # 2011 / 3347 
 total.effort %>% ungroup()  %>% summarise(min(Min), max(Max), min(Diff), max(Diff), mean(Diff)) 
-
+# min(Min)` `max(Max)` `min(Diff)` `max(Diff)` `mean(Diff)` 
+# 1 2015-06-09 2022-09-10 1 days      133 days    15.43925 days
 
 ### temporal summaries
 # create activity overlap plots for all bats in/out of parks 
@@ -788,17 +796,28 @@ NightLUC.hist
 #### Nightly Overall Bat Call Summaries
 
 ```{r mean nightly call by NR, echo=F, fig.height=6, fig.width=7, warning=FALSE}
-call_count.NR <- call_count %>% group_by(Natural.Region, Year, Volancy)
+call_count.NR <- call_count %>% group_by(Natural.Region, Year, SurveyNight, Volancy) %>% summarise(Count = sum(Count))
 # call_count.NR %>% group_by(Natural.Region) %>% summarise(sum(Count))
 # call_count.NR %>% ungroup() %>% summarise(sum(Count))
 
 # summary(call_count.NR)
 
 # subset data for overall mean nightly bat calls by year for each Natural Region
-NR.Calls.Yr <- call_count.NR%>% group_by(Natural.Region, Year, Volancy) %>% 
+NR.Calls.Yr <- call_count.NR  %>% group_by(Natural.Region, Year, Volancy) %>%
   summarise(Mean = mean(Count), SE = se(Count))
 
+call_count.NR %>% ungroup() %>% group_by(SurveyNight) %>% summarise(mean(Count))
+summary(call_count.NR)
+
 call_count.NR %>% ungroup() %>% group_by(Natural.Region) %>% summarise(mean(Count), se(Count))
+
+NR.surveyed <- call_count %>% group_by(Year, Natural.Region, Location.Name, SurveyNight, Volancy) %>% summarise(Count =sum(Count))
+NR.surveyed %>% ungroup() %>% summarise(mean(Count), min(Count), max(Count), se(Count))
+NR.surveyed %>% arrange(Count) %>% tail()
+NR.surveyed %>% filter(Count>999) %>% count(Location.Name)
+NR.surveyed %>% group_by(Natural.Region) %>% summarise(mean(Count), se(Count))
+NR.Calls.Yr <- NR.surveyed %>% group_by(Year,Natural.Region, Volancy) %>% summarise(Mean = mean(Count), SE = se(Count))
+
 
 fcalls.NR <- NR.Calls.Yr %>%
   ggplot(aes(x = Natural.Region, y = Mean, fill=Volancy))+
@@ -816,6 +835,16 @@ fcalls.NR <- NR.Calls.Yr %>%
   facet_wrap(~Year, ncol=1)
 fcalls.NR
 
+# Cairo(file="Output/fcalls.NR.2022.PNG",
+#       type="png",
+#       width=2000,
+#       height=1800,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# fcalls.NR
+# dev.off()
+
 ```
 ##### Figure 8. Mean nightly bat calls for each Natural Region, by year and volancy period.
 
@@ -832,6 +861,12 @@ LUT.levels <- c("Agriculture","Barren Land", "Developed" ,"Forest-conifer", "For
 LUT.Calls.Yr$Land.Use.Type <- factor(LUT.Calls.Yr$Land.Use.Type , levels = LUT.levels)
 LUT.Calls.Yr$Land.Use.Type
 
+LUT.surveyed <- call_count %>% group_by(Year, Land.Use.Type, Location.Name, SurveyNight, Volancy) %>% summarise(Count =sum(Count))
+LUT.surveyed %>% ungroup() %>% summarise(mean(Count), min(Count), max(Count), se(Count))
+LUT.surveyed %>% arrange(Count) %>% tail()
+LUT.surveyed %>% filter(Count>999) %>% count(Location.Name)
+LUT.surveyed %>% group_by(Land.Use.Type) %>% summarise(Mean = mean(Count), SE = se(Count)) %>% arrange(Mean)
+LUT.Calls.Yr <- LUT.surveyed %>% group_by(Year,Land.Use.Type, Volancy) %>% summarise(Mean = mean(Count), SE = se(Count))
 
 fcalls.LUT <- LUT.Calls.Yr %>%
   ggplot(aes(x = Land.Use.Type, y = Mean, fill=Volancy))+
@@ -848,10 +883,19 @@ fcalls.LUT <- LUT.Calls.Yr %>%
   facet_wrap(~Year)
 fcalls.LUT
 
+# Cairo(file="Output/fcalls.LUT.2022.PNG",
+#       type="png",
+#       width=2000,
+#       height=1800,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# fcalls.LUT
+# dev.off()
+
 ```
 
 ```{r mean nightly call by GRTS, echo=F, fig.height=6, fig.width=7, warning=FALSE}
-call_count2 <- call_count %>% group_by(Land.Unit.Code, Year, GRTS.Cell.ID)
 
 # Reorder GRTS to be NP, Land.Unit.Code then GRTS
 GRTS.Order <- call_count %>% arrange(Land.Unit.Code, GRTS.Cell.ID) %>% 
@@ -861,14 +905,17 @@ GRTS.Order$Order <- row.names(GRTS.Order)
 GRTS.Order <- fct_reorder(GRTS.Order$GRTS.Cell.ID, GRTS.Order$Order, min)
 
 # subset data for overall mean nightly bat calls by year for each GRTS
-GRTS.Calls.Yr <- call_count2 %>% group_by(Land.Unit.Code, Year, GRTS.Cell.ID) %>% 
-  summarise(Mean = mean(Count), SE = se(Count))
+GRTS.surveyed <- call_count %>% group_by(Year, Land.Unit.Code, GRTS.Cell.ID, Location.Name, SurveyNight) %>% summarise(Count =sum(Count))
+GRTS.surveyed %>% ungroup() %>% summarise(mean(Count), min(Count), max(Count), se(Count))
+GRTS.surveyed %>% arrange(Count) %>% tail()
+GRTS.surveyed %>% filter(Count>999) %>% count(Location.Name)
+GRTS.surveyed %>% group_by(GRTS.Cell.ID) %>% summarise(Mean = mean(Count), SE = se(Count)) %>% arrange(Mean)
+GRTS.Calls.Yr <- GRTS.surveyed %>% group_by(Year,Land.Unit.Code, GRTS.Cell.ID) %>% summarise(Mean = mean(Count), SE = se(Count))
 
 GRTS.Calls.Yr$GRTS.Cell.ID <- factor(GRTS.Calls.Yr$GRTS.Cell.ID, levels = GRTS.Order)
-GRTS.Calls.Yr %>% filter(Mean >50)
-as.data.frame(GRTS.Calls.Yr %>% filter(Mean <2))
+GRTS.Calls.Yr %>% filter(Mean >200) %>% arrange(Mean) %>% print(n=21)
+GRTS.Calls.Yr %>% filter(Mean <5)
 
-call_count2 %>% group_by(Land.Unit.Code, Year, GRTS.Cell.ID) %>%  summarise(sum = sum(Count)) %>% filter(sum<20)
 call_count2 %>% group_by(Volancy) %>% summarise(sum(Count))
 77589/(77589+119267)
 
@@ -889,6 +936,16 @@ fcalls.GRTS <- GRTS.Calls.Yr %>%
   facet_wrap(~Year)
 
 fcalls.GRTS
+
+# Cairo(file="Output/fcalls.GRTS.2022.PNG",
+#       type="png",
+#       width=2000,
+#       height=1800,
+#       pointsize=15,
+#       bg="white",
+#       dpi=300)
+# fcalls.GRTS
+# dev.off()
 
 ```
 
@@ -913,6 +970,9 @@ knitr::kable(Table.Calls,
              format.args = list(scientific = FALSE))
 
 options(scipen = 100)
+
+call_count %>% filter(Classification=="MYLU") %>% group_by(Natural.Region) %>% summarise(sum(Count))
+51227/99973
 # head(call_count)
 # head(dat_time)
 # bat_count <- call_count %>% filter(Classification!="unknown")
@@ -934,10 +994,10 @@ options(scipen = 100)
 # NR_xtabs <- NR_xtabs %>% rowwise() %>% mutate(Class.Sum = sum(c_across(where(is.numeric))))
 # write.csv(NR_xtabs, "NR_xtabs.csv")
 eff %>% filter(GRTS.Cell.ID=="336731")
-dat_time_agg %>% ungroup() %>% filter(Classification=="MYEV-MYSE") %>% group_by(Location.Name, Natural.Region) %>% summarise(sum(Count))
+call_count %>% ungroup() %>% filter(Classification=="MYEV-MYSE") %>% group_by(Location.Name, Natural.Region,Land.Unit.Code) %>% summarise(sum(Count))
 
-dat_summary %>% ungroup() %>% filter(sp1=="MYCA") %>% filter(GRTS.Cell.ID=="336731") %>% select(Filename)
-eBat_param
+call_count %>% ungroup() %>% filter(Classification=="MYCA") %>% filter(Natural.Region=="Boreal") %>% group_by(Land.Unit.Code) %>% summarise(count = sum(Count)) %>% arrange(desc(count))
+94/1030
 
 ```
 
@@ -990,6 +1050,8 @@ sp.to.use <- call_count.Sp %>% group_by(Classification) %>% summarise(Sum = sum(
 Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Year, Volancy) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
 
+Sp.Calls.Yr %>% arrange(Mean) %>% print(n=29)
+
 fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
   ggplot(aes(x = Classification, y = Mean, fill=Volancy))+
   geom_point(colour="white", shape=21, size=4, position=position_dodge(width=0.5))+
@@ -1004,6 +1066,8 @@ fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>
   theme(legend.position = "bottom", legend.title = element_blank())+
   facet_wrap(~Year)
 fcalls.Sp
+
+unique(eff$Contact)
 
 ```
 

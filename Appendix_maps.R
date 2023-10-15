@@ -1,19 +1,20 @@
 ###--- this script generates tables for annual GRTS specific appendices
 # to be used with NABat_Annual_Report_Appendices.Rmd, read in once bulk of report code has been run
 # or just load in the "NABat_Annual_Submission.RDS" rather than run report 
+# run this code before creating appendices
+# creates the maps for App Fig 1
+
+###--- NEED TO SORT OUT ggmap STAMEN TILES - very ugly now...
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid", "weathercan", "data.table")
+list.of.packages <- c("data.table", "tidyverse", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid","Cairo")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
 lapply(list.of.packages, require, character.only = TRUE)
 
-# save.image("NABat_Annual_Submission.RDS")
-# load("NABat_Annual_Submission.RDS")
-
-# # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
+# # Define the GRTS.Cell.ID and Year of interest if subsetting for year
 Year_interest <- year(as.Date("2022-01-01"))
 
 load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
@@ -69,6 +70,7 @@ ggmap_bbox <- function(map) {
   map
 }
 
+
 GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
   # GRTS.Cell.ID = 23146
   AB.GRTS_bb <- as.vector(st_bbox(NABat_grid_3857 %>% filter(GRTS_ID==GRTS.Cell.ID)))
@@ -78,12 +80,11 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
   right <- as.numeric(st_bbox(NABat_grid %>% filter(GRTS_ID==GRTS.Cell.ID))[3])
   top <- as.numeric(st_bbox(NABat_grid %>% filter(GRTS_ID==GRTS.Cell.ID))[4])
   
-  GRTS_map <- get_map(c(left = left ,
-                        bottom = bottom,
-                        right = right,
-                        top =  top),
+  GRTS_map <- get_map(location = c(left = left ,
+                                   bottom = bottom,
+                                   right = right,
+                                   top =  top),
                       color = "color")
-  
   # Use the function in a loop to create all GRTS grid/station maps
   map_GRTS <- ggmap_bbox(GRTS_map)
   
@@ -103,19 +104,50 @@ GRTS.plot <- function(GRTS.Cell.ID = GRTS.Cell.ID, v.just=1.2, h.just=1) {
   
 }
 
+NABat_AppendixMap_sf <- readRDS("NABat_AppendixMap_sf.RDS")
+
+Alberta <- NABat_AppendixMap_sf$Alberta
+NR <- NABat_AppendixMap_sf$NR
+
 # # Run for each inset map to have prior to running appendices
 sta$GRTS.Cell.ID
 slices <- unique(sta$GRTS.Cell.ID)
-class(slices)
+
 for(i in 1:length(slices)){
   GRTS.Cell.ID <- slices[i]
   print(GRTS.Cell.ID)
   GRTS_map <- GRTS.plot(GRTS.Cell.ID = GRTS.Cell.ID, v.just=-2, h.just=-0.1)
-  ggsave(file=paste("Output/Maps/GRTSID_",i,"_map.png",sep=""))
+  # ggsave(file=paste("Output/Maps/GRTSID_",GRTS.Cell.ID,"_map.png",sep=""))
+
+  map.inset <- ggplot() + 
+    geom_sf(data = Alberta) +
+    geom_sf(data = NR, mapping = aes(fill = NR), lwd = 0) +
+    scale_fill_manual(name = "Natural Regions",
+                      values = c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333")) +
+    geom_sf(data = NABat_grid_3857, col = "azure2", lwd = 0.8) +
+    geom_sf(data = NABat_grid %>% dplyr::filter(GRTS_ID == GRTS.Cell.ID), col="black", lwd=1) +
+    coord_sf() +
+    theme(axis.text.x = element_text(size = 4),
+          axis.text.y = element_text(size = 5),
+          legend.position = "none")
+  # ggsave(file=paste("Appendices/Maps/",GRTS.Cell.ID,"_map.png",sep=""))
+  
+  # grid.newpage()
+  vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)       ## the larger map
+  vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  ## the inset in upper right
+  
+  png(paste0("AppFig1_",GRTS.Cell.ID,".PNG"), width = 1000, height = 700); 
+  print(GRTS_map, vp = vpb_)
+  print(map.inset, vp=vpa_)
+  dev.off()
+  
 }
 
 
+###--- NOW READY TO MOVE ON TO report_build.R
+
 ######################################
+# saved image so no longer need to run this, just load the file at the start of this script instead
 ###--- overall AB map
 # theme_set(theme_bw())
 # nr <- read_sf(dsn = paste(NABatDir,"/Natural_Regions_Subregions_of_Alberta", sep=""),
@@ -169,7 +201,4 @@ for(i in 1:length(slices)){
 # saveRDS(NABat_AppendixMap_sf, "NABat_AppendixMap_sf.RDS")
 # rm(list=ls())
 
-NABat_AppendixMap_sf <- readRDS("NABat_AppendixMap_sf.RDS")
 
-Alberta <- NABat_AppendixMap_sf$Alberta
-NR <- NABat_AppendixMap_sf$NR

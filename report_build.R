@@ -8,8 +8,10 @@
 ### * additional packages
 library(flextable)
 library(officer)
+library(png)
 
 # source(Appendix_maps.R)
+NABatDir = c("/Volumes/LaCie_2TB/NABat/GIS/")
 
 ### * set values
 FOLDER_REPORT = here::here("Appendices")
@@ -71,7 +73,7 @@ footer_vals <- data.frame(stringsAsFactors = FALSE,
     # function(doc) {  AppFig1(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig1_map"); NULL  },
     ## Use the writeImage code istead of AppFig1, b/c need to write maps first
     function(doc) {  writeImage(doc, bookmark = "bkm_fig1_map",
-                                imagePath = paste("Appendices/Maps/",grts_cell_id,"_map.png", sep=""),
+                                imagePath = paste("Appendices/Maps/AppFig1_",grts_cell_id,".png", sep=""),
                                 width = 6.6, height = 4.7) },
     function(doc) {  AppTab1(doc, tab = Appendix.Table1, grts_cell_id = grts_cell_id,
                              bookmark = "bkm_table1"); NULL },
@@ -99,5 +101,5 @@ generateAppendixSafe <- function(grts_cell_id) {
 }
 
 controlFile <- unique.GRTS.Cell.ID %>% as.character()
-# controlFile <- "3667" # need to redo for 2017, 2018 and 2019 because typo in sta
+# controlFile <- "5459" # need to redo for 2017, 2018 and 2019 because typo in sta
 tmp <- lapply(controlFile, function(f) generateAppendixSafe(f))
