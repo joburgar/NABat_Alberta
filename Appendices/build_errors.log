@@ -1,0 +1,47 @@
+2023-10-15 13:24:14 ERROR with 5459: Error: 'slip_in_text' is defunct.
+Use 'fpar()' instead.
+See help("Defunct")
+
+2023-10-15 13:27:18 ERROR with 5459: Error: 'slip_in_text' is defunct.
+Use 'fpar()' instead.
+See help("Defunct")
+
+2023-10-15 13:52:37 ERROR with 5459: Error: 'slip_in_text' is defunct.
+Use 'fpar()' instead.
+See help("Defunct")
+
+2023-10-15 13:56:29 ERROR with 5459: Error: 'slip_in_text' is defunct.
+Use 'fpar()' instead.
+See help("Defunct")
+
+2023-10-15 13:57:18 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:07:44 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:09:08 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:18:10 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:19:04 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:19:37 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:19:55 ERROR with 5459: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:20:55 WARNING with 3667: [1m[33mWarning[39m:[22m
+Removed 3 rows containing missing values (geom_segment).
+
+2023-10-15 14:20:56 ERROR with 3667: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:21:58 WARNING with 3667: [1m[33mWarning[39m:[22m
+Removed 3 rows containing missing values (geom_segment).
+
+2023-10-15 14:21:59 ERROR with 3667: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:28:13 WARNING with 3667: [1m[33mWarning[39m:[22m
+Removed 3 rows containing missing values (geom_segment).
+
+2023-10-15 14:51:35 ERROR with 3667: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
+2023-10-15 14:52:15 ERROR with 3667: Error in if (dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[i] > : missing value where TRUE/FALSE needed
+
