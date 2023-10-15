@@ -9,24 +9,21 @@
 library(flextable)
 library(officer)
 
+# source(Appendix_maps.R)
 
 ### * set values
 FOLDER_REPORT = here::here("Appendices")
 FILE_OUT = "Appendix_"
-NABatDir = c("/Users/joburgar/Documents/NABat/GIS/")  ## needed for "Appendix_maps.R"
 
-footer_date <- "31 March 2020"
-footer_title <- "North American Bat Monitoring Program - Alberta 2020"
-footer_copyright <- "2021 Government of Alberta"
+footer_date <- "31 March 2023"
+footer_title <- "North American Bat Monitoring Program - Alberta 2022"
+footer_copyright <- "2023 Government of Alberta"
 
 alt_text <- "not surveyed"
 
 
 ### * generate individual annual GRTS specific appendices
-##   or just load in the "NABat_Annual_Submission.RDS" rather than source the code
-# source("Appendix_maps_JH.R")    ## b/c I can't get a couple packages to install. hmmm
-source("Appendix_maps.R")  ##, local = knitr::knit_global())
-# load("NABat_Annual_Submission.RDS")
+source("Appendix_tables.R")  ##, local = knitr::knit_global())
 
 
 ### * source building functions
@@ -38,8 +35,8 @@ source("report_functions.R")
 
 #### prep ----
 
-unique.GRTS.Cell.ID = unique(sta$GRTS.Cell.ID)
-Deployment.ID <- unique(dat_count$Deployment.ID) %>% as.character()
+unique.GRTS.Cell.ID = unique(Appendix.Table1$GRTS.Cell.ID)
+Deployment.ID <- unique(Year_interest) %>% as.character()
 
 # vals <- data.frame(stringsAsFactors = FALSE,
 #                    var = c("grts_cell_id", "Deployment.ID"),
@@ -52,8 +49,9 @@ footer_vals <- data.frame(stringsAsFactors = FALSE,
 
 
 #### build ----
-generateAppendix <- function(grts_cell_id) {
+ generateAppendix <- function(grts_cell_id) {
   
+   # grts_cell_id <- '3667'
   ## let user know which grts_cell_id is generating
   print(paste0("Generating Appendix for: ", grts_cell_id))
   
@@ -99,8 +97,7 @@ generateAppendixSafe <- function(grts_cell_id) {
            error = function(e) logError(e, grts_cell_id))
   return()
 }
-controlFile <- unique.GRTS.Cell.ID %>% as.character()
-# controlFile <- "922"
-# controlFile <- unique.GRTS.Cell.ID[55] %>% as.character()
-tmp <- lapply(controlFile, function(f) generateAppendixSafe(f))
 
+controlFile <- unique.GRTS.Cell.ID %>% as.character()
+# controlFile <- "3667" # need to redo for 2017, 2018 and 2019 because typo in sta
+tmp <- lapply(controlFile, function(f) generateAppendixSafe(f))

@@ -71,6 +71,8 @@ AppFig1 <- function(doc, grts_cell_id, bookmark) {
   ## this function is untested and probably doesn't work as is, is the resulting plot one object or two?
   
   ## make map
+  # grts_cell_id <- "296805"
+  
   grid.newpage()
   vpb_ <- viewport(width = 1, height = 1, x = 0.4, y = 0.5)       ## the larger map
   vpa_ <- viewport(width = 0.6, height = 0.5, x = 0.85, y = 0.8)  ## the inset in upper right
@@ -112,13 +114,13 @@ AppFig1 <- function(doc, grts_cell_id, bookmark) {
 }
 
 # tab <- Appendix.Table1
-# grts_cell_id <- "42650"
+# grts_cell_id <- "922"
 # rm(tab, grts_cell_id,distanceVars, checKMultiples, newNames, i, j)
 ### * make and add Appendix Table 1: NABat station meta data
 AppTab1 <- function(doc, tab, grts_cell_id, bookmark) {
   
   ## name of vars that need to be rounded to whole numbers
-  distanceVars <- c("Clutter.Distance", "Water.Distance", "Road.Distance", "Human.Footprint.Distance")
+  distanceVars <- c("Clutter.Distance", "Waterbody.Distance", "Road.Distance")
   
   ## complete table width = 6.65 inches; reserve 1.33 for first col, split rest (5.32) evenly
   width <- 5.32/(tab %>% dplyr::filter(GRTS.Cell.ID == grts_cell_id) %>% tally() %>% pull())
@@ -140,8 +142,8 @@ AppTab1 <- function(doc, tab, grts_cell_id, bookmark) {
   ## wrangle data
   tab <- tab %>% 
     dplyr::filter(GRTS.Cell.ID == grts_cell_id) %>% select(-GRTS.Cell.ID) %>%
-    select(Station = Location.Name, Orig.Name:Clutter.Type, Percent.Clutter, Water.Distance, 
-           Water.Type, Road.Distance:Unusual.Occurrences) %>%          ## move Percent.Clutter
+    select(Station = Location.Name, Orig_Name:Clutter.Type, Percent.Clutter, Waterbody.Distance, 
+           Waterbody.Type, Road.Distance:Unusual.Occurrences) %>%          ## move Percent.Clutter
     mutate(across(all_of(distanceVars), ~ janitor::round_half_up(as.numeric(.), digits = 0))) %>%
     mutate(across(everything(), as.character)) %>%
     # tidyr::pivot_longer(-Location.Name, names_to = "Station", values_to = "val") %>%
@@ -210,7 +212,7 @@ AppFig2 <- function(doc, grts_cell_id, bookmark, alt_text) {
     
     ## group data for overall mean nightly bat calls by year with volancy, and create plot
     app.calls.Sp <- call_count.Sp %>% 
-      group_by(GRTS.Cell.ID, Classification, Deployment.ID) %>% 
+      group_by(GRTS.Cell.ID, Classification, Year) %>% 
       summarise(Mean = mean(Count), SE = se(Count), .groups = "drop_last") %>%
       dplyr::filter(GRTS.Cell.ID == grts_cell_id) %>% 
       filter(Classification %in% sp.to.use$Classification) %>%
@@ -231,7 +233,7 @@ AppFig2 <- function(doc, grts_cell_id, bookmark, alt_text) {
             axis.text.x = element_text(colour = "black", size = 8),
             legend.position = "none",
             legend.title = element_blank()) +
-      facet_wrap(~Deployment.ID)
+      facet_wrap(~Year)
     
     ## add ggplot to doc 
     officer::cursor_bookmark(x = doc, id = bookmark)
@@ -264,7 +266,7 @@ AppFig3 <- function(doc, grts_cell_id, bookmark, alt_text) {
             axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8),
             axis.title.y = element_text(size = 14),
             axis.title.x = element_blank()) +
-      facet_wrap(~Deployment.ID)
+      facet_wrap(~Year)
     
     ## add ggplot to doc
     officer::cursor_bookmark(x = doc, id = bookmark)
@@ -281,33 +283,37 @@ AppFig3 <- function(doc, grts_cell_id, bookmark, alt_text) {
 AppTab3 <- function(doc, grts_cell_id, bookmark, alt_text) {
   
   ## don't run if grts_cell_id NOT in call_count.Sp
-  if(dim(dat_count %>% filter(GRTS.Cell.ID == grts_cell_id))[1] > 0) {
+  if(dim(call_count %>% filter(GRTS.Cell.ID == grts_cell_id))[1] > 0) {
   
     ## get only odd instances of all Location.Names for this grts_cell_id (i.e., 1, 3, 5, ...)
-    shadeRows <- dat_count %>% dplyr::filter(GRTS.Cell.ID == grts_cell_id) %>% select(Location.Name) %>%
+    shadeRows <- call_count %>% dplyr::filter(GRTS.Cell.ID == grts_cell_id) %>% select(Location.Name) %>%
       unique() %>% pull() %>% as.character()
     if(length(shadeRows) > 1) {
       shadeRows <- shadeRows[seq(from = 1, to = length(shadeRows), by = 2)]
     }
     
     ## create and format flextable
-    tab <- dat_count %>% 
+    tab <- call_count %>% 
       group_by(Location.Name, SurveyNight, Classification) %>%
       summarise(Call.Count = sum(Count), .groups = "drop_last") %>% 
       pivot_wider(names_from = Classification, values_from = Call.Count) %>%
       select(Station = Location.Name, Date = SurveyNight, EPFU, `EPFU LANO` = `EPFU-LANO`, LANO, 
-             LACI, LABO, `LABO MYLU` = `LABO-MYLU`, MYLU, MYCA, MYCI, MYEV, `MYEV MYSE` = `MYEV-MYSE`, 
-             MYSE, MYVO, `My 40k` = `Myotis 40k`, Unk = unknown, Noise = noise) %>%
+             LACI, LABO, `LABO MYLU` = `LABO-MYLU`, MYLU, 
+             # MYCA, 
+             # MYCI, MYEV, MYSE, MYVO,
+             #`MYEV MYSE` = `MYEV-MYSE`, 
+             `My 40k` = `Myotis 40k`, Unk = unknown) %>%
       dplyr::filter(grepl(grts_cell_id, Station)) %>% 
-      mutate(across(everything(), ~ replace_na(., replace = list(.x ="")))) #%>%
-    
+      mutate(across(everything(), ~ replace_na(., replace = 0))) #%>%
+
+
     sRows <- which(tab$Station %in% shadeRows)
-    
+
     tab <- flextable::regulartable(tab) %>%
       flextable::bold(part = "header") %>%
       theme_bats() %>%
       flextable::fontsize(size = 9, part = "header") %>%
-      flextable::fontsize(part = "header", j = 15, size = 8.5) %>%
+      # flextable::fontsize(part = "header", j = 15, size = 8.5) %>%
       flextable::fontsize(j = 2, size = 9) %>%
       flextable::fontsize(j = -(1:2), size = 10) %>%
       flextable::bg(i = sRows, bg = "#F2F2F2") %>%
