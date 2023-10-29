@@ -8,10 +8,9 @@
 ### * additional packages
 library(flextable)
 library(officer)
-library(png)
+# library(png)
 
-# source(Appendix_maps.R)
-NABatDir = c("/Volumes/LaCie_2TB/NABat/GIS/")
+# run through Appendix_maps.R first to ensure maps are ready to be included in report
 
 ### * set values
 FOLDER_REPORT = here::here("Appendices")
@@ -68,21 +67,23 @@ footer_vals <- data.frame(stringsAsFactors = FALSE,
     function(doc) { body_replace_all_text(doc, old_value = "Deployment.ID",
                                           new_value = as.character(Deployment.ID),
                                           fixed = TRUE); NULL},
-    # function(doc) {  writeResults(doc, vals); NULL },  ## example of writing mulitple different results
+    function(doc) {  AppTab3(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_table3", alt_text); NULL },
+    
+    # function(doc) {  writeResults(doc, vals); NULL },  ## example of writing multiple different results
     function(doc) {  writeFooter(doc, footer_vals); NULL },
     # function(doc) {  AppFig1(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig1_map"); NULL  },
-    ## Use the writeImage code istead of AppFig1, b/c need to write maps first
+    ## Use the writeImage code instead of AppFig1, b/c need to write maps first
     function(doc) {  writeImage(doc, bookmark = "bkm_fig1_map",
                                 imagePath = paste("Appendices/Maps/AppFig1_",grts_cell_id,".png", sep=""),
-                                width = 6.6, height = 4.7) },
+                                width = 6.6, height = 4.7); NULL },
     function(doc) {  AppTab1(doc, tab = Appendix.Table1, grts_cell_id = grts_cell_id,
                              bookmark = "bkm_table1"); NULL },
     function(doc) {  AppTab2(doc, tab = Appendix.Table2, bookmark = "bkm_table2", grts_cell_id=grts_cell_id); NULL },
     function(doc) {  AppFig2(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig2", alt_text); NULL  },
-    function(doc) {  AppFig3(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig3", alt_text); NULL  },
-    function(doc) {  AppTab3(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_table3", alt_text); NULL }
+    function(doc) {  AppFig3(doc, grts_cell_id = grts_cell_id, bookmark = "bkm_fig3", alt_text); NULL  }
   )
   
+
   tmp <- lapply(functionList, function(f) f(doc))
   
   ## write the template
@@ -101,5 +102,5 @@ generateAppendixSafe <- function(grts_cell_id) {
 }
 
 controlFile <- unique.GRTS.Cell.ID %>% as.character()
-# controlFile <- "5459" # need to redo for 2017, 2018 and 2019 because typo in sta
+# controlFile <- "3667" # need to redo for 2017, 2018 and 2019 because typo in sta
 tmp <- lapply(controlFile, function(f) generateAppendixSafe(f))

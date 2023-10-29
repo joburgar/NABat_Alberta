@@ -45,8 +45,8 @@ writeResults <- function(doc, file) {
 
 ### * write an image to doc
 writeImage <- function(doc, bookmark, imagePath, width, height, style = "Normal") {
-  officer::cursor_bookmark(x = doc, id = bookmark)
-  officer::body_add_img(x = doc,
+  doc <- officer::cursor_bookmark(x = doc, id = bookmark)
+  doc <- officer::body_add_img(x = doc,
                         src = paste0(imagePath),
                         width = width,    ## inches
                         height = height,  ## inches
@@ -186,19 +186,20 @@ AppFig2 <- function(doc, grts_cell_id, bookmark, alt_text) {
             axis.line = element_line(colour = "black"),
             axis.text.y = element_text(size=12),
             axis.title.x = element_blank(),
-            axis.text.x = element_text(colour = "black", size = 8),
+            axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8),
             legend.position = "none",
             legend.title = element_blank()) +
       facet_wrap(~Year)
     
     ## add ggplot to doc 
-    officer::cursor_bookmark(x = doc, id = bookmark)
-    officer::body_add_gg(x = doc, value = app.calls.Sp,
-                         width = 5, height = 3.5)  ## 4 in = 10 cm; 9 cm = 3.5 in
+    doc <- officer::cursor_bookmark(x = doc, id = bookmark)
+    doc <- officer::body_add_gg(x = doc, value = app.calls.Sp,
+                         width = 6.5, height = 3.5)  ## 4 in = 10 cm; 9 cm = 3.5 in
   } else {
     ## instead, add text to doc
-    officer::cursor_bookmark(x = doc, id = bookmark)
-    officer::slip_in_text(x = doc, str = as.character(alt_text), pos = "after")
+    doc <- officer::cursor_bookmark(x = doc, id = bookmark)
+    doc <- officer::fpar(x = doc, fp_t = as.character(alt_text))
+
   }
 }
 
@@ -225,12 +226,13 @@ AppFig3 <- function(doc, grts_cell_id, bookmark, alt_text) {
       facet_wrap(~Year)
     
     ## add ggplot to doc
-    officer::cursor_bookmark(x = doc, id = bookmark)
-    officer::body_add_gg(x = doc, value = app.hist.calls, width = 5, height = 3.7)  ## 4.2 in = 10.69 cm; 9.5 cm = 3.7 in
+    doc <- officer::cursor_bookmark(x = doc, id = bookmark)
+    doc <- officer::body_add_gg(x = doc, value = app.hist.calls, width = 6.5, height = 3.7)  ## 4.2 in = 10.69 cm; 9.5 cm = 3.7 in
   } else {
     ## instead, add text to doc
-    officer::cursor_bookmark(x = doc, id = bookmark)
-    officer::slip_in_text(x = doc, str = as.character(alt_text), pos = "after")
+    doc <- officer::cursor_bookmark(x = doc, id = bookmark)
+    doc <- officer::fpar(x = doc, fp_t = as.character(alt_text))
+   
   }
 }
 
@@ -248,19 +250,19 @@ AppTab3 <- function(doc, grts_cell_id, bookmark, alt_text) {
       shadeRows <- shadeRows[seq(from = 1, to = length(shadeRows), by = 2)]
     }
     
-    ## create and format flextable
-    tab <- call_count %>% 
+    # create and format flextable
+    tab <- call_count %>%
       group_by(Location.Name, SurveyNight, Classification) %>%
-      summarise(Call.Count = sum(Count), .groups = "drop_last") %>% 
+      summarise(Call.Count = sum(Count), .groups = "drop_last") %>%
       pivot_wider(names_from = Classification, values_from = Call.Count) %>%
-      select(Station = Location.Name, Date = SurveyNight, EPFU, `EPFU LANO` = `EPFU-LANO`, LANO, 
-             LACI, LABO, `LABO MYLU` = `LABO-MYLU`, MYLU, 
-             # MYCA, 
+      select(Station = Location.Name, Date = SurveyNight, EPFU, `EPFU LANO` = `EPFU-LANO`, LANO,
+             LACI, LABO, `LABO MYLU` = `LABO-MYLU`, MYLU,
+             # MYCA,
              # MYCI, MYEV, MYSE, MYVO,
-             #`MYEV MYSE` = `MYEV-MYSE`, 
+             #`MYEV MYSE` = `MYEV-MYSE`,
              `My 40k` = `Myotis 40k`, Unk = unknown) %>%
-      dplyr::filter(grepl(grts_cell_id, Station)) %>% 
-      mutate(across(everything(), ~ replace_na(., replace = 0))) #%>%
+      dplyr::filter(grepl(grts_cell_id, Station)) %>%
+      mutate(across(everything(), ~ replace_na(.x, replace = 0)))
 
     sRows <- which(tab$Station %in% shadeRows)
 
@@ -277,13 +279,15 @@ AppTab3 <- function(doc, grts_cell_id, bookmark, alt_text) {
       flextable::width(j = 1, width = 1.06) %>%              ## width is in inches (2.7 cm = 1.06 in)
       flextable::width(j = 2, width = 0.76) %>%              ## width is in inches (1.93 cm = 0.76 in)
       flextable::width(j = -(1:2), width = 0.47)             ## width is in inches (1.19 cm = 0.47 in)
-    
+
     ## add flextable to doc
     flextable::body_replace_flextable_at_bkm(doc, bookmark, value = tab)
   } else {
     ## instead, add text to doc
     officer::cursor_bookmark(x = doc, id = bookmark)
-    officer::slip_in_text(x = doc, str = as.character(alt_text), pos = "after")
+    # officer::slip_in_text(x = doc, str = as.character(alt_text), pos = "after")
+    officer::fpar(x = doc, fp_t = as.character(alt_text))
+    
   }
 }
 
