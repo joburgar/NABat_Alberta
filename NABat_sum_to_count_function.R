@@ -304,11 +304,9 @@ NABat_sum_to_submit <- function(dat_sum_sub = dat_sum_sub, threshold_noise = 0.8
   dat_time$Time <- format(dat_time$Timep, format = "%H:%M:%S")
   
   dat_time %>% count(Classification)
-  nrow(dat_time)
-  # difference is that dat_time has filtered out all "calls" with <3 pulses
-  # inclined to go with dat_time as splits unknown down a bit
-  
-  return(dat_time)
+  dat_time_select <- dat_time %>% select(GRTS.Cell.ID, Location.Name, SurveyNight, Filename, Classification, Timep, Time)
+
+  return(dat_time_select)
   
 }
 
