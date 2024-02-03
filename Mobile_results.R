@@ -349,5 +349,5 @@ Bulk_call_data$`Survey End Time` <- paste(format(as.Date(Bulk_call_data$`Survey 
 Bulk_call_data %>% as_tibble()
 
 getwd()
-write.csv(Bulk_call_data, paste0("NABat_submit/NABat_mobile_call_",Year_interest,".csv"))
+write.csv(Bulk_call_data, paste0("NABat_submit/NABat_mobile_call_",Year_interest,".csv"), row.names = FALSE)
 
