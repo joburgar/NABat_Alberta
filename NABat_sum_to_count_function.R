@@ -308,41 +308,7 @@ NABat_sum_to_submit <- function(dat_sum_sub = dat_sum_sub, threshold_noise = 0.8
   # difference is that dat_time has filtered out all "calls" with <3 pulses
   # inclined to go with dat_time as splits unknown down a bit
   
-  
-  # add in null columns (NABat template)
-  xx <- c("Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Software Type", "Manual Id","Species List", "Manual Vetter")
-  Bulk_call_data[xx] <- NA
-  
-  names(Bulk_call_data)
-  Bulk_call_data <- Bulk_call_data[c("| Location Name", "Survey Start Time", "Survey End Time", "Nightly Low Temperature", "Nightly High Temperature", "Nightly Low Relative Humidity",
-                                     "Nightly High Relative Humidity", "Nightly Low Weather Event", "Nightly High Weather Event", "Nightly Low Wind Speed", "Nightly High Wind Speed",
-                                     "Nightly Low Cloud Cover", "Nightly High Cloud Cover", "Audio Recording Name", "Audio Recording Time", "Software Type","Auto Id", "Manual Id","Species List","Manual Vetter" )]
-  
-  Bulk_call_data$`Software Type` <- "Alberta eBat"
-  Bulk_call_data$`Species List` <- "Alberta_01"
-  
-  # NABat submission requires that the following fields are numeric (i.e., float) 
-  # Nightly Low Temperature	Nightly High Temperature	Nightly Low Relative Humidity	Nightly High Relative Humidity
-  # Nightly Low Wind Speed	Nightly High Wind Speed	Nightly Low Cloud Cover	Nightly High Cloud Cover
-  glimpse(Bulk_call_data)
-  cols.as.numeric <- c("Nightly Low Temperature",	"Nightly High Temperature",	"Nightly Low Relative Humidity",	"Nightly High Relative Humidity",
-                       "Nightly Low Wind Speed",	"Nightly High Wind Speed",	"Nightly Low Cloud Cover",	"Nightly High Cloud Cover")
-  
-  Bulk_call_data[cols.as.numeric]<- sapply(Bulk_call_data[cols.as.numeric],as.numeric)
-  
-  cols.as.character <- c("| Location Name","Nightly High Weather Event",	"Nightly Low Weather Event",	"Auto Id", "Manual Id", "Manual Vetter")
-  Bulk_call_data[cols.as.character]<- sapply(Bulk_call_data[cols.as.character],as.character)
-  
-  sapply(Bulk_call_data, class)
-  glimpse(Bulk_call_data)
-  
-  # need to format dates to mm/dd/YYYY
-  Bulk_call_data$`Survey Start Time` <- paste(format(as.Date(Bulk_call_data$`Survey Start Time`), '%m/%d/%Y'), "12:00:00")
-  Bulk_call_data$`Survey End Time` <- paste(format(as.Date(Bulk_call_data$`Survey End Time`), '%m/%d/%Y'), "12:00:00")
-  Bulk_call_data %>% as_tibble()
-  
-  
-  return(call_count)
+  return(dat_time)
   
 }
 
