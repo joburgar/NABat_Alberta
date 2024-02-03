@@ -1,7 +1,6 @@
 # Creating files for NABat upload
 ###--- this script formats data ready for NABat submission
-# to be used with NABat_Annual_Report_Appendices.Rmd and Appendix_maps.R
-# or just load in the "NABat_data_for_submission.RDS" rather than run report 
+# load in the "NABat_Annual_Report_YEAR.RDS" rather than run report 
 
 #Load Packages
 list.of.packages <- c("data.table", "tidyverse", "lunar", "zoo", "lubridate")
@@ -16,6 +15,7 @@ lapply(list.of.packages, require, character.only = TRUE)
 Year_interest <- year(as.Date("2022-01-01"))
 
 # depending on what has been previously been run, load either annual report data or submission data
+# load("NABat_Annual_Report_201522.RDS")
 load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
 # load(paste0("/NABat_",Year_interest,"_data_for_submission.RDS"))
 
@@ -77,9 +77,20 @@ SA_call_data2$Survey.End.Date <- SA_call_data2$Survey.End.Date+1 # have the surv
 
 # if weather is downloaded from ECCC weathercan package, use this code
 
+# weather1 <- read.csv("Input/NABat_2015_nightly_weather_sum.csv")
+# weather2 <- read.csv("Input/NABat_2016_nightly_weather_sum.csv")
+# weather3 <- read.csv("Input/NABat_2017_nightly_weather_sum.csv")
+# weather4 <- read.csv("Input/NABat_2018_nightly_weather_sum.csv")
+# weather5 <- read.csv("Input/NABat_2019_nightly_weather_sum.csv")
+# weather6 <- read.csv("Input/NABat_2020_nightly_weather_sum.csv")
+# weather7 <- read.csv("Input/NABat_2021_nightly_weather_sum.csv")
+# weather8 <- read.csv("Input/NABat_2022_nightly_weather_sum.csv")
+weather <- bind_rows(weather1,weather2,weather3,weather4,weather5,weather6,weather7,weather8)
+weather <- weather %>% select(-X)
+weather %>% as_tibble()
+# weather <- read.csv(paste0("Input/NABat_",Year_interest,"_nightly_weather_sum.csv"))
+
 staweather <- read.csv("Input/NABat_Station_Covariates_2022_weatherstn.csv")
-weather <- read.csv(paste0("Input/NABat_",Year_interest,"_nightly_weather_sum.csv"))
-head(weather)
 colnames(weather) <- c("ECCC.stn.id", "SurveyNight", "Min.Tmp", "Min.RH", "Min.WS", "Mean.Tmp", "Mean.RH", "Mean.WS", "Max.Tmp", "Max.RH", "Max.WS")
 weather$SurveyNight <- ymd(weather$SurveyNight)
 nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
@@ -142,6 +153,8 @@ Bulk_call_data %>% as_tibble()
 # Bulk_call_data_tosubmit %>% filter(`Location Name` %in% NABat_NPsubmit$Location.Name) # check if it worked
 # glimpse(Bulk_call_data_tosubmit)
 
+# write.table(Bulk_call_data,"NABat_submit/Bulk_call_data_ALL.csv",na = "",row.names = FALSE,sep = ",")
+
 # Export in annual batches
 for(i in seq_along(Year_interest)){
   write.table(Bulk_call_data %>% filter(grepl(Year_interest[i],`Survey Start Time`)), paste0("NABat_submit/Bulk_call_data_",Year_interest[i],".csv"),
@@ -150,15 +163,30 @@ for(i in seq_along(Year_interest)){
 
 ###--- Bulk Stationary Acoustic Meta Template
 #- provide contacts with bulk data for review and reference
-Appendix.Table1 <- sta[c("GRTS.Cell.ID","Location.Name", "Orig_Name","Latitude", "Longitude","Waterbody.Distance","Waterbody.Type","Road.Distance",
-                         "Road.Type", "Land.Use.Type","Land.Unit.Code")] 
 
+sta <- read.csv("Input/NABat_Station_Covariates.csv")
+names(sta)
+Appendix.Table1 <- sta[c("GRTSCellID","LocName", "Orig.Name","Latitude", "Longitude","WB.dist","WB_type","RD.dist",
+                         "RD_Type", "Land.Cover","LandUnitCo")] 
+
+colnames(Appendix.Table1) <- c("GRTS.Cell.ID","Location.Name", "Orig_Name","Latitude", "Longitude","Waterbody.Distance","Waterbody.Type","Road.Distance",
+                         "Road.Type", "Land.Use.Type","Land.Unit.Code")
+
+eff %>% group_by(Location.Name) %>% count(Contact)
+
+Appendix.Table1$Contact <- eff$Contact[match(Appendix.Table1$Location.Name, eff$Location.Name)]
 Appendix.Table1 <- left_join(Appendix.Table1, eff %>% select(Location.Name, Contact, Deployment.ID))
 Appendix.Table1 <- Appendix.Table1 %>% 
   filter(Deployment.ID==Year_interest) %>%
   dplyr::select(-Deployment.ID)
 
+Survey.Dates %>% group_by(Location.Name) %>% arrange(Survey.Start.Date) %>% filter(row_number()==1)
+Survey.Dates %>% group_by(Location.Name, SurveyYear) %>% summarise(Survey.Start.Date = min(Survey.Start.Date), max(Survey.End.Date))
+
+
 Appendix.Table1 <- left_join(Appendix.Table1, Survey.Dates)
+
+
 # glimpse(Appendix.Table1)
 # issues when exported = 1. Developed (need to change to Urban); 2. Forest-mixed not accepted (change to Forest-conifer); 3. BANP GRTS as 132485 should be 132458
 
@@ -192,6 +220,8 @@ Bulk_site_meta[cols.as.numeric]<- sapply(Bulk_site_meta[cols.as.numeric],as.nume
 glimpse(Bulk_site_meta)
 nrow(Bulk_site_meta)
 # Export
+write.table(Bulk_site_meta, "NABat_submit/Bulk_site_meta_ALL.csv",na = "",row.names = FALSE,sep = ",")
+
 write.table(Bulk_site_meta, paste0("NABat_submit/Bulk_site_meta_",Year_interest,".csv"),na = "",row.names = FALSE,sep = ",")
 
 # write.table(Bulk_site_meta, "Bulk_site_meta.csv",na = "",row.names = FALSE,sep = ",")
@@ -200,9 +230,9 @@ write.table(Bulk_site_meta, paste0("NABat_submit/Bulk_site_meta_",Year_interest,
 # # Write files for bio review
 # Export in bio batches
 Bulk_site_meta %>% count(Contact)
-bio_contact <- c("barb", "Brett", "hurtado","hughes","olson","david","helena","Unrhuh","julie","lisa","Steenweg","saakje","sandi","sharon")
+bio_contact <- c("allison","barb", "Brett", "hurtado","hughes","olson","david","jenna","helena","Unrhuh","julie","lisa","Steenweg","nina","saakje","sandi")
 for(i in seq_along(bio_contact)){
-  write.table(Bulk_site_meta %>% filter(grepl(bio_contact[i],Contact)),paste0("NABat_submit/Bulk_site_meta_2021_",bio_contact[i],".csv"), na = "",row.names = FALSE,sep = ",")
+  write.table(Bulk_site_meta %>% filter(grepl(bio_contact[i],Contact)),paste0("NABat_submit/Bulk_site_meta_2022_",bio_contact[i],".csv"), na = "",row.names = FALSE,sep = ",")
 }
 
 ###--- Bulk Stationary Acoustic Data Template
@@ -211,11 +241,12 @@ glimpse(Bulk_call_data)
 contact_cells <- Bulk_site_meta %>% select(Contact, `Location Name`)
 
 for(i in seq_along(bio_contact)){
-  write.table(Bulk_call_data %>% filter(`Location Name` %in% contact_cells[grepl(bio_contact[i], contact_cells$Contact),]$`Location Name`),
-              paste0("NABat_submit/Bulk_ACA_call_data_2021_",bio_contact[i],".csv"), 
+  write.table(Bulk_call_data %>% filter(`| Location Name` %in% contact_cells[grepl(bio_contact[i], contact_cells$Contact),]$`Location Name`),
+              paste0("NABat_submit/Bulk_call_data_2022_",bio_contact[i],".csv"), 
               na = "",row.names = FALSE,sep = ",")
 }
 
+getwd()
 rm(list=setdiff(ls(), c("Bulk_call_data","Bulk_site_meta")))
 
 # Year_interest <- year(as.Date("2021-01-01"))
