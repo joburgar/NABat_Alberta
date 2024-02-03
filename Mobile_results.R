@@ -3,7 +3,7 @@ list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "col
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
-source("NABat_sum_to_count_function.R")
+source("NABat_sum_to_count_function.R") 
 
 lapply(list.of.packages, require, character.only = TRUE)
 
@@ -290,3 +290,64 @@ dat_summary %>% count(Land.Unit.Code)
 call_count %>% summarise(sum(Count))
 111/719
 719-129
+
+##################################################
+# reformat for NABat submission
+
+dat_time <- NABat_sum_to_submit(dat_sum_sub = dat_sum_sub) # Creates a dat_time df with data ready to reformat for NABat
+dat_time <- dat_time %>% rename(Orig.Name = Location.Name)
+dat_time %>% as_tibble()
+
+eff_sub <- eff %>% select(Orig.Name, Location.Name, Survey.Start.Time, Survey.End.Time, Latitude, Longitude, Cell_Date)
+dat_time$Cell_Date <- paste(dat_time$GRTS.Cell.ID, dat_time$SurveyNight, sep="_")
+dat_time %>% as_tibble()
+
+mobile_data <- left_join(dat_time, eff_sub %>% select(-Orig.Name)) %>% as_tibble()
+mobile_data <- mobile_data %>% mutate(Survey.Start.Time = case_when(Timep <= ymd_hms(paste(Sys.Date(),"20:00:00"),tz=tz) ~ as.Date(Survey.Start.Time-1),
+                                                            TRUE ~ as.Date(Survey.Start.Time)))
+
+
+mobile_data$RecordingTime <- paste(mobile_data$SurveyNight, mobile_data$Time)
+Bulk_call_data <- mobile_data %>% select(Location.Name, Survey.Start.Time, Survey.End.Time, Latitude, Longitude, RecordingTime, Filename, Classification)
+Bulk_call_data <- Bulk_call_data %>% rename('| Location Name'= Location.Name, 'Survey Start Time'=Survey.Start.Time, 'Survey End Time'=Survey.End.Time, 
+                                            'Audio Recording Name' = Filename, 'Audio Recording Time' = RecordingTime, 'Auto Id' = Classification)
+
+# add in null columns (NABat template)
+xx <- c("Event Low Temperature", "Event High Temperature", "Event Low Relative Humidity",
+        "Event High Relative Humidity", "Event Low Weather Event", "Event High Weather Event", "Event Low Wind Speed", "Event High Wind Speed",
+        "Event Low Cloud Cover", "Event High Cloud Cover", "Software Type", "Manual Id","Species List","Manual Vetter")
+
+Bulk_call_data[xx] <- NA
+
+names(Bulk_call_data)
+
+Bulk_call_data <- Bulk_call_data[c("| Location Name", "Survey Start Time", "Survey End Time", "Event Low Temperature", "Event High Temperature", "Event Low Relative Humidity",
+                                   "Event High Relative Humidity", "Event Low Weather Event", "Event High Weather Event", "Event Low Wind Speed", "Event High Wind Speed",
+                                   "Event Low Cloud Cover", "Event High Cloud Cover", "Audio Recording Name", "Audio Recording Time", "Latitude", "Longitude","Software Type","Auto Id", "Manual Id","Species List","Manual Vetter" )]
+
+Bulk_call_data$`Software Type` <- "Alberta eBat"
+Bulk_call_data$`Species List` <- "Alberta_01"
+
+# NABat submission requires that the following fields are numeric (i.e., float) 
+# Event Low Temperature	Event High Temperature	Event Low Relative Humidity	Event High Relative Humidity
+# Event Low Wind Speed	Event High Wind Speed	Event Low Cloud Cover	Event High Cloud Cover
+glimpse(Bulk_call_data)
+cols.as.numeric <- c("Event Low Temperature",	"Event High Temperature",	"Event Low Relative Humidity",	"Event High Relative Humidity",
+                     "Event Low Wind Speed",	"Event High Wind Speed",	"Event Low Cloud Cover",	"Event High Cloud Cover")
+
+Bulk_call_data[cols.as.numeric]<- sapply(Bulk_call_data[cols.as.numeric],as.numeric)
+
+cols.as.character <- c("| Location Name","Event High Weather Event",	"Event Low Weather Event",	"Auto Id", "Manual Id", "Manual Vetter")
+Bulk_call_data[cols.as.character]<- sapply(Bulk_call_data[cols.as.character],as.character)
+
+sapply(Bulk_call_data, class)
+glimpse(Bulk_call_data)
+
+# need to format dates to mm/dd/YYYY
+Bulk_call_data$`Survey Start Time` <- paste(format(as.Date(Bulk_call_data$`Survey Start Time`), '%m/%d/%Y'), "12:00:00")
+Bulk_call_data$`Survey End Time` <- paste(format(as.Date(Bulk_call_data$`Survey End Time`), '%m/%d/%Y'), "12:00:00")
+Bulk_call_data %>% as_tibble()
+
+getwd()
+write.csv(Bulk_call_data, paste0("NABat_submit/NABat_mobile_call_",Year_interest,".csv"))
+
