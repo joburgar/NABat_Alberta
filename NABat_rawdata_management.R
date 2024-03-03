@@ -8,10 +8,13 @@
 ######################################################################################################
 # DIRECTORIES (BEGINNING)
 ######################################################################################################
-getwd()
-# RawFileDir = paste(getwd(),"NABat_RawFiles",sep="/")
-InputDir = paste(getwd(),"Input", sep="/")
-OutputDir = paste(getwd(),"Output",sep="/")
+# getwd()
+# # RawFileDir = paste(getwd(),"NABat_RawFiles",sep="/")
+# InputDir = paste(getwd(),"Input", sep="/")
+# OutputDir = paste(getwd(),"Output",sep="/")
+# open file as part of NABat_Alberta project
+# have output from Alberta eBat in a folder called "NABat_YEAR_Alberta_eBat_output"
+
 ######################################################################################################
 # DIRECTORIES (END)
 ######################################################################################################
@@ -20,7 +23,6 @@ OutputDir = paste(getwd(),"Output",sep="/")
 # LOAD PACKAGES (BEGINNING)
 ######################################################################################################
 library(tidyverse)    # data manipulation, plotting
-library(Cairo)   # printing maps for report quality output
 library(R.utils) # for moving file directory
 library(filesstrings)
 
@@ -33,7 +35,8 @@ library(filesstrings)
 ######################################################################################################
 
 # Import summary files
-dat_summary <- fs::dir_ls(path=paste("./NABat_2022_Alberta_eBat_output/"), 
+YEAR <- "2023"
+dat_summary <- fs::dir_ls(path=paste0("./NABat_",YEAR,"_Alberta_eBat_output/"), 
                           regexp = "\\_summary.csv$", recurse = TRUE) %>%
   map_dfr(~read_csv(.x, col_types = cols(.default = "c")), .id="source") %>% # issues with min_wind so read in as character
   type_convert()  # convert back to proper formats
@@ -43,7 +46,7 @@ dat_summary %>% count(Pfolder)
 
 # fs::dir_ls(path=paste("/Volumes/LaCie_5TB/NABat_from_FTP"), recurse = 1)
 
-sta <- read.csv("Input/NABat_Station_Covariates.csv") %>% filter(X2022==1)
+sta <- read.csv("Input/NABat_Station_Covariates.csv") %>% filter(X2023==1)
 sta %>% select(Orig_Name, Orig.Name)
 
 sta.sub <- sta[c("GRTSCellID","LocName","Orig_Name")] %>% as_tibble() 
@@ -54,8 +57,8 @@ sta.sub <- sta.sub %>% mutate(match = case_when(Orig_Name %in% unique(dat_summar
                                      TRUE ~ "no"))
 
 sta.sub %>% count(match)
-sta.sub %>% filter(match=="yes") %>% print(n=61) # all Bayne folders
-sta.sub %>% filter(match=="no") %>% print(n=103)
+sta.sub %>% filter(match=="yes") %>% print(n=7)
+sta.sub %>% filter(match=="no") %>% print(n=56)
 
 dat_summary <- left_join(dat_summary, sta.sub %>% select(-match), by=c("Site"="Orig_Name"))
 dat_summary <- dat_summary %>% rename(GRTS.Cell.ID = GRTSCellID, Location.Name=LocName)
@@ -65,179 +68,136 @@ dat_summary %>% count(Pfolder)
 
 dat_summary %>% count(Site) %>% print(n=100)
 Pfolder.names <- unique(dat_summary$Pfolder)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[3]) %>% count(Site) %>% print(n=50)
+dat_summary %>% filter(Pfolder %in% Pfolder.names[7]) %>% count(Site) %>% print(n=50)
 
 # add in the correct Location Names.
-dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="3667_Sarchuk" &  Site == "UNIT2" ~ "3667_NE_01",
-                                                                Pfolder=="3667_Sarchuk" &  Site == "UNIT3" ~ "3667_SW_01",
-                                                                Pfolder=="3667_Sarchuk" &  Site == "UNIT4" ~ "3667_SE_01",
+dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &  Site == "ACA-BATFS-01" ~ "72071_SE_01",
+                                                                Pfolder=="ACA" &  Site == "ACA-BATFS-02" ~ "203655_SW_01",
                                                                 
-                                                                Pfolder=="AB_Conservation" &  Site == "SS1" ~ "72071_SE_01",
-                                                                Pfolder=="AB_Conservation" &  Site == "SS2" ~ "203655_SW_01",
+                                                                Pfolder=="Bayne" &  Site == "BP-96N" ~ "219731_SW_01",
                                                                 
-                                                                Pfolder=="ABMI_Bayne" &  Site == "BP-96N" ~ "219731_SW_01",
-
-                                                                Pfolder=="BNP_2021_Fenlands" ~ "148842_NW_01",
-                                                                Pfolder=="BNP_2021_Healy" ~ "165226_NE_01",
-                                                                Pfolder=="BNP_2021_NABat" &  Site == "BNPmobile2021" ~ "Mobile_2021",
-                                                                Pfolder=="BNP_2021_NABat" &  Site == "Fenlands2021" ~ "148842_NW_01",
-                                                                Pfolder=="BNP_2021_NABat" &  Site == "GolfCourse2021" ~ "148842_NE_01",
-                                                                Pfolder=="BNP_2021_NABat" &  Site == "UpperHotsprings2021" ~ "148842_SW_01",
-                                                                Pfolder=="BNP_2022_NABat" &  Site == "BNPmobile2022" ~ "Mobile_2021",
-                                                                Pfolder=="BNP_2022_NABat" &  Site == "Fenlands2022" ~ "148842_NW_01",
-                                                                Pfolder=="BNP_2022_NABat" &  Site == "GolfCourse2022" ~ "148842_NE_01",
-                                                                Pfolder=="BNP_2022_NABat" &  Site == "UpperHotsprings2022" ~ "148842_SW_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Bryant2022" ~ "293385_NW_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Divide2022" ~ "41322_SE_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Flints2022" ~ "280601_NE_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Indianhead2022" ~ "90474_NW_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "MooseMeadows2022" ~ "296805_SE_02",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Paliser2022" ~ "235690_SW_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Scotch2022" ~ "156010_SE_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Sunshine2022" ~ "311483_SE_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  grepl("2022-", Site) ~ "311483_SE_01",
-                                                                Pfolder=="BNP_2022_Baseline" &  Site == "Windy2022" ~ "127338_NW_01",
-                                                                Pfolder=="BNP_Fenlands" ~ "148842_NW_01",
-                                                                Pfolder=="BNP_Healy" ~ "165226_NE_01",
+                                                                Pfolder=="BNP" &  Site == "UpperHotsprings" ~ "148842_SW_01",
+                                                                Pfolder=="BNP" &  Site == "Fenlands" ~ "148842_NW_01",
+                                                                Pfolder=="BNP" &  Site == "GolfCourse" ~ "148842_NE_01",
+                                                                Pfolder=="BNP" &  Site == "Bryant" ~ "293385_NW_01",
+                                                                Pfolder=="BNP" &  Site == "Divide" ~ "41322_SE_01",
+                                                                Pfolder=="BNP" &  Site == "Flints" ~ "280601_NE_01",                                                                Pfolder=="BNP" &  Site == "Flints" ~ "280601_NE_01",
+                                                                Pfolder=="BNP" &  Site == "FishLakes" ~ "2410_NW_01",
+                                                                Pfolder=="BNP" &  Site == "Indianhead" ~ "90474_NW_01",
+                                                                Pfolder=="BNP" &  Site == "MooseMeadows" ~ "296805_SE_02",
+                                                                Pfolder=="BNP" &  Site == "Paliser" ~ "235690_SW_01",
+                                                                Pfolder=="BNP" &  Site == "Scotch" ~ "156010_SE_01",
+                                                                Pfolder=="BNP" &  Site == "Sunshine" ~ "311483_SE_01",
+                                                                Pfolder=="BNP" &  Site == "Windy" ~ "127338_NW_01",
                                                                 
-                                                                Pfolder=="Copton" &  Site == "SHEEP1" ~ "221850_SE_01",
-                                                                Pfolder=="Copton" &  Site == "SHEEP2" ~ "221850_SW_01",
-                                                                Pfolder=="Sulphur" &  Site == "299-SULPHUR" ~ "197018_NW_01",
-                                                                Pfolder=="Sulphur" &  Site == "FIREMANSPIT" ~ "197018_NE_01",
-                                                                Pfolder=="Muskeg" &  Site == "316-MUSKEG1" ~ "9626_NW_01",
-                                                                Pfolder=="Muskeg" &  Site == "MUSKEG2" ~ "9626_NW_01",
+                                                                Pfolder=="CWS" &  Site == "MENWA-BAT-01" ~ "172883_NW_01",
+                                                                Pfolder=="CWS" &  Site == "MENWA-BAT-02" ~ "172883_NW_02",
+                                                                Pfolder=="CWS" &  Site == "MENWA-BAT-03" ~ "172883_NW_03",
                                                                 
-                                                                Pfolder=="EINP" &  Site == "20220719" ~ "Mobile",
                                                                 Pfolder=="EINP" &  Site == "EI-SM4BAT-NE" ~ "264037_SE_01",
                                                                 Pfolder=="EINP" &  Site == "EI-SM4BAT-SH" ~ "264037_NE_01",
                                                                 Pfolder=="EINP" &  Site == "EI-SM4BAT-ST" ~ "264037_NW_01",
                                                                 Pfolder=="EINP" &  Site == "EI-SM4BAT-TR" ~ "264037_SW_01",
-                                                                Pfolder=="EINP" &  Site == "EI-MINBAT-D1" ~ "MINBAT-D1",
-                                                                Pfolder=="EINP" &  Site == "EI-MINBAT-D2" ~ "MINBAT-D2",
-                                                                Pfolder=="EINP" &  Site == "EI-SM4BAT-D1" ~ "SM4BAT-D1",
-                                                                Pfolder=="EINP" &  Site == "EI-SM4BAT-D2" ~ "SM4BAT-D2",
+                                                                Pfolder=="EINP" &  Site == "EI-SM4BAT-D1" ~ "EINP-D1",
+                                                                Pfolder=="EINP" &  Site == "EI-SM4BAT-D2" ~ "EINP-D2",
                                                                 
-                                                                Pfolder=="Edson_Switzer" &  Site == "204442NE01" ~ "204442_NE_01",
-                                                                Pfolder=="Edson_Switzer" &  Site == "24218SW01" ~ "24218_SW_01",
-                                                                Pfolder=="Edson_Switzer" &  Site == "254362NE01" ~ "254362_NE_01",
-                                                                Pfolder=="Edson_Switzer" &  Site == "254362SE02" ~ "254362_SE_02",
-                                                                Pfolder=="Edson_Switzer" &  Site == "89754SE01" ~ "89754_SE_01",
-                                                                Pfolder=="Edson_Switzer" &  Site == "89754SE02" ~ "89754_SE_02",
-                                                                
-                                                                Pfolder=="JNP_Poco" ~ "267463_NW_01",
-                                                                                                                              
-                                                                Pfolder=="JNP" &  Site == "568028" ~ "Mobile",
+                                                                Pfolder=="Edson_Switzer" &  Site == "EdsonUnit1LH" ~ "89754_SE_01",
+                                                                Pfolder=="Edson_Switzer" &  Site == "EdsonUnit2KB" ~ "89754_NW_01",
+                                                                Pfolder=="Edson_Switzer" &  Site == "EdsonUnit3TB" ~ "89754_SE_02",
+                                                                Pfolder=="Edson_Switzer" &  Site == "SwitzerUnit2North" ~ "254362_NE_01",
+                                                                Pfolder=="Edson_Switzer" &  Site == "SwitzerUnit3VC" ~ "254362_SE_02",
+
+                                                                Pfolder=="JNP" &  Site == "BRULE-TUNNEL" ~ "267463_NE_01",
                                                                 Pfolder=="JNP" &  Site == "BUFFALO-PRAI" ~ "23146_SE_01",
-                                                                Pfolder=="JNP" &  Site == "DECOIGNE" ~ "105066_SW_01",
+                                                                Pfolder=="JNP" &  Site == "MIETTE" ~ "267463_NW_01",
                                                                 Pfolder=="JNP" &  Site == "TEKARRA" ~ "23146_NE_01",
-                                                                Pfolder=="JNP" &  Site == "TONQUIN" ~ "27242_NE_01",
                                                                 Pfolder=="JNP" &  Site == "VALLEYOF5" ~ "23146_NE_02",
                                                                 Pfolder=="JNP" &  Site == "WABASSO" ~ "23146_SE_02",
                                                                 Pfolder=="JNP" &  Site == "WHIRLPOOL" ~ "309417_SW_01",
-                                                                Pfolder=="JNP" &  Site == "WILLOW" ~ "209306_SW_01",
                                                                 
-                                                                Pfolder=="MRWCC" &  Site == "Audet" ~ "99719_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Bakke" ~ "94599_NE_02",
-                                                                Pfolder=="MRWCC" &  Site == "Balog" ~ "45447_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Bird" ~ "123587_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "BobWillis" ~ "128391_NW_02",
-                                                                Pfolder=="MRWCC" &  Site == "Buchanan" ~ "198023_NW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Cody" ~ "25283_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Cunningham" ~ "45447_NW_04",
-                                                                Pfolder=="MRWCC" &  Site == "Ellertgarber" ~ "45447_NW_03",
-                                                                Pfolder=="MRWCC" &  Site == "Finstad" ~ "219527_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Foggin" ~ "215687_NW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Ford" ~ "214407_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Galt" ~ "306599_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Hillmer" ~ "150723_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Joyce" ~ "45447_NW_02",
-                                                                Pfolder=="MRWCC" &  Site == "King" ~ "62855_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Lee" ~ "126403_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Lindeman" ~ "160135_SE_02",
-                                                                Pfolder=="MRWCC" &  Site == "Losey" ~ "17799_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "MacCallum" ~ "84615_SW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Mccolloch" ~ "306599_NE_02",
-                                                                Pfolder=="MRWCC" &  Site == "MccollochNorth" ~ "83335_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Obbay" ~ "225671_NW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Pimm" ~ "306599_SW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Ross" ~ "302012_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Russell" ~ "34183_NW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Shamber" ~ "25283_SE_02",
-                                                                Pfolder=="MRWCC" &  Site == "Smith" ~ "94599_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Sommerfeldt" ~ "215687_NE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Stronski" ~ "83335_SW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Suzanne" ~ "34183_SW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Waldy" ~ "52419_SW_01",
-                                                                Pfolder=="MRWCC" &  Site == "Walker" ~ "45447_SE_01",
-                                                                Pfolder=="MRWCC" &  Site == "Wills" ~ "128391_NW_01",
+                                                                Pfolder=="JNP_Mobile" &  Site == "JNP-D1-MIETTE" ~ "JNP-D1",
+                                                                Pfolder=="JNP_Mobile" &  Site == "JNP-D2-TOWN" ~ "JNP-D2",
+                                                                Pfolder=="JNP_Mobile" &  Site == "JNP-D3-TOWN" ~ "JNP-D3",
                                                                 
-                                                                Pfolder=="MHAC" ~ "252355_SE_01",
                                                                 
-                                                                Pfolder=="Medicine_Hat" &  Site == "MH005" ~ "329075_NW_02",
-                                                                Pfolder=="Medicine_Hat" &  Site == "MH1001" ~ "322807_SE_01",
-                                                                Pfolder=="Medicine_Hat" &  Site == "MH1002" ~ "199047_NW_01",
-                                                                Pfolder=="Medicine_Hat" &  Site == "MH1004" ~ "203143_SW_01",
-                                                                Pfolder=="Medicine_Hat" &  Site == "MHBBB" ~ "224135_SE_05",
-                                                                Pfolder=="Medicine_Hat" &  Site == "MHPA7" ~ "322807_SE_02",
+                                                                Pfolder=="MH_All" &  Site == "BIPGRNE01" ~ "273363_NE_01",
+                                                                Pfolder=="MH_All" &  Site == "BIPGRSE01" ~ "273363_SE_01",
+                                                                Pfolder=="MH_All" &  Site == "HargravesSE01" ~ "66719_SE_01",
+                                                                Pfolder=="MH_All" &  Site == "HargravesSE02" ~ "66719_SE_02",
+                                                                Pfolder=="MH_All" &  Site == "MRNAcoulee" ~ "203143_SW_01",
+                                                                Pfolder=="MH_All" &  Site == "MRNAdugout" ~ "322807_SE_01",
+                                                                Pfolder=="MH_All" &  Site == "MRNAlake" ~ "199047_NW_01",
+                                                                Pfolder=="MH_All" &  Site == "OnefourCoulee" ~ "224135_SE_05",
+                                                                Pfolder=="MH_All" &  Site == "OnefourLostRiver" ~ "224135_SE_04",                                                                Pfolder=="MH_All" &  Site == "MRNAdugout" ~ "322807_SE_02",
+                                                                Pfolder=="MH_All" &  Site == "OnefourPlayground" ~ "39815_SW_01",
+                                                                Pfolder=="MH_All" &  Site == "OnefourReservoir" ~ "39815_SW_02",
                                                                 
-                                                                Pfolder=="WBNP" &  Site == "NW-PATROLCBN" ~ "336731_NW_01",
-                                                                Pfolder=="WBNP" &  Site == "PINELRD35" ~ "303706_NW_01",
-                                                                Pfolder=="WBNP" &  Site == "RAINBOW" ~ "303706_NE_01",
-                                                                Pfolder=="WBNP" &  Site == "SW--HUBBY" ~ "336731_SW_01",
-                                                                Pfolder=="WBNP" &  Site == "SW-KETTLE" ~ "336731_SE_01",
-                                                                Pfolder=="WBNP" &  Site == "SW-PARSONS" ~ "303706_SW_01",
-                                                                Pfolder=="WBNP" &  Site == "WBNP" ~ "Mobile",
+                                                                Pfolder=="MRWCC" &  Site == "MRWCC" ~ "134339_NW_01",
                                                                 
-                                                                Pfolder=="WCS" &  grepl("ACBPHampshireClose",Filename) ~ "30403_SW_01",
-                                                                Pfolder=="WCS" &  grepl("ACBPTopaz",Filename) ~ "38595_SE_01",
-                                                                Pfolder=="WCS" &  grepl("ACBPCEI",Filename) ~ "42883_SE_01",
-                                                                Pfolder=="WCS" &  grepl("ACBPWARanches",Filename) ~ "120707_NE_01",
-                                                                Pfolder=="WCS" &  grepl("ACBPOldmanSH",Filename) ~ "163011_SW_01",
-                                                                Pfolder=="WCS" &  grepl("NCCFlemingNW",Filename) ~ "326009_NE_01",
-                                                                Pfolder=="WCS" &  grepl("NCCKerrSW",Filename) ~ "326009_NW_01",
-                                                                Pfolder=="WCS" &  grepl("GoldenRanchesNorth",Filename) ~ "99523_SW_01",
-                                                                Pfolder=="WCS" &  grepl("GoldenRanchesSouth",Filename) ~ "99523_SW_02",
-                                                                Pfolder=="WCS" &  grepl("Hicks",Filename) ~ "115907_NW_01",
-                                                                Pfolder=="WCS" &  grepl("GamblingLake",Filename) ~ "115907_SE_01",
-                                                                Pfolder=="WCS" &  grepl("TomahawkEastAndex",Filename) ~ "171651_NE_01",
-                                                                Pfolder=="WCS" &  grepl("TomahawkWestAndex",Filename) ~ "171651_NE_02",
+                                                                Pfolder=="Peace1" &  Site == "SHEEP1" ~ "221850_SE_01",
+                                                                Pfolder=="Peace1" &  Site == "SHEEP2" ~ "221850_SW_01",
+                                                                Pfolder=="Peace1" &  Site == "299-SULPHUR" ~ "197018_NW_01",
+                                                                Pfolder=="Peace1" &  Site == "FIREMANSPIT" ~ "197018_NE_01",
+                                                                Pfolder=="Peace1" &  Site == "316-MUSKEG1" ~ "9626_NW_01",
+
+                                                                Pfolder=="WLNP_mobile" &  Site == "2023-07-05" ~ "WLNP-D1",
+                                                                Pfolder=="WLNP_mobile" &  Site == "2023-07-06" ~ "WLNP-D2",
+                                                                Pfolder=="WLNP_stationary" &  Site == "BLAK-NABAT" ~ "139715_NE_01",
+                                                                Pfolder=="WLNP_stationary" &  Site == "CAM-NABAT" ~ "139715_SW_01",
+                                                                Pfolder=="WLNP_stationary" &  Site == "POW-NABAT"  ~ "205251_SW_01",
+
+                                                                Pfolder=="Wabasca" &  Site == "UNIT1" ~ "3667_NW_01",
+                                                                Pfolder=="Wabasca" &  Site == "UNIT2" ~ "3667_NE_01",
+                                                                Pfolder=="Wabasca" &  Site == "UNIT3" ~ "3667_SW_01",
+                                                                Pfolder=="Wabasca" &  Site == "UNIT4" ~ "3667_SE_01",
                                                                 
-                                                                Pfolder=="WLNP" &  grepl("Mobile",Filename) ~ "Mobile",
-                                                                Pfolder=="WLNP_Stationary" &  grepl("BLAK",Filename) ~ "139715_NE_01",
-                                                                Pfolder=="WLNP_Stationary" &  grepl("CAM",Filename) ~ "139715_SW_01",
-                                                                Pfolder=="WLNP_Stationary" &  grepl("POW",Filename) ~ "205251_SW_01",
+                                                                Pfolder=="MRWCC" &  Site == "Mcintyre" ~ "134339_NW_01",
+
+                                                                # Pfolder=="WCS" &  grepl("ACBPHampshireClose",Filename) ~ "30403_SW_01",
+                                                                # Pfolder=="WCS" &  grepl("ACBPTopaz",Filename) ~ "38595_SE_01",
+                                                                # Pfolder=="WCS" &  grepl("ACBPCEI",Filename) ~ "42883_SE_01",
+                                                                # Pfolder=="WCS" &  grepl("ACBPWARanches",Filename) ~ "120707_NE_01",
+                                                                # Pfolder=="WCS" &  grepl("ACBPOldmanSH",Filename) ~ "163011_SW_01",
+                                                                # Pfolder=="WCS" &  grepl("NCCFlemingNW",Filename) ~ "326009_NE_01",
+                                                                # Pfolder=="WCS" &  grepl("NCCKerrSW",Filename) ~ "326009_NW_01",
+                                                                # Pfolder=="WCS" &  grepl("GoldenRanchesNorth",Filename) ~ "99523_SW_01",
+                                                                # Pfolder=="WCS" &  grepl("GoldenRanchesSouth",Filename) ~ "99523_SW_02",
+                                                                # Pfolder=="WCS" &  grepl("Hicks",Filename) ~ "115907_NW_01",
+                                                                # Pfolder=="WCS" &  grepl("GamblingLake",Filename) ~ "115907_SE_01",
+                                                                # Pfolder=="WCS" &  grepl("TomahawkEastAndex",Filename) ~ "171651_NE_01",
+                                                                # Pfolder=="WCS" &  grepl("TomahawkWestAndex",Filename) ~ "171651_NE_02",
                                                                 
                                                                 TRUE ~ Location.Name))
 
-dat_summary %>% filter(is.na(Location.Name)) %>% group_by(Pfolder) %>% count(Site)
-# EINP = already included in other files? (these are kaleidoscope outputs)
-# ABMI_Bayne = site outside of AB
-# MRWCC = Cartier just noise calls and can't seem to get GRTS Cell Id for coordinates, other are random files not sure what site
+dat_summary %>% filter(is.na(Location.Name)) %>% group_by(Pfolder) %>% count(Site) %>% print(n=30)
+# Bayne = metadata not yet available
 # good to filter out all NA files and proceed
 
-dat_summary %>% filter(!is.na(Location.Name)) %>% count(Pfolder) %>% print(n=33)
+dat_summary %>% filter(!is.na(Location.Name)) %>% count(Pfolder) %>% print(n=13)
 glimpse(dat_summary)
 dat_summary$GRTS.Cell.ID <- word(dat_summary$Location.Name, 1,1,sep="_")
-dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("M",GRTS.Cell.ID) ~ "Mobile",
+dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("D",GRTS.Cell.ID) ~ "Mobile",
                                                                 TRUE ~ GRTS.Cell.ID))
 
 dat_summary <- dat_summary %>% filter(!is.na(Location.Name))
 
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 123 GRTS cells
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 166 stations
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 34 GRTS cells (up to 62 GRTS cells)
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 58 stations (+28 from Bayne's lab) 86 stations
 
-dat_summary %>% filter(Date > "2022-01-01") %>% summarise(min(Date), max(Date), mean(Date))
-dat_summary %>% filter(Date < "2022-01-01") %>% summarise(min(Date), max(Date), mean(Date))
+dat_summary %>% filter(Date > "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
+# min date = Feb 7, 2023; max date = Oct 19, 2023; mean date = July 17, 2023
+dat_summary %>% filter(Date < "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
 
-dat_summary %>% filter(Date < "2021-01-01") %>% count(Filename)
-dat_summary %>% filter(Site =="MH005") %>% count(Filename) # some files with 2017 date? Ask Sandi but proceed without them
+# dat_summary %>% filter(Date < "2021-01-01") %>% count(Filename)
+# dat_summary %>% filter(Site =="MH005") %>% count(Filename) # some files with 2017 date? Ask Sandi but proceed without them
 
 unique(dat_summary$Location.Name)
-dat_summary %>% filter(grepl("M",GRTS.Cell.ID)) %>% count(Location.Name)
-dat_summary %>% filter(Date < "2022-01-01") %>% count(Location.Name)
+dat_summary %>% filter(grepl("D",Location.Name)) %>% count(Location.Name) # 7 mobile transects (EINP 2, JNP 3, WLNP 2)
+dat_summary %>% filter(Date < "2024-01-01") %>% count(Location.Name)
 
 dat_summary$Location.Name.Yr <- paste(dat_summary$Location.Name, substr(as.character(dat_summary$Date),1,4), sep="_")
 to_file_dat_summary <- unique(dat_summary$Location.Name.Yr)
+# dat_summary %>% filter(Location.Name=="139715_NE_01")
 
 for(i in 1:length(to_file_dat_summary)){
   write.csv(dat_summary %>% filter(Location.Name.Yr == to_file_dat_summary[i]),
@@ -251,7 +211,7 @@ for(i in 1:length(to_file_dat_summary)){
 # set working directory for map output
 
 # Create vector, and then dataframe, of raw data file names
-rawdata.names <- list.files(path="./NABat_2022_Alberta_eBat_output", recursive = TRUE)
+rawdata.names <- list.files(path="./NABat_2023_Alberta_eBat_output", recursive = TRUE)
 glimpse(rawdata.names)
 
 RawFile.df <- as.data.frame(rawdata.names)
@@ -309,23 +269,21 @@ glimpse(RawCall.df)
 RawCall.df %>% group_by(GRTS.Cell.ID, Location.Name, FileType) %>% count(Deployment.ID)
 Files_per_Location <- RawCall.df %>% group_by(GRTS.Cell.ID, Location.Name, FileType) %>% count(Deployment.ID)
 Files_per_Location$Location.Name_Year <- as.factor(paste(Files_per_Location$Location.Name, Files_per_Location$Deployment.ID, sep="_"))
+Files_per_Location <- Files_per_Location %>% ungroup()
 
 ### need to change to factor (I think) so dplyr select will work
-NABat_deploy <- left_join(NABat_deploy, Files_per_Location %>% select(Location.Name_Year:n), by="Location.Name_Year")
+NABat_deploy <- left_join(NABat_deploy, Files_per_Location %>% select(n:Location.Name_Year), by="Location.Name_Year")
 glimpse(NABat_deploy)
 head(NABat_deploy)
-
-getwd()
-sapply(new_folder_path, dir.create)
 
 ######################################################################################################
 # MOVE FILES INTO APPROPRIATE FOLDERS #
 ######################################################################################################
 getwd()
 
-files_to_move <- list.files("./Input/NABat_ProcessedFiles/To_Be_Sorted")
+files_to_move <- list.files("./NABat_ProcessedFiles_DT/To_Be_Sorted")
 GRTS_cells <- word(files_to_move,1,sep="_")
-GRTS_cells <- GRTS_cells[!grepl("M",GRTS_cells)] # remove the "mobile" grts cells
+GRTS_cells <- GRTS_cells[grepl("M",GRTS_cells)] # remove the "mobile" grts cells
 
 GRTS_cells
 
@@ -358,6 +316,107 @@ for(i in 1:length(NABat_stations)){
 
 
 
-NABat_deploy <- read.csv("NABat_Deployment_Data.csv", header = TRUE, stringsAsFactors = NA) 
+######################################################################################################
+# MOVE FILES INTO APPROPRIATE FOLDERS #
+######################################################################################################
+NABat_deploy <- read.csv("Input/NABat_Deployment_Data.csv", header = TRUE, stringsAsFactors = NA) 
 glimpse(NABat_deploy)
 
+setwd("/Volumes/LaCie_5TB/NABat_from_FTP/")
+
+Pfolder.names <- list.files()
+
+# old_names <- fs::dir_ls(recurse = 1)
+# old_names <- old_names[!grepl(".csv",old_names)] # remove the csv files
+# old_names <- old_names[!grepl("xlsx",old_names)] # remove the xlsx files
+# old_names <- old_names[!grepl("doc",old_names)] # remove the doc files
+# old_names <- old_names[!grepl("wav",old_names)] # remove the wav files
+# old_names <- old_names[!grepl("txt",old_names)] # remove the txt files
+# 
+# old_names <- as.data.frame(as.character(old_names))
+# colnames(old_names) <- "raw"
+# old_names$Pfolder <- word(old_names$raw, 1, sep="/")
+# old_names$Site <- word(old_names$raw, 2, sep="/")
+# old_names %>% as_tibble
+# old_names <- old_names %>% filter(!is.na(Site))
+# unique(old_names$Pfolder)
+
+glimpse(NABat_deploy)
+unique(NABat_deploy$Contact)
+
+rename_folders_to_NABat <- function(contact=contact, Pfolder_to_rename="EINP"){
+  names <- NABat_deploy %>% filter(Contact == contact) %>% 
+    select(Location.Name, Orig.Name)
+  # names$Orig.Name <- word(names$Orig.Name,1)
+  names$Orig.Name <- str_replace_all(names$Orig.Name,"_"," ")
+  list.files(paste0("./",Pfolder_to_rename))
+  file.rename(from=paste0("./",Pfolder_to_rename,"/",names$Orig.Name), to=paste0("./",Pfolder_to_rename,"/",names$Location.Name))
+}
+
+rename_folders_to_NABat(contact = "allison@mrwcc.ca", Pfolder_to_rename = "MRWCC")
+
+list.files()
+names <- NABat_deploy %>% filter(Contact == "barb.johnston@pc.gc.ca" | Contact == "barb.johnston@canada.ca; geoffrey.prophet@canada.ca" ) %>% 
+  select(Location.Name, Orig.Name)
+list.files("./2021_Banff NP")
+file.rename(from=paste0("./2021_Banff NP/",Banff_names$Orig.Name), to=paste0("./2021_Banff NP/",Banff_names$Location.Name))
+
+
+# add in the correct Location Names.
+MRWCC_old_names <- list.files("./MRWCC")
+MRWCC_old_names <- word(MRWCC_old_names, 1)
+MRWCC_old_names <- MRWCC_old_names[!grepl("Landowner", MRWCC_old_names)]
+MRWCC_old_names <- MRWCC_old_names[!grepl("locations", MRWCC_old_names)]
+MRWCC_old_names <- as.data.frame(MRWCC_old_names)
+colnames(MRWCC_old_names) <- "Site"
+MRWCC_old_names <- MRWCC_old_names %>% mutate(new_names = case_when(
+  Site == "Audet" ~ "99719_SE_01",
+  Site == "Bakke" ~ "94599_NE_02",
+  Site == "Balog" ~ "45447_SE_01",
+  Site == "Bird" ~ "123587_SE_01",
+  Site == "BobWillis" ~ "128391_NW_02",
+  Site == "Buchanan" ~ "198023_NW_01",
+  Site == "Cody" ~ "25283_SE_01",
+  Site == "Cunningham" ~ "45447_NW_04",
+  Site == "Ellertgarber" ~ "45447_NW_03",
+  Site == "Finstad" ~ "219527_NE_01",
+  Site == "Foggin" ~ "215687_NW_01",
+  Site == "Ford" ~ "214407_NE_01",
+  Site == "Galt" ~ "306599_NE_01",
+  Site == "Hillmer" ~ "150723_SE_01",
+  Site == "Joyce" ~ "45447_NW_02",
+  Site == "King" ~ "62855_SE_01",
+  Site == "Lee" ~ "126403_NE_01",
+  Site == "Lindeman" ~ "160135_SE_02",
+  Site == "Losey" ~ "17799_NE_01",
+  Site == "MacCallum" ~ "84615_SW_01",
+  Site == "Mccolloch" ~ "306599_NE_02",
+  Site == "MccollochNorth" ~ "83335_SE_01",
+  Site == "Obbay" ~ "225671_NW_01",
+  Site == "Pimm" ~ "306599_SW_01",
+  Site == "Ross" ~ "302012_NE_01",
+  Site == "Russell" ~ "34183_NW_01",
+  Site == "Shamber" ~ "25283_SE_02",
+  Site == "Smith" ~ "94599_NE_01",
+  Site == "Sommerfeldt" ~ "215687_NE_01",
+  Site == "Stronski" ~ "83335_SW_01",
+  Site == "Suzanne" ~ "34183_SW_01",
+  Site == "Waldy" ~ "52419_SW_01",
+  Site == "Walker" ~ "45447_SE_01",
+  Site == "Wills" ~ "128391_NW_01"))
+
+MRWCC_old_names
+Pfolder_to_rename = "MRWCC"
+names <- MRWCC_old_names
+names$Orig.Name <- paste(names$Site, "Property")
+names$Location.Name <- names$new_names
+list.files(paste0("./",Pfolder_to_rename))
+file.rename(from=paste0("./",Pfolder_to_rename,"/",names$Orig.Name), to=paste0("./",Pfolder_to_rename,"/",names$Location.Name))
+rename_folders_to_NABat(contact = "allison@mrwcc.ca", )
+
+
+list.files()
+names <- NABat_deploy %>% filter(Contact == "barb.johnston@pc.gc.ca" | Contact == "barb.johnston@canada.ca; geoffrey.prophet@canada.ca" ) %>% 
+  select(Location.Name, Orig.Name)
+list.files("./2021_Banff NP")
+file.rename(from=paste0("./2021_Banff NP/",Banff_names$Orig.Name), to=paste0("./2021_Banff NP/",Banff_names$Location.Name))
