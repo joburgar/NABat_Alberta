@@ -14,7 +14,7 @@ Prepared by: Joanna M. Burgar, PhD RPBio
 
 Prepared for: Alberta Environment & Parks
 
-Suggested Citation: Burgar, J.M. 2022. North American Bat Monitoring Program 2020. Alberta Environment & Parks, Edmonton, Alberta. 
+Suggested Citation: Burgar, J.M. 2024. North American Bat Monitoring Program 2023. Alberta Environment & Parks, Edmonton, Alberta. 
 
 Cover Illustration: Myotis lucifigus - Little Brown Bat © Jason Headley
 
@@ -40,7 +40,7 @@ colour <- "lightseagreen"
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- c("72071","203655")
 
-# Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2023-01-01"))
 
 # Check the listing of output files
 # fs::dir_ls(path="./Input/NABat_ProcessedFiles", recurse = TRUE)
@@ -81,7 +81,7 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
   mutate(SurveyNight = ymd(Date, truncated = 1)) %>%
   mutate(Year = as.factor(year(SurveyNight)), Month = month(SurveyNight, label = T), jDay = yday(SurveyNight)) %>%
   select(-Date)%>%
-  # filter(Year==Year_interest) %>%
+  filter(Year==Year_interest) %>%
   rename(Orig.Name=Site)
 
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
@@ -89,7 +89,10 @@ dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
 
 # Create file type to differentiate zc from wav 
-dat_summary$File.Type <- str_sub(dat_summary$Filename,-2,-1) %>% recode("0#" = "zc", "av"="wav")
+dat_summary$File.Type <- str_sub(dat_summary$Filename,-2,-1) %>% recode("0#" = "zc", "av"="wav", "[0-9]{1}#" = "zc")
+dat_summary <- dat_summary %>% mutate(File.Type = case_when(grepl("#", File.Type) ~ "zc",
+                                                            TRUE ~ as.character(File.Type)))
+
 
 # Extract the time from filename and put in date format
 dat_summary$Time.temp1 <- str_extract(dat_summary$Filename,"_[0-9]{6}.wav") %>% str_sub(2,7)
@@ -98,6 +101,7 @@ dat_summary$Time.temp3 <- str_extract(dat_summary$Filename,"_[0-9]{6}_") %>% str
 dat_summary$Time.temp4 <- str_extract(dat_summary$Filename,"_[0-9]{6}.00#.zc") %>% str_sub(2,7)
 dat_summary$Time.temp5 <- str_extract(dat_summary$Filename,"_[0-9]{6}.zc") %>% str_sub(2,7)
 dat_summary$Time.temp6 <- str_extract(dat_summary$Filename,"_[0-9]{6}.00#") %>% str_sub(2,7)
+dat_summary$Time.temp7 <- dat_summary$Filename %>% str_sub(9,15)
 
 dat_summary$Time.temp1p <- as.POSIXct(strptime(dat_summary$Time.temp1, "%H%M%S", tz))
 dat_summary$Time.temp2p <- as.POSIXct(strptime(dat_summary$Time.temp2, "%H-%M-%S", tz))
@@ -105,12 +109,12 @@ dat_summary$Time.temp3p <- as.POSIXct(strptime(dat_summary$Time.temp3, "%H%M%S",
 dat_summary$Time.temp4p <- as.POSIXct(strptime(dat_summary$Time.temp4, "%H%M%S", tz))
 dat_summary$Time.temp5p <- as.POSIXct(strptime(dat_summary$Time.temp5, "%H%M%S", tz))
 dat_summary$Time.temp6p <- as.POSIXct(strptime(dat_summary$Time.temp6, "%H%M%S", tz))
+dat_summary$Time.temp7p <- as.POSIXct(strptime(dat_summary$Time.temp7, "%H%M.%S", tz))
 
-dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p)) %>% 
+dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p, Time.temp7p)) %>% 
   select(-c(Time.temp1, Time.temp2, Time.temp3, Time.temp4, Time.temp5, Time.temp6,
-            Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p))
+            Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p,Time.temp7p))
 hist(dat_summary$Timep, breaks=60)
-
 
 dat_summary$Timep <- ymd_hms(dat_summary$Timep, tz=tz)
 
@@ -122,36 +126,27 @@ dat_summary %>% count(time.keep)
 hist(dat_summary[dat_summary$time.keep=="keep",]$Timep, breaks=60)
 dat_summary <- dat_summary %>% filter(time.keep=="keep")
 
+# changing SurveyNight to be the correct date (day before if after midnight)
+dat_summary <- dat_summary %>% mutate(SurveyNight = case_when(Timep <= ymd_hms(paste(Sys.Date(),"18:00:00"),tz=tz) ~ as.Date(SurveyNight-1),
+                                                            TRUE ~ as.Date(SurveyNight)))
+# dat_summary %>% select(SurveyNight, Filename, Timep)
+
 # Read deployment data csv for station covariates
-eff <- read.csv("Input/NABat_Deployment_Data.csv", header=T) %>%
-  mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
-eff$Survey.End.Time - eff$Survey.Start.Time
+eff <- read.csv(paste0("Input/NABat_Deployment_Data_",Year_interest,".csv"), header=T) #%>% mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
+# eff$Survey.End.Time - eff$Survey.Start.Time
 eff <- eff %>% filter(Deployment.ID>=as.numeric(Year_interest)) #%>% filter(GRTS.Cell.ID==GRTS_interest)
-as.data.frame(eff %>% ungroup() %>% group_by(Deployment.ID) %>% count(GRTS.Cell.ID)) # 119 NABat cells surveyed in 2022
+# as.data.frame(eff %>% ungroup() %>% group_by(Deployment.ID) %>% count(GRTS.Cell.ID)) # 34+ NABat cells surveyed in 2023
 
 eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
 dat.names <- dat_summary%>% group_by(Location.Name) %>% count(Orig.Name)
 names.join <- as.data.frame(full_join(eff.names, dat.names, by="Location.Name"))
 no.data <- names.join %>% filter(is.na(n.y)) # will show missing deployment data
-eff %>% filter(Location.Name %in% no.data$Location.Name) %>% select(Location.Name, Orig.Name, Detector.Failure.Details) %>% as_tibble()
+# eff %>% filter(Location.Name %in% no.data$Location.Name) %>% select(Location.Name, Orig.Name, Detector.Failure.Details) %>% as_tibble() %>% print(n=30)
 
 ### NO DATA (i.e., equipment malfunction) for 14 sites and no data sent for 1 site
 # Location.Name Orig.Name          Detector.Failure.Details
-#  1 3667_NW_01    Wabasca - Unit 1   "Detector malfunction for entire survey"
-#  2 9626_NE_01    Muskeg 2           "file issues"
-#  3 27242_NE_01   Tonquin            "Did not send files on recording cycle - only daily recordings Jun 15 - Jul 15"
-#  4 45447_NW_01   45447_NW_01        "Just picked up false calls and noise."
-#  5 45447_SE_02   45447_SE_02        "Did not even pick up any noise. Equipment not working properly."
-#  6 45447_SE_03   45447_SE_03        ""
-#  7 99719_NE_01   99719_NE_01        ""
-#  8 160135_SE_01  160135_SE_01       "For some reason picked up basically NO calls. Not sure why, perhaps too far from any structures and treed habitats. "
-#  9 216730_NW_02  BP-S-E0-1-134N     ""
-# 10 224135_SE_02  Lost River - creek "no data provided - equipment malfunction"
-# 11 231018_NW_01  Isaac Creek        "Extensive water damage. Recorder filled with water and significantly corroded. Did not turn on.
-# 12 264178_SE_02  BP-W-5-4_BAT       ""
-# 13 267463_NE_01  Brule Tunnel Road  "Unit failed"
-# 14 276408_NW_02  BP-P-E0-1-23N      "no data provided - not in retrieval excel file"
-# 15 323194_SW_01  BP-RD-1-107N       "2 \"calls\" picked up - malfunction?" 
+# 1 "9626_NE_01"   Muskeg 2       "equipment malfunction" 
+# 2 "148871_NE_01" WoS            "no data"       
 
 NABat.stns.to.use <- unique(eff$Location.Name)
 
@@ -160,7 +155,7 @@ sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","
   dplyr::select(-GRTSCellID, -Orig.Name) %>%
   rename(Location.Name=LocName, Waterbody.Type=WB_type, Waterbody.Distance=WB.dist, Road.Type=RD_Type, Road.Distance=RD.dist, Natural.Region=NRNAME)
 
-sta <- sta %>% filter(X2022==1)
+sta <- sta %>% filter(X2023==1)
 
 sta$NP <- as.factor(sta$NP)
 sta$NP <- sta$NP %>% relevel(ref="In")
@@ -185,18 +180,18 @@ sta$Land.Unit.Code <- recode(sta$LandUnitCo, "BNP"="BANP", "JNP"="JANP","LPR"="L
 
 eff <- left_join(eff %>% select(-Land.Unit.Code), 
                  sta %>% dplyr::select(Location.Name, Land.Unit.Code, Natural.Region, NP, Land.Use.Type))
-eff %>% filter(Deployment.ID=="2022") %>% count(GRTS.Cell.ID) # 119 GRTS cells surveyed
-nrow(eff %>% filter(Deployment.ID=="2022")) # 173 sites
+eff %>% filter(Deployment.ID=="2023") %>% count(GRTS.Cell.ID) # 34 (+ up to 28 more) GRTS cells surveyed
+nrow(eff %>% filter(Deployment.ID=="2023")) # 89 sites
 
-# sta.sites <- sta %>% filter(X2022==1) %>% select(Location.Name); nrow(sta.sites) #173
-sta.sites <- sta %>% select(Location.Name); nrow(sta.sites) #173
-# eff.sites <- eff %>% filter(Deployment.ID=="2022") %>% select(Location.Name, Orig.Name); nrow(eff.sites) #173
-eff.sites <- eff %>% select(Location.Name, Orig.Name); nrow(eff.sites) #173
+# sta.sites <- sta %>% filter(X2023==1) %>% select(Location.Name); nrow(sta.sites) #63
+sta.sites <- sta %>% select(Location.Name); nrow(sta.sites) #63
+# eff.sites <- eff %>% filter(Deployment.ID=="2023") %>% select(Location.Name, Orig.Name); nrow(eff.sites) #89
+eff.sites <- eff %>% select(Location.Name, Orig.Name); nrow(eff.sites) #89
 names.join <- as.data.frame(full_join(sta.sites, eff.sites))
 eff.sites %>% filter(!Location.Name %in% sta.sites$Location.Name)
 
 # Read distance matrix csv
-dist.mat <- read.csv("DistanceMatrixTable_2022.csv", header=T, row.names=1)
+dist.mat <- read.csv("DistanceMatrixTable_2023.csv", header=T, row.names=1)
 dim(dist.mat)
 colnames(dist.mat)[1:nrow(sta)] <- sta$Location.Name
 dist.mat$Location.Name <- sta$Location.Name
@@ -222,7 +217,7 @@ strptime(dat_summary$SurveyNight[1], "%Y-%m-%d", tz="UTC")
 
 # 2) ensure all deployment starting dates are before deployment retreival dates
 # Logic = are the stations active for 0 or more days -> all should read TRUE
-# didn't input this year (2021), will use first and last date bat recorded instead
+# didn't input this year (2021, 2022, or 2023), will use first and last date bat recorded instead
 table((strptime(eff$Survey.End.Time, "%Y-%m-%d", tz="UTC")-strptime(eff$Survey.Start.Time, "%Y-%m-%d", tz="UTC"))>=0)
 
 # 3) Ensure Deployment.ID (year) is the same as SurveyNight year
@@ -248,12 +243,12 @@ missing.eff.sta <- left_join(eff, sta, by="Location.Name") #%>% dplyr::select(Lo
 missing.eff.sta[is.na(missing.eff.sta$Orig.Name),] # will show missing station covariates
 
 # 4b) Do you have all data represented in the station covariates? If yes, the value should be 0
-length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 15
+length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 3
 missing.dat.sta <- left_join(sta, dat_summary, by="Location.Name") %>% dplyr::select(Location.Name, Orig_Name, Orig.Name)
 missing.data.names <- missing.dat.sta[is.na(missing.dat.sta$Orig.Name),]  # will show missing count data (may just not have data for certain years)
 
-sta %>% count(Location.Name) #173 stations (15 with malfunctions or no files sent)
-sta %>% count(GRTS.Cell.ID) # 119
+sta %>% count(Location.Name) #62 stations (3 with malfunctions or no files sent)
+sta %>% count(GRTS.Cell.ID) # 31 (without Bayne data)
 
 # 4c) Do you have all data represented in the deployment data? If yes, the value should be 0
 length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 15
@@ -262,10 +257,8 @@ missing.dat.sta[is.na(missing.dat.sta$Orig.Name),] # will show missing deploymen
 
 # sta %>% filter(Location.Name=="323194_SW_01")
 
-sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(Location.Name) # 158 stations with data
-sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(GRTS.Cell.ID) # 116 grid cells with data
-
-# For 2021, Fenlands data was not sent - first time catching this so will call it a "no files sent and ask Barb for files for submission"
+sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(Location.Name) # 59 stations with data
+sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(GRTS.Cell.ID) # 30 grid cells with data (without Bayne data)
 
 # 5) Remove dates outside survey range (i.e., ARUs turned on but not deployed or deployed well past NABat guidelines)
 eff %>% group_by(Deployment.ID) %>% summarise(min(Survey.Start.Time), max(Survey.End.Time))
@@ -278,7 +271,7 @@ dat_summary <- dat_summary %>% filter(between(jDay, 121, 253))
 
 # 6) # check to make sure pulling times from start and end of day
 dat_summary %>% group_by(File.Type) %>% summarise(min(Timep, na.rm=T), max(Timep, na.rm=T))
-# sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues with filename (only 3 % in 2019; 0.7% in 2021)
+# sum(is.na(dat_summary$Timep)) / nrow(dat_summary) # almost 20% having issues with filename (only 3 % in 2019; 0.7% in 2021, 0% in 2023)
 
 # hist(dat_summary$Timep, breaks=50)
 # hist(dat_summary[dat_summary$File.Type=="zc",]$Timep, breaks=60)
