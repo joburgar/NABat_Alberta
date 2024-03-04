@@ -68,7 +68,7 @@ dat_summary %>% count(Pfolder)
 
 dat_summary %>% count(Site) %>% print(n=100)
 Pfolder.names <- unique(dat_summary$Pfolder)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[7]) %>% count(Site) %>% print(n=50)
+dat_summary %>% filter(Pfolder %in% Pfolder.names[9]) %>% count(Site) %>% print(n=50)
 
 # add in the correct Location Names.
 dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &  Site == "ACA-BATFS-01" ~ "72071_SE_01",
@@ -124,8 +124,8 @@ dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &
                                                                 Pfolder=="MH_All" &  Site == "BIPGRSE01" ~ "273363_SE_01",
                                                                 Pfolder=="MH_All" &  Site == "HargravesSE01" ~ "66719_SE_01",
                                                                 Pfolder=="MH_All" &  Site == "HargravesSE02" ~ "66719_SE_02",
-                                                                Pfolder=="MH_All" &  Site == "MRNAcoulee" ~ "203143_SW_01",
-                                                                Pfolder=="MH_All" &  Site == "MRNAdugout" ~ "322807_SE_01",
+                                                                Pfolder=="MH_All" &  Site == "MRNAcoulee" ~ "322807_SE_02",  # correct site name is MRNA Coulee top
+                                                                Pfolder=="MH_All" &  Site == "MRNAdugout" ~ "322807_SE_01", 
                                                                 Pfolder=="MH_All" &  Site == "MRNAlake" ~ "199047_NW_01",
                                                                 Pfolder=="MH_All" &  Site == "OnefourCoulee" ~ "224135_SE_05",
                                                                 Pfolder=="MH_All" &  Site == "OnefourLostRiver" ~ "224135_SE_04",                                                                Pfolder=="MH_All" &  Site == "MRNAdugout" ~ "322807_SE_02",
@@ -181,7 +181,7 @@ dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("D",GRTS.Ce
 
 dat_summary <- dat_summary %>% filter(!is.na(Location.Name))
 
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 34 GRTS cells (up to 62 GRTS cells)
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 33 GRTS cells (up to 62 GRTS cells)
 dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 58 stations (+28 from Bayne's lab) 86 stations
 
 dat_summary %>% filter(Date > "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
