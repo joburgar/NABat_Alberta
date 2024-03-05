@@ -89,16 +89,15 @@ fn.Coord_to_Grid <- function(input.dd=input.dd, dist=10){
 # LOAD Bat DATA (START)
 ######################################################################################################
 getwd()
-name_of_file <- c("Input/NABat_Deployment_Data_2023")
+name_of_file <- c("Bayne_Metadata2023")
 df <- read.csv(paste0(name_of_file,".csv")) # read in file if multiple locations needing Location ID
 
 # enusre Latitude and Longitude columns
 as_tibble(df)
-df <- df %>% filter(Orig.Name=="FishLakes") %>% dplyr::select(Orig.Name, Latitude, Longitude)
 
-df <- rename(df, Longitude = Long) # may need to adjust depending on long / lat names
-df <- rename(df, Latitude = Lat)
-df <- rename(df, Site = Orig.Name)
+df <- rename(df, Longitude = longfinalD) # may need to adjust depending on long / lat names
+df <- rename(df, Latitude = latfinalD)
+df <- rename(df, Site = location)
 
 # add Grid Cells (or check if already there) 
 # will produce a warning
@@ -147,19 +146,21 @@ ggplot() +
 
 #######################
 # individual checking - alter code as necessary
-LR <- df %>% filter(GRTS_ID %in% c(224135, 39815))
-
-ggplot() + 
-  geom_sf(data = exLoc_sf %>% filter(GRTS.Cell.Id == unique(LR$Grid.Cell.ID)[2]), cex=2, col="red")+
-  geom_sf(data = df_sf %>% filter(GRTS_ID == unique(LR$Grid.Cell.ID)[2]), cex=2) +
-  geom_sf_label(data = df_sf %>% filter(GRTS_ID == unique(LR$Grid.Cell.ID)[2]), aes(label = Site))
+df_GRTS_ID
+write.csv(df,"Bayne_Metadata2023_wGRTS.csv", row.names = FALSE)
 
 
-cell_to_check <- 172883
-site_to_check <- "MENWA-BAT-01"
-
-
+cell_to_check <- df_GRTS_ID[12]
 exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check) %>% count(Location.Name)
+ggplot() + 
+  geom_sf(data = NABat_sites %>% filter(GRTS_ID == cell_to_check), 
+          aes(col=as.factor(GRTS_ID)),fill=NA)+
+  geom_sf(data = exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check), cex=2, col="red")+
+  geom_sf(data = df_sf %>% filter(GRTS_ID == cell_to_check), cex=2) +
+  geom_sf_label(data = df_sf %>% filter(GRTS_ID == cell_to_check), aes(label = Site),
+                nudge_x = 0.005, nudge_y = -0.005)
+
+site_to_check <- "MENWA-BAT-01"
 ggplot() + 
   geom_sf(data = exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check), cex=2, col="red")+
   geom_sf_label(data = exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check), aes(label = Location.Name, hjust=1.2))+
