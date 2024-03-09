@@ -15,64 +15,51 @@ sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","
 sta %>% as_tibble
 tail(sta)
 
-eff <- read.csv("Input/NABat_Deployment_Data.csv")
-eff %>% as_tibble
-num.yrs.survey <- eff %>% group_by(GRTS.Cell.ID,Location.Name, Orig.Name) %>% count(Deployment.ID)
-num.yrs.survey <- num.yrs.survey %>% pivot_wider(names_from = Deployment.ID, values_from=n, values_fill = 0)
-num.yrs.survey <- num.yrs.survey[c("GRTS.Cell.ID","Location.Name", "Orig.Name","2014","2015","2016","2017","2018","2019","2020","2021","2022")]
-
-num.yrs.survey[rowSums(num.yrs.survey[,4:12] > 1) > 0, ] # 2020 has duplicates because deployed twice at same site so not true duplicates
-num.yrs.survey$`2020` <- ifelse(num.yrs.survey$`2020` > 0,1,0)
-num.yrs.survey$num.years <- rowSums(num.yrs.survey[,4:12])
-num.yrs.survey %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
+# eff <- read.csv("Input/NABat_Deployment_Data_2023.csv")
+# eff %>% as_tibble
+# num.yrs.survey <- eff %>% group_by(GRTS.Cell.ID,Location.Name, Orig.Name) %>% count(Deployment.ID)
+# num.yrs.survey <- num.yrs.survey %>% pivot_wider(names_from = Deployment.ID, values_from=n, values_fill = 0)
+# num.yrs.survey <- num.yrs.survey[c("GRTS.Cell.ID","Location.Name", "Orig.Name","2014","2015","2016","2017","2018","2019","2020","2021","2022","2023")]
+# 
+# num.yrs.survey[rowSums(num.yrs.survey[,4:12] > 1) > 0, ] # 2020 has duplicates because deployed twice at same site so not true duplicates
+# num.yrs.survey$`2020` <- ifelse(num.yrs.survey$`2020` > 0,1,0)
+names(sta)
+sta$num.years <-rowSums(sta[18:27])
+sta %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
 # min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
-#             1              1.89                8          0.0845
-num.yrs.survey %>% ungroup() %>% count(num.years)
+#             1              2                9          0.091
+sta %>% ungroup() %>% count(num.years)
 # num.years     n
-#          1   258
-#          2    32
-#          3    38
-#          4    13
-#          5     9
-#          6    18
-#          7     5
-#          8     5
+# 1         1 284
+# 2         2  28
+# 3         3  24
+# 4         4  32
+# 5         5  12
+# 6         6  17
+# 7         7   5
+# 8         8   3
+# 9         9   7
 
-GRTS.yrs.survey <- eff %>% group_by(GRTS.Cell.ID) %>% count(Deployment.ID)
-GRTS.yrs.survey <- GRTS.yrs.survey %>% pivot_wider(names_from = Deployment.ID, values_from=n, values_fill = 0)
-GRTS.yrs.survey <- GRTS.yrs.survey[c("GRTS.Cell.ID","2014","2015","2016","2017","2018","2019","2020","2021","2022")]
-
-GRTS.yrs.survey$`2014` <- ifelse(GRTS.yrs.survey$`2014` > 0,1,0)
-GRTS.yrs.survey$`2015` <- ifelse(GRTS.yrs.survey$`2015` > 0,1,0)
-GRTS.yrs.survey$`2016` <- ifelse(GRTS.yrs.survey$`2016` > 0,1,0)
-GRTS.yrs.survey$`2017` <- ifelse(GRTS.yrs.survey$`2017` > 0,1,0)
-GRTS.yrs.survey$`2018` <- ifelse(GRTS.yrs.survey$`2018` > 0,1,0)
-GRTS.yrs.survey$`2019` <- ifelse(GRTS.yrs.survey$`2019` > 0,1,0)
-GRTS.yrs.survey$`2020` <- ifelse(GRTS.yrs.survey$`2020` > 0,1,0)
-GRTS.yrs.survey$`2021` <- ifelse(GRTS.yrs.survey$`2021` > 0,1,0)
-GRTS.yrs.survey$`2022` <- ifelse(GRTS.yrs.survey$`2022` > 0,1,0)
-
-GRTS.yrs.survey$num.years <- rowSums(GRTS.yrs.survey[,2:10])
-GRTS.yrs.survey %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
-#   `min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
-#                 1              1.87                9           0.110
-GRTS.yrs.survey %>% ungroup() %>% count(num.years)
-# num.years     n
-#          1   158
-#          2    21
-#          3    29
-#          4     5
-#          5     2
-#          6     9
-#          7     2
-#          8     5
-#          9     1
+# GRTS.yrs.survey <- eff %>% group_by(GRTS.Cell.ID) %>% count(Deployment.ID)
+# GRTS.yrs.survey <- GRTS.yrs.survey %>% pivot_wider(names_from = Deployment.ID, values_from=n, values_fill = 0)
+# GRTS.yrs.survey <- GRTS.yrs.survey[c("GRTS.Cell.ID","2014","2015","2016","2017","2018","2019","2020","2021","2022")]
+# 
+# GRTS.yrs.survey$`2014` <- ifelse(GRTS.yrs.survey$`2014` > 0,1,0)
+# GRTS.yrs.survey$`2015` <- ifelse(GRTS.yrs.survey$`2015` > 0,1,0)
+# GRTS.yrs.survey$`2016` <- ifelse(GRTS.yrs.survey$`2016` > 0,1,0)
+# GRTS.yrs.survey$`2017` <- ifelse(GRTS.yrs.survey$`2017` > 0,1,0)
+# GRTS.yrs.survey$`2018` <- ifelse(GRTS.yrs.survey$`2018` > 0,1,0)
+# GRTS.yrs.survey$`2019` <- ifelse(GRTS.yrs.survey$`2019` > 0,1,0)
+# GRTS.yrs.survey$`2020` <- ifelse(GRTS.yrs.survey$`2020` > 0,1,0)
+# GRTS.yrs.survey$`2021` <- ifelse(GRTS.yrs.survey$`2021` > 0,1,0)
+# GRTS.yrs.survey$`2022` <- ifelse(GRTS.yrs.survey$`2022` > 0,1,0)
+# GRTS.yrs.survey$`2023` <- ifelse(GRTS.yrs.survey$`2023` > 0,1,0)
 
 ###########
 # na.sta <- sta_sf %>% filter(is.na(`2014`))
 # eff %>% filter(Location.Name %in% na.sta$LocName)
 
-sta <- left_join(sta, num.yrs.survey, by=c("LocName"= "Location.Name"))
+# sta <- left_join(sta, num.yrs.survey, by=c("LocName"= "Location.Name"))
 
 sta$NP <- as.factor(ifelse(sta$LandUnitCo %in% c("BNP", "JNP", "WBNP", "WLNP", "EINP"), "In", "Out")) %>% relevel(ref="In")
 sta %>% as_tibble
@@ -82,46 +69,47 @@ tail(sta)
 # just run for sites you still need
 sta.needs <- sta %>% filter(is.na(NSRNAME))
 sta_sf <- st_as_sf(sta.needs, coords = c("Longitude","Latitude"), crs = 4326) 
+sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326) 
 sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
 
 # quick plotting check
 ggplot()+
   geom_sf(data = sta_sf) 
 
-nrow(sta_sf) # 345
-nrow(sta_sf %>% filter(X2022==1)) #173 sites surveyed in 2022
-GRTS.sryvd.2022 <- sta_sf %>% filter(X2022==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 114 GRTS cells surveyed
-GRTS.sryvd.2022 %>% summarise(mean(n), min(n), max(n), se(n))
+nrow(sta_sf) # 412
+nrow(sta_sf %>% filter(X2023==1)) #124 sites surveyed in 2023 that need sta data
+GRTS.sryvd.2023 <- sta_sf %>% filter(X2023==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 75 GRTS cells surveyed
+GRTS.sryvd.2023 %>% summarise(mean(n), min(n), max(n), se(n))
 # mean(n) min(n) max(n)      se(n)
-# 1.453782      1      7 0.07893673 # sites surveyed within a GRTS cell in 2022
-GRTS.sryvd.2022 %>% count(n)
+# 1.653333      1      4 0.09953646 # sites surveyed within a GRTS cell in 2023
+GRTS.sryvd.2023 %>% count(n)
 # n nn
-# 1 81
-# 2 29
-# 3  5
-# 4  3
-# 7  1
+# 1 40
+# 2 26
+# 3  4
+# 4  5
 
 
-sta_sf %>% filter(X2022==1) %>% summarise(min(num.years), mean(num.years), max(num.years), se(num.years)) %>% st_drop_geometry()
+sta_sf %>% filter(X2023==1) %>% summarise(min(num.years), mean(num.years), max(num.years), se(num.years)) %>% st_drop_geometry()
 # min(num.years) mean(num.years) max(num.years) se(num.years)
-# 1              1        2.121387              8     0.1473942
+# 1        2.774194              9     0.2160122
 
-GRTS.num.years.2022 <- sta_sf %>% filter(X2022==1) %>% group_by(GRTS.Cell.ID) %>% count(num.years) %>% st_drop_geometry()
-GRTS.num.years.2022.sum <- GRTS.num.years.2022 %>% group_by(GRTS.Cell.ID) %>% arrange(desc(num.years)) %>% filter(row_number()==1)
-GRTS.num.years.2022.sum %>% ungroup() %>% summarise(min(num.years), max(num.years), mean(num.years), se(num.years))
+GRTS.num.years.2023 <- sta_sf %>% filter(X2023==1) %>% group_by(GRTS.Cell.ID) %>% count(num.years) %>% st_drop_geometry()
+GRTS.num.years.2023.sum <- GRTS.num.years.2023 %>% group_by(GRTS.Cell.ID) %>% arrange(desc(num.years)) %>% filter(row_number()==1)
+GRTS.num.years.2023.sum %>% ungroup() %>% summarise(min(num.years), max(num.years), mean(num.years), se(num.years))
 # `min(num.years)` `max(num.years)` `mean(num.years)` `se(num.years)`
-#               1                8              1.89           0.162
-GRTS.num.years.2022.sum %>% ungroup() %>% count(num.years)
+#               1                9              2.53           0.255
+GRTS.num.years.2023.sum %>% ungroup() %>% count(num.years)
 # num.years     n
-#         1    84
-#         2     8
-#         3    14
-#         4     2
-#         5     1
-#         6     3
-#         7     4
-#         8     3
+#          1    42
+#          2     4
+#          3     6
+#          4    14
+#          5     2
+#          6     1
+#          7     1
+#          8     2
+#          9     3
 
 #############################################################################################
 # Set GIS Dir for uploading GIS layers
@@ -131,7 +119,7 @@ GISDir <- c("/Volumes/LaCie_2TB/NABat/GIS")
 
 # Landcover Polygons 2010 - ABMI, their source data: ABMI Remote Sensing Group 2013, based on the EOSD and NLWIS 2000 raster datasets and on hydrography and access GIS layers from the Government of Alberta. Update to 2010 based on ABMI Human Footprint dataset.
 LC <- st_read(paste(GISDir,"/2010LanCoverShapeFiles", sep=""), layer="Lancover_Polygons_2010")
-sta_sf <- st_join(sta_sf, LC %>% select(LC_class), left=TRUE)
+sta_sf <- st_join(sta_sf, LC %>% dplyr::select(LC_class), left=TRUE)
 sta_sf %>% filter(is.na(Land.Cover))
 tail(sta_sf)
 
@@ -150,12 +138,12 @@ glimpse(sta_sf)
 NR <- st_read(paste(GISDir,"/Natural_Regions_Subregions_of_Alberta", sep=""), layer="Natural_Regions_Subregions_of_Alberta")
 # NR.dist <- st_nn(sta_sf, NR %>% st_transform(crs=3400), k=1, returnDist = T) 
 # names(NR)
-sta_sf <- st_join(sta_sf %>% dplyr::select(-NSRNAME, -NRNAME), NR %>% select(NSRNAME, NRNAME), left=TRUE)
+sta_sf <- st_join(sta_sf %>% dplyr::select(-NSRNAME, -NRNAME), NR %>% dplyr::select(NSRNAME, NRNAME), left=TRUE)
 
 
 # Land-Use Framework Regions
 LU <- st_read(GISDir, layer="LUF_AB")
-sta_sf <- st_join(sta_sf %>% select(-LUF_NAME), LU %>% select(LUF_NAME), left=TRUE)
+sta_sf <- st_join(sta_sf %>% dplyr::select(-LUF_NAME), LU %>% dplyr::select(LUF_NAME), left=TRUE)
 
 # Water - AltaLis 
 # Base Waterbody Polygon: Base Features, obtained from AltaLis, by Alberta Environment and Parks, GoA
@@ -186,7 +174,6 @@ sta_sf$RD_Type <- RD$ROAD_CLASS[match(sta_sf$RD_Type,rownames(RD))]
 
 write.csv (sta_sf %>% st_drop_geometry(), "NABat_Station_Covariates_newsites.csv", row.names = FALSE)
 
-
 save.image("GIS.sta.covariates.RData")
 #load("GIS.sta.covariates.RData")
 
@@ -197,7 +184,7 @@ sta_sf$Latitude <- coords[,2]
 
 write.csv (sta_sf %>% st_drop_geometry(), "NABat_Station_Covariates.csv", row.names = FALSE)
 st_write(sta_sf %>% 
-           dplyr::select(GRTS.Cell.ID, LocName, Orig_Name, X2014,X2015,X2016,X2017,X2018,X2019,X2020,X2021,X2022,num.years), "NABat_Station_Covariates.shp", delete_layer = TRUE)
+           dplyr::select(GRTS.Cell.ID, LocName, Orig_Name, X2014,X2015,X2016,X2017,X2018,X2019,X2020,X2021,X2022,X2023,num.years), "NABat_Station_Covariates.shp", delete_layer = TRUE)
 
 
 ggplot()+
@@ -228,8 +215,8 @@ sta_sf <- st_as_sf(sta, coords = c("Longitude","Latitude"), crs = 4326)
 
 sta_sf %>% filter(LandUnitCo=="WLNP")
 
-prev.survey <- sta_sf %>% filter(X2022==0) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
-this.survey <- sta_sf %>% filter(X2022==1) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+prev.survey <- sta_sf %>% filter(X2023==0) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
+this.survey <- sta_sf %>% filter(X2023==1) %>% count(GRTS.Cell.ID) %>% st_drop_geometry()
 
 
 NABatDir = c("/Volumes/LaCie_2TB/NABat/GIS/")
@@ -247,7 +234,7 @@ Fig_provincial.plot <- ggplot() +
   coord_sf() +
   theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
 
-Cairo(file="Fig_provincial.plot_2022.PNG",
+Cairo(file="Fig_provincial.plot_2023.PNG",
       type="png",
       width=1500,
       height=2000,
@@ -267,7 +254,7 @@ Fig_provincial_yrssrvyd.plot <- ggplot() +
   coord_sf() +
   theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
 
-Cairo(file="Fig_provincial.plot.yrssryvd_2022.PNG",
+Cairo(file="Fig_provincial.plot.yrssryvd_2023.PNG",
       type="png",
       width=1500,
       height=2000,
@@ -277,8 +264,8 @@ Cairo(file="Fig_provincial.plot.yrssryvd_2022.PNG",
 Fig_provincial_yrssrvyd.plot
 dev.off()
 
-grts.year <- sta_sf %>% filter(X2022==1)
-plot.yr <- 2022
+grts.year <- sta_sf %>% filter(X2023==1)
+plot.yr <- 2023
 
 Fig_provincial_year <- ggplot() + 
   geom_sf(data = Alberta %>%st_transform(crs=4326)) +
@@ -312,19 +299,19 @@ ggplot() +
 # library(units)
 # sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (Forest) for consistency with Alberta layers and metre unit
 
-sta_2022 <- sta_sf %>% filter(X2022==1) %>% st_transform(crs=3400)
-nrow(sta_2022)
+sta_2023 <- sta_sf %>% filter(X2023==1) %>% st_transform(crs=3400)
+nrow(sta_2023)
 nrow(sta_sf)
 
 ggplot()+
-  geom_sf(data=sta_2022)
+  geom_sf(data=sta_2023)
 
-stn_dist <- as.data.frame(st_distance(sta_2022, sta_2022, by_element = FALSE))
+stn_dist <- as.data.frame(st_distance(sta_2023, sta_2023, by_element = FALSE))
 # library(units)
 stn_dist <- drop_units(stn_dist)
 head(stn_dist)
 stn_dist[stn_dist==0]<- NA
-write.csv(stn_dist, "DistanceMatrixTable_2022.csv")
+write.csv(stn_dist, "DistanceMatrixTable_2023.csv")
 
 save.image("GIS.sta.covariates.RData")
 #load("GIS.sta.covariates.RData")
