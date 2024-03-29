@@ -17,13 +17,13 @@ library(lubridate)
 
 setwd("/Volumes/LaCie_2TB/NABat_Alberta/Input")
 
-Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2023-01-01"))
 class(Year_interest)
 
 stn <- read.csv("NABat_Station_Covariates.csv", header=T, colClasses=c("character"),
                  stringsAsFactors = TRUE,  na.string=c("","NA", "#N/A")) %>% type_convert()
 stn <- stn %>% filter(!is.na(Longitude))
-stn <- stn %>% filter(X2022==1)
+stn <- stn %>% filter(X2023==1)
 
 ECCC.stn <- stn[c("Latitude","Longitude")]
 tail(stn)
@@ -43,6 +43,8 @@ download_weather_stn <- function(ECCC.stn.to.find = coords, Year_interest = 2022
   return(stn.to.use)
 }
 
+stations_dl()
+
 NABat_stns <- vector("list")
 for(i in 1:nrow(ECCC.stn)){
   NABat_stns[i] <- download_weather_stn(ECCC.stn.to.find = ECCC.stn[i,])
@@ -50,15 +52,18 @@ for(i in 1:nrow(ECCC.stn)){
 
 NABat_stns <- unlist(NABat_stns)
 NABat_stns_unique <- unique(NABat_stns)
-NABat_stns_unique[20]
 
 stn$ECCC.stn <- NABat_stns
 
-for(i in 21:length(NABat_stns_unique)){
+# ECCC_stn 30724 doesn't have hourly weather, so need to add in "far" stn
+# run code below and then run again for the stations after 30724
+# NABat_stns_unique[26]
+
+for(i in 1:length(NABat_stns_unique)){
   
   stn.weather <- weather_dl(station_ids = NABat_stns_unique[i], 
                             start = paste0(Year_interest,"-04-01"), end = paste0(Year_interest,"-10-31"))  %>% 
-    select(station_name, station_id, date, time, year, month, day, hour, temp, rel_hum, wind_spd)
+    dplyr::select(station_name, station_id, date, time, year, month, day, hour, temp, rel_hum, wind_spd)
   
   stn.weather <- as.data.frame(stn.weather)
   if(exists("NABat.weather")==FALSE){
@@ -68,8 +73,11 @@ for(i in 21:length(NABat_stns_unique)){
   }
 }
 
+NABat.weather %>% count(station_id)
+stn()
+
 stn %>% filter(ECCC.stn==30724) # not available in hours need to go further to find
-stations_search(coords =c(stn %>% filter(ECCC.stn==30724) %>% select(Latitude, Longitude)),dist=200, interval="hour")
+stations_search(coords =c((stn %>% filter(ECCC.stn==30724) %>% select(Latitude, Longitude))[1,]),dist=200, interval="hour")
 
 far.stn <- weather_dl(station_ids = 49490, 
                       start = paste0(Year_interest,"-04-01"), end = paste0(Year_interest,"-10-31"))  %>% 
@@ -99,5 +107,5 @@ NABat_weather_night %>% group_by(station_id, SurveyNight) %>% summarise_at(vars(
 NABat_nightly_weather_sum <- NABat_weather_night %>% group_by(station_id, SurveyNight) %>% summarise_at(vars(temp:wind_spd), list(min, mean, max))
 stn.id <- NABat_nightly_weather_sum %>% count(station_id)
 
-write.csv(stn, "NABat_Station_Covariates_2022_weatherstn.csv")
+write.csv(stn, "NABat_Station_Covariates_2023_weatherstn.csv")
 write.csv(NABat_nightly_weather_sum, paste0("NABat_",Year_interest,"_nightly_weather_sum.csv"), row.names = FALSE)
