@@ -57,8 +57,8 @@ sta.sub <- sta.sub %>% mutate(match = case_when(Orig_Name %in% unique(dat_summar
                                      TRUE ~ "no"))
 
 sta.sub %>% count(match)
-sta.sub %>% filter(match=="yes") %>% print(n=7)
-sta.sub %>% filter(match=="no") %>% print(n=56)
+sta.sub %>% filter(match=="yes") %>% print(n=57)
+sta.sub %>% filter(match=="no") %>% print(n=67)
 
 dat_summary <- left_join(dat_summary, sta.sub %>% select(-match), by=c("Site"="Orig_Name"))
 dat_summary <- dat_summary %>% rename(GRTS.Cell.ID = GRTSCellID, Location.Name=LocName)
@@ -68,13 +68,16 @@ dat_summary %>% count(Pfolder)
 
 dat_summary %>% count(Site) %>% print(n=100)
 Pfolder.names <- unique(dat_summary$Pfolder)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[9]) %>% count(Site) %>% print(n=50)
+dat_summary %>% filter(Pfolder %in% Pfolder.names[3]) %>% count(Site) %>% print(n=50)
+
 
 # add in the correct Location Names.
 dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &  Site == "ACA-BATFS-01" ~ "72071_SE_01",
                                                                 Pfolder=="ACA" &  Site == "ACA-BATFS-02" ~ "203655_SW_01",
                                                                 
-                                                                Pfolder=="Bayne" &  Site == "BP-96N" ~ "219731_SW_01",
+                                                                Pfolder=="Bayne" &  Site == "BAT-23-P-577-" ~ "155219_NW_02",
+                                                                # Pfolder=="Bayne" &  Site == "BAT-23-F-7074" ~ "",
+                                                                # Pfolder=="Bayne" &  Site == "BAT-23-W-5026" ~ "",
                                                                 
                                                                 Pfolder=="BNP" &  Site == "UpperHotsprings" ~ "148842_SW_01",
                                                                 Pfolder=="BNP" &  Site == "Fenlands" ~ "148842_NW_01",
@@ -153,27 +156,29 @@ dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &
                                                                 
                                                                 Pfolder=="MRWCC" &  Site == "Mcintyre" ~ "134339_NW_01",
 
-                                                                # Pfolder=="WCS" &  grepl("ACBPHampshireClose",Filename) ~ "30403_SW_01",
-                                                                # Pfolder=="WCS" &  grepl("ACBPTopaz",Filename) ~ "38595_SE_01",
-                                                                # Pfolder=="WCS" &  grepl("ACBPCEI",Filename) ~ "42883_SE_01",
-                                                                # Pfolder=="WCS" &  grepl("ACBPWARanches",Filename) ~ "120707_NE_01",
-                                                                # Pfolder=="WCS" &  grepl("ACBPOldmanSH",Filename) ~ "163011_SW_01",
-                                                                # Pfolder=="WCS" &  grepl("NCCFlemingNW",Filename) ~ "326009_NE_01",
-                                                                # Pfolder=="WCS" &  grepl("NCCKerrSW",Filename) ~ "326009_NW_01",
-                                                                # Pfolder=="WCS" &  grepl("GoldenRanchesNorth",Filename) ~ "99523_SW_01",
-                                                                # Pfolder=="WCS" &  grepl("GoldenRanchesSouth",Filename) ~ "99523_SW_02",
-                                                                # Pfolder=="WCS" &  grepl("Hicks",Filename) ~ "115907_NW_01",
-                                                                # Pfolder=="WCS" &  grepl("GamblingLake",Filename) ~ "115907_SE_01",
-                                                                # Pfolder=="WCS" &  grepl("TomahawkEastAndex",Filename) ~ "171651_NE_01",
-                                                                # Pfolder=="WCS" &  grepl("TomahawkWestAndex",Filename) ~ "171651_NE_02",
-                                                                
+                                                                Pfolder=="WCS" &  grepl("ACBPHampshireClose",Filename) ~ "30403_SW_01",
+                                                                Pfolder=="WCS" &  grepl("ACBPTopaz",Filename) ~ "38595_SE_01",
+                                                                Pfolder=="WCS" &  grepl("ACBPCEI",Filename) ~ "42883_SE_01",
+                                                                Pfolder=="WCS" &  grepl("ACBPWARanches",Filename) ~ "120707_NE_01",
+                                                                Pfolder=="WCS" &  grepl("ACBPOldmanSH",Filename) ~ "163011_SW_01",
+                                                                Pfolder=="WCS" &  grepl("NCCFlemingNW",Filename) ~ "326009_NE_01",
+                                                                Pfolder=="WCS" &  grepl("NCCKerrSW",Filename) ~ "326009_NW_01",
+                                                                Pfolder=="WCS" &  grepl("GoldenRanchesNorth",Filename) ~ "99523_SW_01",
+                                                                Pfolder=="WCS" &  grepl("GoldenRanchesSouth",Filename) ~ "99523_SW_02",
+                                                                Pfolder=="WCS" &  grepl("Hicks",Filename) ~ "115907_NW_01",
+                                                                Pfolder=="WCS" &  grepl("Gambling",Filename) ~ "115907_SE_01",
+                                                                Pfolder=="WCS" &  grepl("EastAndex",Filename) ~ "171651_NE_01",
+                                                                Pfolder=="WCS" &  grepl("WestAndex",Filename) ~ "171651_NE_02",
+
                                                                 TRUE ~ Location.Name))
 
 dat_summary %>% filter(is.na(Location.Name)) %>% group_by(Pfolder) %>% count(Site) %>% print(n=30)
+# dat_summary %>% filter(is.na(Location.Name)) %>% filter(Pfolder=="Bayne") %>% select(Filename) %>% print(n=30)
+
 # Bayne = metadata not yet available
 # good to filter out all NA files and proceed
 
-dat_summary %>% filter(!is.na(Location.Name)) %>% count(Pfolder) %>% print(n=13)
+dat_summary %>% filter(!is.na(Location.Name)) %>% count(Pfolder) %>% print(n=15)
 glimpse(dat_summary)
 dat_summary$GRTS.Cell.ID <- word(dat_summary$Location.Name, 1,1,sep="_")
 dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("D",GRTS.Cell.ID) ~ "Mobile",
@@ -181,8 +186,8 @@ dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("D",GRTS.Ce
 
 dat_summary <- dat_summary %>% filter(!is.na(Location.Name))
 
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 33 GRTS cells (up to 62 GRTS cells)
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 58 stations (+28 from Bayne's lab) 86 stations
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 72 GRTS cells
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 115 stations
 
 dat_summary %>% filter(Date > "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
 # min date = Feb 7, 2023; max date = Oct 19, 2023; mean date = July 17, 2023
@@ -197,11 +202,59 @@ dat_summary %>% filter(Date < "2024-01-01") %>% count(Location.Name)
 
 dat_summary$Location.Name.Yr <- paste(dat_summary$Location.Name, substr(as.character(dat_summary$Date),1,4), sep="_")
 to_file_dat_summary <- unique(dat_summary$Location.Name.Yr)
-# dat_summary %>% filter(Location.Name=="139715_NE_01")
+
+new_files_to_file <- dat_summary %>% filter(Pfolder=="Bayne" | Pfolder=="WCS") %>% count(Location.Name.Yr)
+to_file_dat_summary <- unique(new_files_to_file$Location.Name.Yr)
 
 for(i in 1:length(to_file_dat_summary)){
   write.csv(dat_summary %>% filter(Location.Name.Yr == to_file_dat_summary[i]),
             paste0("./Input/NABat_ProcessedFiles/To_Be_Sorted/",to_file_dat_summary[i],"_summary.csv"))
+}
+
+
+for(i in 1:length(to_file_dat_summary)){
+  write.csv(dat_summary %>% filter(Location.Name.Yr == to_file_dat_summary[i]),
+            paste0("./To_Be_Sorted/",to_file_dat_summary[i],"_summary.csv"))
+}
+GRTS_cells <- word(to_file_dat_summary,1,sep="_")
+
+######################################################################################################
+# MOVE FILES INTO APPROPRIATE FOLDERS #
+######################################################################################################
+# may have to change code slightly if doing this for passive or mobile stations
+setwd("./Input/NABat_ProcessedFiles")
+
+files_to_move <- list.files("./To_Be_Sorted")
+
+GRTS_cells <- word(files_to_move,1,sep="_")
+# GRTS_cells <- GRTS_cells[grepl("M",GRTS_cells)] # remove the "mobile" grts cells
+
+GRTS_cells
+
+current_GRTS_cells <- list.files()
+current_GRTS_cells <- current_GRTS_cells[!grepl("To_Be",current_GRTS_cells)] # remove the to be sorted folder
+
+for(i in 1:length(GRTS_cells)){
+  ifelse(!dir.exists(GRTS_cells[i]), dir.create(GRTS_cells[i]), "Folder exists already")
+}
+
+NABat_stations <- word(files_to_move,1,3,sep="_")
+NABat_stations <- NABat_stations[!grepl("M",NABat_stations)] # remove the "mobile" grts cells
+
+for(i in 1:length(NABat_stations)){
+  setwd(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_")))
+  ifelse(!dir.exists(NABat_stations[i]), dir.create(NABat_stations[i]), "Folder exists already")
+}
+
+for(i in 1:length(NABat_stations)){
+  setwd(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_"),"/",NABat_stations[i]))
+  ifelse(!dir.exists("2023"), dir.create("2023"), "Folder exists already")
+}
+
+for(i in 1:length(NABat_stations)){
+  file_to_copy <- files_to_move[grepl(NABat_stations[i], NABat_stations)]
+  copy_to_folder<- paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_"),"/",NABat_stations[i],"/2023")
+  file.copy(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/To_Be_Sorted/",file_to_copy), copy_to_folder)
 }
 
 
@@ -276,43 +329,6 @@ NABat_deploy <- left_join(NABat_deploy, Files_per_Location %>% select(n:Location
 glimpse(NABat_deploy)
 head(NABat_deploy)
 
-######################################################################################################
-# MOVE FILES INTO APPROPRIATE FOLDERS #
-######################################################################################################
-getwd()
-
-files_to_move <- list.files("./NABat_ProcessedFiles_DT/To_Be_Sorted")
-GRTS_cells <- word(files_to_move,1,sep="_")
-GRTS_cells <- GRTS_cells[grepl("M",GRTS_cells)] # remove the "mobile" grts cells
-
-GRTS_cells
-
-current_GRTS_cells <- list.files("./Input/NABat_ProcessedFiles")
-current_GRTS_cells <- current_GRTS_cells[!grepl("To_Be",current_GRTS_cells)] # remove the to be sorted folder
-
-setwd("./Input/NABat_ProcessedFiles")
-for(i in 1:length(GRTS_cells)){
-  ifelse(!dir.exists(GRTS_cells[i]), dir.create(GRTS_cells[i]), "Folder exists already")
-}
-
-NABat_stations <- word(files_to_move,1,3,sep="_")
-NABat_stations <- NABat_stations[!grepl("M",NABat_stations)] # remove the "mobile" grts cells
-
-for(i in 1:length(NABat_stations)){
-  setwd(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_")))
-  ifelse(!dir.exists(NABat_stations[i]), dir.create(NABat_stations[i]), "Folder exists already")
-}
-
-for(i in 1:length(NABat_stations)){
-  setwd(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_"),"/",NABat_stations[i]))
-  ifelse(!dir.exists("2022"), dir.create("2022"), "Folder exists already")
-}
-
-for(i in 1:length(NABat_stations)){
-  file_to_copy <- files_to_move[grepl(NABat_stations[i], NABat_stations)]
-  copy_to_folder<- paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/",word(NABat_stations[i],1,sep="_"),"/",NABat_stations[i],"/2022")
-  file.copy(paste0("/Volumes/LaCie_2TB/NABat_Alberta/Input/NABat_ProcessedFiles/To_Be_Sorted/",file_to_copy), copy_to_folder)
-  }
 
 
 
