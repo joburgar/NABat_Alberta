@@ -30,7 +30,7 @@ sta %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), 
 #             1              2                9          0.091
 sta %>% ungroup() %>% count(num.years)
 # num.years     n
-# 1         1 284
+# 1         1 283
 # 2         2  28
 # 3         3  24
 # 4         4  32
@@ -76,15 +76,15 @@ sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (For
 ggplot()+
   geom_sf(data = sta_sf) 
 
-nrow(sta_sf) # 412
-nrow(sta_sf %>% filter(X2023==1)) #124 sites surveyed in 2023 that need sta data
+nrow(sta_sf) # 411
+nrow(sta_sf %>% filter(X2023==1)) #123 sites surveyed in 2023 that need sta data
 GRTS.sryvd.2023 <- sta_sf %>% filter(X2023==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 75 GRTS cells surveyed
 GRTS.sryvd.2023 %>% summarise(mean(n), min(n), max(n), se(n))
 # mean(n) min(n) max(n)      se(n)
-# 1.653333      1      4 0.09953646 # sites surveyed within a GRTS cell in 2023
+# 1.662162      1      4 0.1004931 # sites surveyed within a GRTS cell in 2023
 GRTS.sryvd.2023 %>% count(n)
 # n nn
-# 1 40
+# 1 39
 # 2 26
 # 3  4
 # 4  5
@@ -92,7 +92,7 @@ GRTS.sryvd.2023 %>% count(n)
 
 sta_sf %>% filter(X2023==1) %>% summarise(min(num.years), mean(num.years), max(num.years), se(num.years)) %>% st_drop_geometry()
 # min(num.years) mean(num.years) max(num.years) se(num.years)
-# 1        2.774194              9     0.2160122
+# 1        2.788618              9     0.2172895
 
 GRTS.num.years.2023 <- sta_sf %>% filter(X2023==1) %>% group_by(GRTS.Cell.ID) %>% count(num.years) %>% st_drop_geometry()
 GRTS.num.years.2023.sum <- GRTS.num.years.2023 %>% group_by(GRTS.Cell.ID) %>% arrange(desc(num.years)) %>% filter(row_number()==1)
@@ -110,6 +110,11 @@ GRTS.num.years.2023.sum %>% ungroup() %>% count(num.years)
 #          7     1
 #          8     2
 #          9     3
+
+# create a distance matrix
+sta_2023 <- sta_sf %>% filter(X2023==1) %>% st_transform(3400)
+dist.all <- st_distance(sta_2023, sta_2023, by_element = FALSE) 
+write.csv(dist.all, "DistanceMatrixTable_2023.csv", row.names = FALSE)
 
 #############################################################################################
 # Set GIS Dir for uploading GIS layers

@@ -50,8 +50,8 @@ sta <- read.csv("Input/NABat_Station_Covariates.csv") %>% filter(X2023==1)
 sta %>% select(Orig_Name, Orig.Name)
 
 sta.sub <- sta[c("GRTSCellID","LocName","Orig_Name")] %>% as_tibble() 
-sta.sub %>% count(Orig_Name) %>% print(n=100)
-dat_summary %>% count(Site) %>% print(n=100)
+sta.sub %>% count(Orig_Name) %>% print(n=130)
+dat_summary %>% count(Site) %>% print(n=130)
 
 sta.sub <- sta.sub %>% mutate(match = case_when(Orig_Name %in% unique(dat_summary$Site) ~ "yes",
                                      TRUE ~ "no"))
@@ -66,9 +66,9 @@ dat_summary <- dat_summary %>% rename(GRTS.Cell.ID = GRTSCellID, Location.Name=L
 dat_summary %>% count(Location.Name) %>% print(n=100)
 dat_summary %>% count(Pfolder)
 
-dat_summary %>% count(Site) %>% print(n=100)
+dat_summary %>% count(Site) %>% print(n=130)
 Pfolder.names <- unique(dat_summary$Pfolder)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[3]) %>% count(Site) %>% print(n=50)
+dat_summary %>% filter(Pfolder %in% Pfolder.names[13]) %>% count(Site) %>% print(n=50)
 
 
 # add in the correct Location Names.
@@ -175,6 +175,17 @@ dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &
 dat_summary %>% filter(is.na(Location.Name)) %>% group_by(Pfolder) %>% count(Site) %>% print(n=30)
 # dat_summary %>% filter(is.na(Location.Name)) %>% filter(Pfolder=="Bayne") %>% select(Filename) %>% print(n=30)
 
+
+dat_summary <- dat_summary %>% mutate(Site = case_when(Location.Name=="99523_SW_01" ~ "Golden Ranches North",
+                                                       Location.Name=="99523_SW_02" ~ "Golden Ranches South",
+                                                       Location.Name=="115907_NW_01" ~ "Hicks",
+                                                       Location.Name=="115907_SE_01" ~ "Gambling_Lake",
+                                                       Location.Name=="171651_NE_01" ~ "Tomahawk east anndex",
+                                                       Location.Name=="171651_NE_02" ~ "Tomahawk west anndex",
+                                                       TRUE ~ Site))
+
+dat_summary %>% filter(Pfolder=="WCS") %>% count(Location.Name, Site)
+
 # Bayne = metadata not yet available
 # good to filter out all NA files and proceed
 
@@ -185,9 +196,11 @@ dat_summary <- dat_summary %>% mutate(GRTS.Cell.ID = case_when(grepl("D",GRTS.Ce
                                                                 TRUE ~ GRTS.Cell.ID))
 
 dat_summary <- dat_summary %>% filter(!is.na(Location.Name))
+nrow(dat_summary)
 
 dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 72 GRTS cells
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 115 stations
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 115 passive stations 
+dat_summary %>% count(Site) # 122 stations (passive and mobile)
 
 dat_summary %>% filter(Date > "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
 # min date = Feb 7, 2023; max date = Oct 19, 2023; mean date = July 17, 2023
@@ -203,7 +216,7 @@ dat_summary %>% filter(Date < "2024-01-01") %>% count(Location.Name)
 dat_summary$Location.Name.Yr <- paste(dat_summary$Location.Name, substr(as.character(dat_summary$Date),1,4), sep="_")
 to_file_dat_summary <- unique(dat_summary$Location.Name.Yr)
 
-new_files_to_file <- dat_summary %>% filter(Pfolder=="Bayne" | Pfolder=="WCS") %>% count(Location.Name.Yr)
+new_files_to_file <- dat_summary %>% filter(Pfolder=="WCS") %>% count(Location.Name.Yr)
 to_file_dat_summary <- unique(new_files_to_file$Location.Name.Yr)
 
 for(i in 1:length(to_file_dat_summary)){
@@ -212,11 +225,11 @@ for(i in 1:length(to_file_dat_summary)){
 }
 
 
-for(i in 1:length(to_file_dat_summary)){
-  write.csv(dat_summary %>% filter(Location.Name.Yr == to_file_dat_summary[i]),
-            paste0("./To_Be_Sorted/",to_file_dat_summary[i],"_summary.csv"))
-}
-GRTS_cells <- word(to_file_dat_summary,1,sep="_")
+# for(i in 1:length(to_file_dat_summary)){
+#   write.csv(dat_summary %>% filter(Location.Name.Yr == to_file_dat_summary[i]),
+#             paste0("./To_Be_Sorted/",to_file_dat_summary[i],"_summary.csv"))
+# }
+# GRTS_cells <- word(to_file_dat_summary,1,sep="_")
 
 ######################################################################################################
 # MOVE FILES INTO APPROPRIATE FOLDERS #

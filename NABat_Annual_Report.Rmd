@@ -21,7 +21,7 @@ Cover Illustration: Myotis lucifigus - Little Brown Bat © Jason Headley
 ```{r setup, echo=F, include=F}
 
 #Load Packages
-list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid","weathercan")
+list.of.packages <- c("data.table", "leaflet", "tidyverse", "lunar", "zoo", "colortools", "lubridate", "camtrapR", "circular", "RColorBrewer", "Cairo", "viridis", "knitr", "sf","osmdata", "ggspatial", "ggmap","gridExtra", "grid")
 # Check you have them and load them
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -84,6 +84,8 @@ dat_summary <- fs::dir_ls(path=paste("./Input/NABat_ProcessedFiles/"),
   filter(Year==Year_interest) %>%
   rename(Orig.Name=Site)
 
+glimpse(dat_summary)
+
 dat_summary$GRTS.Cell.ID <- as.factor(word(dat_summary$source,4,sep = "\\/"))
 dat_summary$Location.Name <- as.factor(word(dat_summary$source,5,sep = "\\/"))
 dat_summary$Deployment.ID <- as.factor(word(dat_summary$source,6,sep = "\\/"))
@@ -102,6 +104,8 @@ dat_summary$Time.temp4 <- str_extract(dat_summary$Filename,"_[0-9]{6}.00#.zc") %
 dat_summary$Time.temp5 <- str_extract(dat_summary$Filename,"_[0-9]{6}.zc") %>% str_sub(2,7)
 dat_summary$Time.temp6 <- str_extract(dat_summary$Filename,"_[0-9]{6}.00#") %>% str_sub(2,7)
 dat_summary$Time.temp7 <- dat_summary$Filename %>% str_sub(9,15)
+dat_summary$Time.temp8 <- str_extract(dat_summary$Filename,"_[0-9]{2}\\-[0-9]{2}\\-[0-9]{2}.wav") %>% str_sub(2,9)
+dat_summary$Time.temp9 <- str_extract(dat_summary$Filename,"_[0-9]{5}.wav") %>% str_sub(2,6)
 
 dat_summary$Time.temp1p <- as.POSIXct(strptime(dat_summary$Time.temp1, "%H%M%S", tz))
 dat_summary$Time.temp2p <- as.POSIXct(strptime(dat_summary$Time.temp2, "%H-%M-%S", tz))
@@ -110,19 +114,26 @@ dat_summary$Time.temp4p <- as.POSIXct(strptime(dat_summary$Time.temp4, "%H%M%S",
 dat_summary$Time.temp5p <- as.POSIXct(strptime(dat_summary$Time.temp5, "%H%M%S", tz))
 dat_summary$Time.temp6p <- as.POSIXct(strptime(dat_summary$Time.temp6, "%H%M%S", tz))
 dat_summary$Time.temp7p <- as.POSIXct(strptime(dat_summary$Time.temp7, "%H%M.%S", tz))
+dat_summary$Time.temp8p <- as.POSIXct(strptime(dat_summary$Time.temp8, "%H-%M-%S", tz))
+dat_summary$Time.temp9p <- as.POSIXct(strptime(dat_summary$Time.temp9, "%H%M%S", tz))
 
-dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p, Time.temp7p)) %>% 
-  select(-c(Time.temp1, Time.temp2, Time.temp3, Time.temp4, Time.temp5, Time.temp6,
-            Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p,Time.temp7p))
+
+dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p, Time.temp7p, Time.temp8p, Time.temp9p)) %>% 
+  select(-c(Time.temp1, Time.temp2, Time.temp3, Time.temp4, Time.temp5, Time.temp6,Time.temp7, Time.temp8, Time.temp9, Time.temp1p, Time.temp2p, Time.temp3p, Time.temp4p, Time.temp5p,Time.temp6p,Time.temp7p, Time.temp8p, Time.temp9p))
 hist(dat_summary$Timep, breaks=60)
+dat_summary %>% filter(Orig.Name=="OnefourPlayground")
 
+dat_summary %>% filter(is.na(Timep)) %>% select(Filename)
 dat_summary$Timep <- ymd_hms(dat_summary$Timep, tz=tz)
 
 dat_summary <- dat_summary %>% mutate(time.keep = case_when(Timep <= ymd_hms(paste(Sys.Date(),"06:00:00"), tz=tz) ~ "keep",
                                                             Timep >= ymd_hms(paste(Sys.Date(),"18:00:00"),tz=tz) ~ "keep",
                                                             TRUE ~ "cut"))
 
+dat_summary %>% filter(time.keep=="cut") %>% count(Orig.Name) %>% print(n=38)
+dat_summary %>% filter(time.keep=="cut") %>% summarize(mean(Timep), max(Timep))
 dat_summary %>% count(time.keep)
+
 hist(dat_summary[dat_summary$time.keep=="keep",]$Timep, breaks=60)
 dat_summary <- dat_summary %>% filter(time.keep=="keep")
 
@@ -130,12 +141,15 @@ dat_summary <- dat_summary %>% filter(time.keep=="keep")
 dat_summary <- dat_summary %>% mutate(SurveyNight = case_when(Timep <= ymd_hms(paste(Sys.Date(),"18:00:00"),tz=tz) ~ as.Date(SurveyNight-1),
                                                             TRUE ~ as.Date(SurveyNight)))
 # dat_summary %>% select(SurveyNight, Filename, Timep)
+summary(dat_summary)
 
 # Read deployment data csv for station covariates
 eff <- read.csv(paste0("Input/NABat_Deployment_Data_",Year_interest,".csv"), header=T) #%>% mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
 # eff$Survey.End.Time - eff$Survey.Start.Time
 eff <- eff %>% filter(Deployment.ID>=as.numeric(Year_interest)) #%>% filter(GRTS.Cell.ID==GRTS_interest)
-# as.data.frame(eff %>% ungroup() %>% group_by(Deployment.ID) %>% count(GRTS.Cell.ID)) # 34+ NABat cells surveyed in 2023
+# as.data.frame(eff %>% ungroup() %>% group_by(Deployment.ID) %>% count(GRTS.Cell.ID)) #
+nrow(eff) #123 stations surveyed in 2023 (does not include mobile)
+eff %>% count(Detector.Failure.Details) # 115 good, 8 without data
 
 eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
 dat.names <- dat_summary%>% group_by(Location.Name) %>% count(Orig.Name)
@@ -143,10 +157,18 @@ names.join <- as.data.frame(full_join(eff.names, dat.names, by="Location.Name"))
 no.data <- names.join %>% filter(is.na(n.y)) # will show missing deployment data
 # eff %>% filter(Location.Name %in% no.data$Location.Name) %>% select(Location.Name, Orig.Name, Detector.Failure.Details) %>% as_tibble() %>% print(n=30)
 
-### NO DATA (i.e., equipment malfunction) for 14 sites and no data sent for 1 site
-# Location.Name Orig.Name          Detector.Failure.Details
-# 1 "9626_NE_01"   Muskeg 2       "equipment malfunction" 
-# 2 "148871_NE_01" WoS            "no data"       
+names(dat_summary)
+eff %>% filter(Location.Name==no.data$Location.Name[1])
+
+### NO DATA (i.e., equipment malfunction) for 6 sites and no metadata sent for 1 site
+# Location.Name Orig.Name     Detector.Failure.Details          
+# 1 2643_SW_01    BAT-23-F-7080 "no data"                         
+# 2 9626_NE_01    Muskeg 2      "equipment malfunction"           
+# 3 148871_NE_01  WoS           "no data"                         
+# 4 238163_NW_01  BAT-23-F-7084 ""                                
+# 5 313693_SW_01  BAT-23-W-500  "no data"                         
+# 6 323478_SE_02  BAT-23-W-502  "no data"                         
+# 7 335882_SW_01  BAT-23-W-571  "Have metadata, but no recordings"     
 
 NABat.stns.to.use <- unique(eff$Location.Name)
 
@@ -156,12 +178,14 @@ sta <- read.csv("Input/NABat_Station_Covariates.csv", header=T, na.string=c("","
   rename(Location.Name=LocName, Waterbody.Type=WB_type, Waterbody.Distance=WB.dist, Road.Type=RD_Type, Road.Distance=RD.dist, Natural.Region=NRNAME)
 
 sta <- sta %>% filter(X2023==1)
-
+nrow(sta) #123
 sta$NP <- as.factor(sta$NP)
 sta$NP <- sta$NP %>% relevel(ref="In")
 sta$Land.Cover <- as.factor(sta$Land.Cover)
 
+glimpse(sta)
 sta %>% filter(!Location.Name %in% NABat.stns.to.use) 
+sta %>% count(Land.Cover)
 # Land-Use Type (Agriculture, Barren Land, Forest, Grassland, Shrubland, Urban, Water, Wetland)
 # not enough Urban, keep as "Developed"
 # not enough Wetland for separate category - combine Water and Wetland
@@ -169,32 +193,39 @@ sta %>% filter(!Location.Name %in% NABat.stns.to.use)
 # if waterbody < 10 m, then change Land Use Type to Water, otherwise go with ABMI class
 # Consolidate Land.Cover to Agriculture, Barren (Exposed) Land, Forest, Grassland, Shrubland, Developed (incl Urban), Water/Wetland 
 
-sta %>% filter(Land.Cover=="Water")
-
 sta$Land.Use.Type <- sta$Land.Cover %>% recode("Coniferous Forest" = "Forest-conifer", "Broadleaf Forest" = "Forest-deciduous", "Mixed Forest" = "Forest-mixed", "Exposed Land" = "Barren Land")
 sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
                                TRUE ~ as.character(sta$Land.Use.Type))
+sta$Land.Unit.Code <- recode(sta$LandUnitCo, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR","LAR"="LOAR",     "NSR"="NOSR","RDR"="REDR","SSR"="SOSR","UAR"="UPAR","UPR"="UPPR")
 
-sta$Land.Unit.Code <- recode(sta$LandUnitCo, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR","LAR"="LOAR",
-                                         "NSR"="NOSR","RDR"="REDR","SSR"="SOSR","UAR"="UPAR","UPR"="UPPR")
+sta <- sta %>% mutate(Land.Unit.Code = case_when(LUF_NAME=="Lower Athabasca" ~ "LOAR",
+                                                 LUF_NAME=="Lower Peace" ~ "LOPR",
+                                                 LUF_NAME=="North Saskatchewan" ~ "NOSR",
+                                                 LUF_NAME=="Red Deer" ~ "REDR",
+                                                 LUF_NAME=="South Saskatchewan" ~ "SOSR",
+                                                 LUF_NAME=="Upper Athabasca" ~ "UPAR",
+                                                 LUF_NAME=="Upper Peace" ~ "UPPR",
+                                                  TRUE ~ as.character(Land.Unit.Code)))
 
 eff <- left_join(eff %>% select(-Land.Unit.Code), 
                  sta %>% dplyr::select(Location.Name, Land.Unit.Code, Natural.Region, NP, Land.Use.Type))
-eff %>% filter(Deployment.ID=="2023") %>% count(GRTS.Cell.ID) # 34 (+ up to 28 more) GRTS cells surveyed
-nrow(eff %>% filter(Deployment.ID=="2023")) # 89 sites
+eff %>% filter(Deployment.ID=="2023") %>% count(GRTS.Cell.ID) # 74 GRTS cells surveyed
+nrow(eff %>% filter(Deployment.ID=="2023")) # 123 sites
 
-# sta.sites <- sta %>% filter(X2023==1) %>% select(Location.Name); nrow(sta.sites) #63
-sta.sites <- sta %>% select(Location.Name); nrow(sta.sites) #63
-# eff.sites <- eff %>% filter(Deployment.ID=="2023") %>% select(Location.Name, Orig.Name); nrow(eff.sites) #89
-eff.sites <- eff %>% select(Location.Name, Orig.Name); nrow(eff.sites) #89
+sta.sites <- sta %>% select(Location.Name); nrow(sta.sites) #123
+
+eff.sites <- eff %>% select(Location.Name, Orig.Name); nrow(eff.sites) #123
 names.join <- as.data.frame(full_join(sta.sites, eff.sites))
 eff.sites %>% filter(!Location.Name %in% sta.sites$Location.Name)
 
 # Read distance matrix csv
-dist.mat <- read.csv("DistanceMatrixTable_2023.csv", header=T, row.names=1)
+dist.mat <- read.csv("DistanceMatrixTable_2023.csv", header=T)
 dim(dist.mat)
+dist.mat <- na_if(dist.mat, 0)
 colnames(dist.mat)[1:nrow(sta)] <- sta$Location.Name
 dist.mat$Location.Name <- sta$Location.Name
+nrow(dist.mat)
+dist.mat %>% count(Location.Name)
 
 dist.mat$NP <- sta$NP[match(dist.mat$Location.Name, sta$Location.Name,)]
 dist.mat$Natural.Region <- sta$Natural.Region[match(dist.mat$Location.Name, sta$Location.Name,)]
@@ -238,32 +269,32 @@ as.data.frame(dat_summary %>% filter(is.na(Year)))
 
 # 4a) Do you have all stations represented in both the deployment data and station covariates? If yes, the value should be 0
 # If length > 0, then you have some data missing!
-length(setdiff(unique(eff$Location.Name), unique(sta$Location.Name))) # 0
+length(setdiff(unique(eff$Location.Name), unique(sta$Location.Name))) # 1
 missing.eff.sta <- left_join(eff, sta, by="Location.Name") #%>% dplyr::select(Location.Name, Orig.Name.x, Orig.Name.y)
 missing.eff.sta[is.na(missing.eff.sta$Orig.Name),] # will show missing station covariates
 
 # 4b) Do you have all data represented in the station covariates? If yes, the value should be 0
-length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 3
+length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 7
 missing.dat.sta <- left_join(sta, dat_summary, by="Location.Name") %>% dplyr::select(Location.Name, Orig_Name, Orig.Name)
-missing.data.names <- missing.dat.sta[is.na(missing.dat.sta$Orig.Name),]  # will show missing count data (may just not have data for certain years)
+missing.data.names <- missing.dat.sta[is.na(missing.dat.sta$Orig.Name),]  # will show missing count data (may just not have data for certain years) # same 7 as above
 
-sta %>% count(Location.Name) #62 stations (3 with malfunctions or no files sent)
-sta %>% count(GRTS.Cell.ID) # 31 (without Bayne data)
+sta %>% filter(Location.Name %in% missing.data.names$Location.Name) %>% select(Location.Name, Orig_Name)
+
+sta %>% count(Location.Name) #123 stations (7 with malfunctions or no files sent)
+sta %>% count(GRTS.Cell.ID) # 75 (74 GRTS in eff - missing metadata?)
 
 # 4c) Do you have all data represented in the deployment data? If yes, the value should be 0
-length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 15
+length(setdiff(unique(sta$Location.Name), unique(dat_summary$Location.Name))) # 7
 missing.dat.sta <- left_join(sta, dat_summary, by="Location.Name") %>% dplyr::select(Location.Name, Orig_Name, Orig.Name)
 missing.dat.sta[is.na(missing.dat.sta$Orig.Name),] # will show missing deployment data covariates
 
-# sta %>% filter(Location.Name=="323194_SW_01")
-
-sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(Location.Name) # 59 stations with data
-sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(GRTS.Cell.ID) # 30 grid cells with data (without Bayne data)
+sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(Location.Name) # 116 stations with data
+sta %>% filter(!Location.Name %in% missing.data.names$Location.Name) %>% count(GRTS.Cell.ID) # 73 grid cells with data
 
 # 5) Remove dates outside survey range (i.e., ARUs turned on but not deployed or deployed well past NABat guidelines)
-eff %>% group_by(Deployment.ID) %>% summarise(min(Survey.Start.Time), max(Survey.End.Time))
+# eff %>% group_by(Deployment.ID) %>% summarise(min(Survey.Start.Time), max(Survey.End.Time))
 # remove all dates before May 01 and after Sept 10, using Julian date
-yday("2021-05-01"); yday("2021-09-10")
+yday("2023-05-01"); yday("2023-09-10")
 
 dat_summary %>% group_by(Deployment.ID) %>% count(Year) 
 nrow(dat_summary)
@@ -318,10 +349,10 @@ ARUs.by.LUC <- sta %>% filter(NP=="Out") %>% count(Land.Unit.Code, sort = TRUE)
 ARUs.by.LUT <- sta %>% count(Land.Cover, sort = TRUE)
 
 # Proportion of stations vs spatial covariates
-sum(ARUs.by.LUC$n) # 136
-sum(ARUs.by.NP$n) # 37
-sum(ARUs.by.NR$n) # 173
-sum(ARUs.by.LUT$n) # 173
+sum(ARUs.by.LUC$n) # 96
+sum(ARUs.by.NP$n) # 27
+sum(ARUs.by.NR$n) # 123
+sum(ARUs.by.LUT$n) # 123
 colnames(cov.prop)[5] <- "prop.area"
 cov.prop$NP <- as.factor(ifelse(grepl("NP",cov.prop$Name), "In", "Out"))
 #cov.prop <- cov.prop %>% arrange(NP, Cov, Name)
