@@ -57,8 +57,8 @@ sta.sub <- sta.sub %>% mutate(match = case_when(Orig_Name %in% unique(dat_summar
                                      TRUE ~ "no"))
 
 sta.sub %>% count(match)
-sta.sub %>% filter(match=="yes") %>% print(n=57)
-sta.sub %>% filter(match=="no") %>% print(n=67)
+sta.sub %>% filter(match=="yes") %>% print(n=59)
+sta.sub %>% filter(match=="no") %>% print(n=65)
 
 dat_summary <- left_join(dat_summary, sta.sub %>% select(-match), by=c("Site"="Orig_Name"))
 dat_summary <- dat_summary %>% rename(GRTS.Cell.ID = GRTSCellID, Location.Name=LocName)
@@ -68,7 +68,7 @@ dat_summary %>% count(Pfolder)
 
 dat_summary %>% count(Site) %>% print(n=130)
 Pfolder.names <- unique(dat_summary$Pfolder)
-dat_summary %>% filter(Pfolder %in% Pfolder.names[13]) %>% count(Site) %>% print(n=50)
+dat_summary %>% filter(Pfolder %in% Pfolder.names[3]) %>% count(Site) %>% print(n=54)
 
 
 # add in the correct Location Names.
@@ -76,8 +76,8 @@ dat_summary <- dat_summary %>% mutate(Location.Name = case_when(Pfolder=="ACA" &
                                                                 Pfolder=="ACA" &  Site == "ACA-BATFS-02" ~ "203655_SW_01",
                                                                 
                                                                 Pfolder=="Bayne" &  Site == "BAT-23-P-577-" ~ "155219_NW_02",
-                                                                # Pfolder=="Bayne" &  Site == "BAT-23-F-7074" ~ "",
-                                                                # Pfolder=="Bayne" &  Site == "BAT-23-W-5026" ~ "",
+                                                                Pfolder=="Bayne" &  Site == "BAT-23-F-7074" ~ "238163_NW_01",
+                                                                Pfolder=="Bayne" &  Site == "BAT-23-W-5026" ~ "225642_NE_01",
                                                                 
                                                                 Pfolder=="BNP" &  Site == "UpperHotsprings" ~ "148842_SW_01",
                                                                 Pfolder=="BNP" &  Site == "Fenlands" ~ "148842_NW_01",
@@ -184,9 +184,8 @@ dat_summary <- dat_summary %>% mutate(Site = case_when(Location.Name=="99523_SW_
                                                        Location.Name=="171651_NE_02" ~ "Tomahawk west anndex",
                                                        TRUE ~ Site))
 
-dat_summary %>% filter(Pfolder=="WCS") %>% count(Location.Name, Site)
+dat_summary %>% filter(Pfolder=="Bayne") %>% count(Location.Name, Site) %>% print(n=54)
 
-# Bayne = metadata not yet available
 # good to filter out all NA files and proceed
 
 dat_summary %>% filter(!is.na(Location.Name)) %>% count(Pfolder) %>% print(n=15)
@@ -199,11 +198,11 @@ dat_summary <- dat_summary %>% filter(!is.na(Location.Name))
 nrow(dat_summary)
 
 dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(GRTS.Cell.ID) # 72 GRTS cells
-dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 115 passive stations 
-dat_summary %>% count(Site) # 122 stations (passive and mobile)
+dat_summary %>% filter(GRTS.Cell.ID!="Mobile") %>% count(Location.Name) # 117 passive stations 
+dat_summary %>% count(Site) # 124 stations (passive and mobile)
 
 dat_summary %>% filter(Date > "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
-# min date = Feb 7, 2023; max date = Oct 19, 2023; mean date = July 17, 2023
+# min date = Feb 7, 2023; max date = Oct 19, 2023; mean date = July 15, 2023
 dat_summary %>% filter(Date < "2023-01-01") %>% summarise(min(Date), max(Date), mean(Date))
 
 # dat_summary %>% filter(Date < "2021-01-01") %>% count(Filename)
@@ -216,7 +215,7 @@ dat_summary %>% filter(Date < "2024-01-01") %>% count(Location.Name)
 dat_summary$Location.Name.Yr <- paste(dat_summary$Location.Name, substr(as.character(dat_summary$Date),1,4), sep="_")
 to_file_dat_summary <- unique(dat_summary$Location.Name.Yr)
 
-new_files_to_file <- dat_summary %>% filter(Pfolder=="WCS") %>% count(Location.Name.Yr)
+new_files_to_file <- dat_summary %>% filter(Pfolder=="Bayne") %>% filter(Location.Name=="225642_NE_01") %>% count(Location.Name.Yr)
 to_file_dat_summary <- unique(new_files_to_file$Location.Name.Yr)
 
 for(i in 1:length(to_file_dat_summary)){

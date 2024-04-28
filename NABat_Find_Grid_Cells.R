@@ -89,16 +89,18 @@ fn.Coord_to_Grid <- function(input.dd=input.dd, dist=10){
 # LOAD Bat DATA (START)
 ######################################################################################################
 getwd()
-name_of_file <- c("Bayne_Metadata2023")
+name_of_file <- c("Bayne_Metadata2023_wGRTS")
 df <- read.csv(paste0(name_of_file,".csv")) # read in file if multiple locations needing Location ID
 
 # enusre Latitude and Longitude columns
 as_tibble(df)
 
-df <- rename(df, Longitude = longfinalD) # may need to adjust depending on long / lat names
-df <- rename(df, Latitude = latfinalD)
+df <- rename(df, Longitude = Long) # may need to adjust depending on long / lat names
+df <- rename(df, Latitude = Lat)
 df <- rename(df, Site = location)
 
+
+df <- df %>% filter(Site %in% c("BAT-23-W-534"))
 # add Grid Cells (or check if already there) 
 # will produce a warning
 df$GRTS_ID <- NA
@@ -128,15 +130,17 @@ exLoc <- read.csv("Bulk_site_meta_ALL.csv")
 glimpse(exLoc)
 class(exLoc)
 
+exLoc %>% filter(Location.Name=="9811_NE_01")
+
 # check to see if the Grid Cells have already been surveyed
 exLoc$Year <- substr(exLoc$Survey.Start.Time, start = 1, stop = 4)
 
 exCells <- exLoc %>% filter(GRTS.Cell.Id %in% unique(df_sf$GRTS_ID)) %>% group_by(GRTS.Cell.Id) %>% count(Location.Name)
 exLoc_sf <- st_as_sf(exLoc, coords=c("Longitude","Latitude"), crs=4326) 
-exLoc
 
-newname <- c("2410_NW_01")
+newname <- c("9811_NE_01")
 filter(exLoc, Location.Name == newname) # if it comes up as null then check on map to see if truly available
+exLoc %>% filter(GRTS.Cell.ID=="9811")
 
 ggplot() + 
   geom_sf(data = exLoc_sf %>% filter(GRTS.Cell.Id %in% unique(exCells$GRTS.Cell.Id)), cex=2, col="red") +
@@ -150,17 +154,18 @@ df_GRTS_ID
 write.csv(df,"Bayne_Metadata2023_wGRTS.csv", row.names = FALSE)
 
 
-cell_to_check <- df_GRTS_ID[12]
+cell_to_check <- df_GRTS_ID[4]
 exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check) %>% count(Location.Name)
 ggplot() + 
-  geom_sf(data = NABat_sites %>% filter(GRTS_ID == cell_to_check), 
+  geom_sf(data = NABat_sites %>% filter(GRTS_ID == cell_to_check),
           aes(col=as.factor(GRTS_ID)),fill=NA)+
   geom_sf(data = exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check), cex=2, col="red")+
   geom_sf(data = df_sf %>% filter(GRTS_ID == cell_to_check), cex=2) +
   geom_sf_label(data = df_sf %>% filter(GRTS_ID == cell_to_check), aes(label = Site),
                 nudge_x = 0.005, nudge_y = -0.005)
 
-site_to_check <- "MENWA-BAT-01"
+site_to_check <- "199047"
+cell_to_check <- "219731"
 ggplot() + 
   geom_sf(data = exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check), cex=2, col="red")+
   geom_sf_label(data = exLoc_sf %>% filter(GRTS.Cell.Id == cell_to_check), aes(label = Location.Name, hjust=1.2))+

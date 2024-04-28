@@ -76,17 +76,17 @@ sta_sf <- st_transform(sta_sf, crs=3400) # convert to NAD83 / Alberta 10-TM (For
 ggplot()+
   geom_sf(data = sta_sf) 
 
-nrow(sta_sf) # 411
-nrow(sta_sf %>% filter(X2023==1)) #123 sites surveyed in 2023 that need sta data
+nrow(sta_sf) # 412
+nrow(sta_sf %>% filter(X2023==1)) #124 sites surveyed in 2023 that need sta data
 GRTS.sryvd.2023 <- sta_sf %>% filter(X2023==1) %>% count(GRTSCellID) %>% st_drop_geometry()# 75 GRTS cells surveyed
 GRTS.sryvd.2023 %>% summarise(mean(n), min(n), max(n), se(n))
 # mean(n) min(n) max(n)      se(n)
-# 1.662162      1      4 0.1004931 # sites surveyed within a GRTS cell in 2023
+# 1.675676      1      4 0.1020125 # sites surveyed within a GRTS cell in 2023
 GRTS.sryvd.2023 %>% count(n)
 # n nn
 # 1 39
-# 2 26
-# 3  4
+# 2 25
+# 3  5
 # 4  5
 
 
@@ -98,11 +98,11 @@ GRTS.num.years.2023 <- sta_sf %>% filter(X2023==1) %>% group_by(GRTS.Cell.ID) %>
 GRTS.num.years.2023.sum <- GRTS.num.years.2023 %>% group_by(GRTS.Cell.ID) %>% arrange(desc(num.years)) %>% filter(row_number()==1)
 GRTS.num.years.2023.sum %>% ungroup() %>% summarise(min(num.years), max(num.years), mean(num.years), se(num.years))
 # `min(num.years)` `max(num.years)` `mean(num.years)` `se(num.years)`
-#               1                9              2.53           0.255
+#               1                9              2.77          0.216
 GRTS.num.years.2023.sum %>% ungroup() %>% count(num.years)
 # num.years     n
 #          1    42
-#          2     4
+#          2     3
 #          3     6
 #          4    14
 #          5     2

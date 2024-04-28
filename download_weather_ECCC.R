@@ -29,7 +29,7 @@ ECCC.stn <- stn[c("Latitude","Longitude")]
 tail(stn)
 
 ### function to download weather stations
-download_weather_stn <- function(ECCC.stn.to.find = coords, Year_interest = 2022){
+download_weather_stn <- function(ECCC.stn.to.find = coords, Year_interest = 2023){
 
   ECCC.stn.id.list <- stations_search(coords = ECCC.stn.to.find, 
                                       interval = "hour", starts_latest=Year_interest-1, ends_earliest=Year_interest,
@@ -74,7 +74,6 @@ for(i in 1:length(NABat_stns_unique)){
 }
 
 NABat.weather %>% count(station_id)
-stn()
 
 stn %>% filter(ECCC.stn==30724) # not available in hours need to go further to find
 stations_search(coords =c((stn %>% filter(ECCC.stn==30724) %>% select(Latitude, Longitude))[1,]),dist=200, interval="hour")
@@ -106,6 +105,10 @@ NABat_weather_night %>% group_by(station_id, SurveyNight) %>% summarise_at(vars(
 
 NABat_nightly_weather_sum <- NABat_weather_night %>% group_by(station_id, SurveyNight) %>% summarise_at(vars(temp:wind_spd), list(min, mean, max))
 stn.id <- NABat_nightly_weather_sum %>% count(station_id)
+stn.id %>% print(n=34)
+length(unique(stn$ECCC.stn))
+summary(NABat_nightly_weather_sum)
+NABat_nightly_weather_sum %>% filter(is.na(temp_fn1)) %>% count(station_id) %>% print(n=26)
 
 write.csv(stn, "NABat_Station_Covariates_2023_weatherstn.csv")
 write.csv(NABat_nightly_weather_sum, paste0("NABat_",Year_interest,"_nightly_weather_sum.csv"), row.names = FALSE)
