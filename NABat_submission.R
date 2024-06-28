@@ -12,7 +12,7 @@ lapply(list.of.packages, require, character.only = TRUE)
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- "922"
-Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2023-01-01"))
 
 # depending on what has been previously been run, load either annual report data or submission data
 # load("NABat_Annual_Report_201522.RDS")
@@ -47,12 +47,17 @@ Survey.Dates <- SA_call_data %>% group_by(Location.Name,SurveyYear) %>% summaris
 SA_call_data$SurveyDate <- as.Date(SA_call_data$SurveyNight)
 summary(SA_call_data$Timep)
 
-# create proper Audio Time Recording Stamp (right now Timep has date Timep was created, not audio date)
-SA_call_data$SurveyDate <- case_when(SA_call_data$Timep > paste(Sys.Date(),"12:00:00") ~ SA_call_data$SurveyNight,
-                                     SA_call_data$Timep < paste(Sys.Date(),"12:00:00") ~ SA_call_data$SurveyNight + 1,
-                                     TRUE ~ as.Date(SA_call_data$SurveyNight))
+SA_call_data$Time <- as.character(SA_call_data$Timep, "%H:%M:%S")
 
-SA_call_data %>% as_tibble()
+SA_call_data %>% as_tibble() %>% print(n=50)
+
+# if the dates are mixed up, use this code below to fix SurveyDate
+# # create proper Audio Time Recording Stamp (right now Timep has date Timep was created, not audio date)
+# SA_call_data$SurveyDate <- case_when(SA_call_data$Timep > paste(Sys.Date(),"12:00:00") ~ SA_call_data$SurveyNight,
+#                                      SA_call_data$Timep < paste(Sys.Date(),"12:00:00") ~ SA_call_data$SurveyNight + 1,
+#                                      TRUE ~ as.Date(SA_call_data$SurveyNight))
+# 
+# # SA_call_data %>% as_tibble() %>% print(n=50)
 
 SA_call_data$Time <- as.character(SA_call_data$Timep, "%H:%M:%S")
 
@@ -85,12 +90,12 @@ SA_call_data2$Survey.End.Date <- SA_call_data2$Survey.End.Date+1 # have the surv
 # weather6 <- read.csv("Input/NABat_2020_nightly_weather_sum.csv")
 # weather7 <- read.csv("Input/NABat_2021_nightly_weather_sum.csv")
 # weather8 <- read.csv("Input/NABat_2022_nightly_weather_sum.csv")
-weather <- bind_rows(weather1,weather2,weather3,weather4,weather5,weather6,weather7,weather8)
-weather <- weather %>% select(-X)
-weather %>% as_tibble()
-# weather <- read.csv(paste0("Input/NABat_",Year_interest,"_nightly_weather_sum.csv"))
+# weather <- bind_rows(weather1,weather2,weather3,weather4,weather5,weather6,weather7,weather8)
+# weather <- weather %>% select(-X)
+# weather %>% as_tibble()
+weather <- read.csv(paste0("Input/NABat_",Year_interest,"_nightly_weather_sum.csv"))
 
-staweather <- read.csv("Input/NABat_Station_Covariates_2022_weatherstn.csv")
+staweather <- read.csv("Input/NABat_Station_Covariates_2023_weatherstn.csv")
 colnames(weather) <- c("ECCC.stn.id", "SurveyNight", "Min.Tmp", "Min.RH", "Min.WS", "Mean.Tmp", "Mean.RH", "Mean.WS", "Max.Tmp", "Max.RH", "Max.WS")
 weather$SurveyNight <- ymd(weather$SurveyNight)
 nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
@@ -217,10 +222,12 @@ Bulk_site_meta$`Weather Proofing` <- as.logical(Bulk_site_meta$`Weather Proofing
 
 cols.as.numeric <- c("Microphone Height (meters)",	"Distance to Nearest Clutter (meters)",	"Percent Clutter")
 Bulk_site_meta[cols.as.numeric]<- sapply(Bulk_site_meta[cols.as.numeric],as.numeric)
+Bulk_site_meta$`Land Unit Code` <- recode(Bulk_site_meta$`Land Unit Code`, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR","LAR"="LOAR",
+                                          "NSR"="NOSR","RDR"="REDR","SSR"="SOSR","UAR"="UPAR","UPR"="UPPR")
 glimpse(Bulk_site_meta)
 nrow(Bulk_site_meta)
 # Export
-write.table(Bulk_site_meta, "NABat_submit/Bulk_site_meta_ALL.csv",na = "",row.names = FALSE,sep = ",")
+# write.table(Bulk_site_meta, "NABat_submit/Bulk_site_meta_ALL.csv",na = "",row.names = FALSE,sep = ",")
 
 write.table(Bulk_site_meta, paste0("NABat_submit/Bulk_site_meta_",Year_interest,".csv"),na = "",row.names = FALSE,sep = ",")
 
@@ -232,7 +239,7 @@ write.table(Bulk_site_meta, paste0("NABat_submit/Bulk_site_meta_",Year_interest,
 Bulk_site_meta %>% count(Contact)
 bio_contact <- c("allison","barb", "Brett", "hurtado","hughes","olson","david","jenna","helena","Unrhuh","julie","lisa","Steenweg","nina","saakje","sandi")
 for(i in seq_along(bio_contact)){
-  write.table(Bulk_site_meta %>% filter(grepl(bio_contact[i],Contact)),paste0("NABat_submit/Bulk_site_meta_2022_",bio_contact[i],".csv"), na = "",row.names = FALSE,sep = ",")
+  write.table(Bulk_site_meta %>% filter(grepl(bio_contact[i],Contact)),paste0("NABat_submit/Bulk_site_meta_2023_",bio_contact[i],".csv"), na = "",row.names = FALSE,sep = ",")
 }
 
 ###--- Bulk Stationary Acoustic Data Template
@@ -242,14 +249,11 @@ contact_cells <- Bulk_site_meta %>% select(Contact, `Location Name`)
 
 for(i in seq_along(bio_contact)){
   write.table(Bulk_call_data %>% filter(`| Location Name` %in% contact_cells[grepl(bio_contact[i], contact_cells$Contact),]$`Location Name`),
-              paste0("NABat_submit/Bulk_call_data_2022_",bio_contact[i],".csv"), 
+              paste0("NABat_submit/Bulk_call_data_2023_",bio_contact[i],".csv"), 
               na = "",row.names = FALSE,sep = ",")
 }
 
 getwd()
 rm(list=setdiff(ls(), c("Bulk_call_data","Bulk_site_meta")))
-
-# Year_interest <- year(as.Date("2021-01-01"))
-# save.image(paste0("NABat_",Year_interest,"_data_for_submission.RDS"))
 
 ##############################################################################################

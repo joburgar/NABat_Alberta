@@ -18,7 +18,7 @@ colour <- "lightseagreen"
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
 # GRTS_interest <- "922"
-Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2023-01-01"))
 
 # # Import count files
 # dat_count <- fs::dir_ls(path="./Input/NABat_ProcessedFiles_DT",regexp = "\\counts.csv$", recurse = TRUE) %>%
@@ -75,16 +75,20 @@ dat_summary %>% count(Location.Name)
 # finding unique surveys
 dat_summary$Cell_Date <- paste(dat_summary$GRTS.Cell.ID, dat_summary$SurveyNight, sep="_")
 # check that dates are unique surveys not just going past midnight
-dat_summary <- dat_summary %>% mutate(Location.Name = case_when(grepl("D1",Orig.Name) ~ as.character("264037_D1_Mobile"),
-                                                            grepl("D2",Orig.Name) ~ as.character("264037_D2_Mobile"),
-                                                            TRUE ~ as.character(Location.Name)))
-
-
-dat_summary <- dat_summary %>% mutate(Cell_Date = case_when(grepl("264037_2022-07-16",Cell_Date) ~ as.character("264037_2022-07-15"),
-                                                                TRUE ~ as.character(Cell_Date)))
-dat_summary %>% group_by(Location.Name, Orig.Name) %>% count(Cell_Date)
-
 glimpse(dat_summary)
+dat_summary %>% count(GRTS.Cell.ID) # 139715; 203370; 264037; 267463
+
+dat_summary %>% filter(GRTS.Cell.ID==267463) %>%
+  select(GRTS.Cell.ID,Orig.Name, Filename, SurveyNight) %>% print(n=160)
+
+dat_summary <- dat_summary %>% mutate(SurveyNight = case_when(Orig.Name=="JNP-D2-TOWN" ~ as.Date("2023-06-16"),
+                                                              Orig.Name=="JNP-D3-TOWN" ~ as.Date("2023-06-23"),
+                                                                TRUE ~ as.Date(SurveyNight)))
+
+dat_summary$Cell_Date <- paste(dat_summary$GRTS.Cell.ID, dat_summary$SurveyNight, sep="_")
+
+dat_summary %>% group_by(Location.Name, Orig.Name) %>% count(Cell_Date)
+dat_summary %>% group_by(Location.Name, Orig.Name) %>% count(SurveyNight)
 
 # Create file type to differentiate zc from wav
 dat_summary$File.Type <- str_sub(dat_summary$Filename,-2,-1) %>% recode("0#" = "zc", "av"="wav")
@@ -103,7 +107,7 @@ dat_summary <- dat_summary %>% mutate(Timep = coalesce(Time.temp1p, Time.temp2p,
 
 
 # Read deployment data csv for station covariates
-eff <- read.csv("Input/NABat_Deployment_Data_DT_2022.csv", header=T) %>%
+eff <- read.csv("Input/NABat_Deployment_Data_DT_2023.csv", header=T) %>%
   mutate(Survey.Start.Time = ymd(Survey.Start.Time), Survey.End.Time = ymd(Survey.End.Time))
 eff$Survey.End.Time - eff$Survey.Start.Time
 eff <- eff %>% filter(Deployment.ID>as.numeric(Year_interest)-1)
@@ -144,7 +148,6 @@ Timepdate <- date(Sys.time())
 Timepdatetime1 <- as.POSIXct(paste(Timepdate,"08:00:00"), tz)
 Timepdatetime2 <- as.POSIXct(paste(Timepdate,"18:00:00"),tz)
 
-# 3 stations and 39 surveys with calls between 8 am and 6 pm - remove these survey periods from the temporal analysis
 timestamp.error <- as.data.frame(dat_sum_sub %>% filter(Timep >Timepdatetime1 & Timep<Timepdatetime2) %>% filter(sp1!="noise") %>% group_by(Location.Name) %>% select(Filename))
 unique(timestamp.error$Location.Name)
 unique(timestamp.error$Filename)
@@ -152,10 +155,173 @@ unique(timestamp.error$Filename)
 dat_sum_sub %>% filter(Location.Name %in% timestamp.error$Location.Name) %>% count(GRTS.Cell.ID)
 dat_sum_sub <- dat_sum_sub %>% filter(!Filename%in%timestamp.error$Filename)
 
-call_count <- NABat_sum_to_count(dat_sum_sub = dat_sum_sub) # Creates a call df without the noise files and aggregates into 'count' style df
+# create thresholds for noise and bat classifications
+threshold_noise <- 0.8; threshold_bat <- 0.5
+# start with all call sequences as "unknown"
+dat_sum_sub$category <- "unknown"
 
-nrow(dat_sum_sub) # 1431 files
-nrow(call_count) # 64
+# Index cases to be categorized as noise
+index_noise <- with(dat_sum_sub, (sp1 == "noise") & (prob1 > threshold_noise)) 
+# Set the indexed categories to "noise" 
+dat_sum_sub$category[index_noise] <- "noise"
+
+# Index the noise values to be filtered out
+index_remove_noise <- with(dat_sum_sub, (category == "unknown") & (sp1 == "noise")) 
+
+# Note that there are 126 `NA` values
+sum(is.na(index_remove_noise)) 
+# These `NA` values are due to an `NA` in the `sp1` column which is the result of a tie in the random forest probabilities
+dat_sum_sub[is.na(index_remove_noise),]
+
+# Set any `NA` value to `FALSE` (i.e. not a noise value to be filtered out)
+index_remove_noise[is.na(index_remove_noise)] <- FALSE 
+# For the noise values to be filtered out, get the corresponding probabilities
+prob_noise <- dat_sum_sub[index_remove_noise, "prob1"] 
+# Record the state of the data frame before the filtering out of noise
+dat_sum_sub_before_noise_removal <- dat_sum_sub
+
+dat_sum_sub[index_remove_noise, "sp1"] <- dat_sum_sub[index_remove_noise, "sp2"]
+dat_sum_sub[index_remove_noise,"sp2"] <- dat_sum_sub[index_remove_noise, "sp3"] 
+dat_sum_sub[index_remove_noise, "prob1"] <- dat_sum_sub[index_remove_noise, "prob2"] 
+dat_sum_sub[index_remove_noise,"prob2"] <- dat_sum_sub[index_remove_noise, "prob3"] 
+
+# Now that the `prob3` value has been shifted to the `prob2` column, replace the `prob3` column with `NA` values, for the cases where noise has been filtered out
+dat_sum_sub[index_remove_noise, "prob3"] <- NA 
+dat_sum_sub[index_remove_noise, "sp3"] <- NA
+
+dat_sum_sub[index_remove_noise, "prob1"] <- dat_sum_sub[index_remove_noise, "prob1"] / (1 - prob_noise) 
+dat_sum_sub[index_remove_noise, "prob2"] <- dat_sum_sub[index_remove_noise, "prob2"] / (1 - prob_noise) 
+# Compare "sp1" columns before and after filtering out noise
+table(dat_sum_sub_before_noise_removal$sp1)
+table(dat_sum_sub$sp1)
+
+index_bat_species <- with(dat_sum_sub, (category == "unknown") & (n_calls >= 3) & (prob2 / prob1 <= 0.80)) 
+
+index_bat_species[is.na(index_bat_species)] <- FALSE # to deal with the NA values
+
+dat_sum_sub$category[index_bat_species] <- dat_sum_sub$sp1[index_bat_species]
+
+eBat_param <- read.csv("./Input/eBat_param.csv")
+dim(eBat_param)
+tmp <- as.data.frame(lapply(eBat_param[,3:13], function(y) gsub("±.*$", "", y)))
+param <- eBat_param$Parameter
+eBat_param <- tmp %>% mutate_at(vars(1:11), as.numeric) # make sure all call data is numeric
+eBat_param <- as.data.frame(t(eBat_param))
+colnames(eBat_param) <- param
+eBat_param %>% arrange(Fmin) %>% select(Fmin)
+eBat_param$sp <- rownames(eBat_param)
+eBat_param <- eBat_param %>% filter(sp!="noise")
+
+# https://pubs.usgs.gov/of/2018/1068/ofr20181068.pdf
+# HighF = min freq >30
+# 40k = min freq 35-45
+# Myotis40k = Myotis 35-40 min freq
+# LowF = min freq <30
+# 25k = min freq 15-25
+
+Q25_sp <- as.character(eBat_param %>% filter(Fmin<25) %>% select(sp))
+Q40_sp <- as.character(unlist(eBat_param %>% filter(Fmin>=35 & Fmin<=45) %>% select(sp)))
+LowF_sp <- as.character(unlist(eBat_param %>% filter(Fmin<=30) %>% select(sp)))
+HighF_sp <- as.character(unlist(eBat_param %>% filter(Fmin>30) %>% select(sp)))
+
+Q25_index <- (dat_sum_sub$sp1 %in% Q25_sp) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob1 > 0.2)
+Q40_index <- (dat_sum_sub$sp1 %in% Q40_sp) & (dat_sum_sub$sp2 %in% Q40_sp) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+LowF_index <- (dat_sum_sub$sp1 %in% LowF_sp) & (dat_sum_sub$sp2 %in% LowF_sp) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+HighF_index <- (dat_sum_sub$sp1 %in% HighF_sp) & (dat_sum_sub$sp2 %in% HighF_sp) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+LABO.MYLU_index <- (dat_sum_sub$sp1 %in% c("LABO", "MYLU")) & (dat_sum_sub$sp2 %in% c("LABO", "MYLU")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+EPFU.LANO_index <- (dat_sum_sub$sp1 %in% c("EPFU", "LANO")) & (dat_sum_sub$sp2 %in% c("EPFU", "LANO")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+MYEV.MYSE_index <- (dat_sum_sub$sp1 %in% c("MYEV", "MYSE")) & (dat_sum_sub$sp2 %in% c("MYEV", "MYSE")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+My_40k_index <- (dat_sum_sub$sp1 %in% c("MYCI", "MYLU", "MYVO")) & (dat_sum_sub$sp2 %in% c("MYCI", "MYLU", "MYVO")) & (dat_sum_sub$prob1 < 0.4) & (dat_sum_sub$prob2 > 0.2)
+
+#' Check the number of call sequences belonging to each category:
+sum(HighF_index, na.rm=T)
+sum(Q40_index, na.rm=T)
+sum(My_40k_index, na.rm=T)
+sum(LABO.MYLU_index, na.rm=T)
+sum(MYEV.MYSE_index, na.rm=T)
+
+sum(LowF_index, na.rm=T)
+sum(Q25_index, na.rm=T)
+sum(EPFU.LANO_index, na.rm=T)
+
+#' Define a new data frame:  
+dat_sum_sub_df <- dat_sum_sub
+dat_sum_sub_df$category <- dat_sum_sub_df$sp1
+
+# for all species with the "unknown" classification
+# reclassify going from coarser to finer resolution of ID
+dat_sum_sub_df %>% count(category)
+
+dat_sum_sub_df$category[dat_sum_sub_df$n_calls < 3 | 
+                          dat_sum_sub_df$prob1 < threshold_bat & dat_sum_sub_df$sp1 != "noise"] <- "unknown"
+
+dat_sum_sub_df$category[HighF_index] <- "HighF"
+dat_sum_sub_df$category[Q40_index] <- "40k"
+dat_sum_sub_df$category[My_40k_index] <- "My_40k"
+
+dat_sum_sub_df$category[LABO.MYLU_index] <- "LABO.MYLU"
+dat_sum_sub_df$category[MYEV.MYSE_index] <- "MYEV.MYSE"
+
+dat_sum_sub_df$category[LowF_index] <- "LowF"
+dat_sum_sub_df$category[Q25_index] <- "25k"
+dat_sum_sub_df$category[EPFU.LANO_index] <- "EPFU.LANO"
+
+# dat_sum_sub_df <- dat_sum_sub_df %>% filter(n_calls<3)
+
+dat_time <- dat_sum_sub_df %>% filter(n_calls>2) %>% select(-n_calls:-sp3) %>% filter(category!="noise")
+# unique(dat_time$category)
+# dat_time %>% count(category)
+
+dat_time$Classification <- as.factor(dat_time$category %>% 
+                                       recode(EPFU.LANO = "EPFU-LANO", LABO.MYLU = "LABO-MYLU",
+                                              My_40k = "Myotis 40k", MYEV.MYSE = "MYEV-MYSE"))
+
+# levels(dat_time$Classification)
+dat_time$Classification <- factor(dat_time$Classification,
+                                  levels = c("EPFU", "EPFU-LANO", "LANO", "LACI", "LABO", "LABO-MYLU", "MYLU",
+                                             "MYCA", "MYCI", "MYEV","MYEV-MYSE", "MYSE", "MYVO", "Myotis 40k",
+                                             "40k","25k","HighF","LowF","unknown"))
+
+dat_time <- as.data.frame(dat_time) 
+dat_time$Time <- format(dat_time$Timep, format = "%H:%M:%S")
+
+# covariates for overlap
+dat_time$NP <- eff$NP[match(dat_time$GRTS.Cell.ID, eff$GRTS.Cell.ID,)]
+dat_time$Land.Use.Type <- eff$Land.Cover[match(dat_time$GRTS.Cell.ID, eff$GRTS.Cell.ID,)]
+dat_time$Natural.Region <- eff$Natural.Region[match(dat_time$GRTS.Cell.ID, eff$GRTS.Cell.ID,)]
+
+
+dat_time %>% count(Classification)
+nrow(dat_time) # 311
+# difference is that dat_time has filtered out all "calls" with <3 pulses
+# inclined to go with dat_time as splits unknown down a bit
+
+dat_time_agg <- dat_time %>% group_by(GRTS.Cell.ID, Location.Name, SurveyNight) %>% count(Classification)
+colnames(dat_time_agg)[5] <- "Count"
+dat_time_agg$Count <- as.numeric(dat_time_agg$Count)
+dat_time_agg$Year <- as.factor(year(dat_time_agg$SurveyNight))
+dat_time_agg$Month <- month(dat_time_agg$SurveyNight)
+dat_time_agg$jDay <- yday(dat_time_agg$SurveyNight)
+dat_time_agg$NP <- eff$NP[match(dat_time_agg$GRTS.Cell.ID, eff$GRTS.Cell.ID,)]
+dat_time_agg$Land.Use.Type <- eff$Land.Cover[match(dat_time_agg$GRTS.Cell.ID, eff$GRTS.Cell.ID,)]
+dat_time_agg$Natural.Region <- eff$Natural.Region[match(dat_time_agg$GRTS.Cell.ID, eff$GRTS.Cell.ID,)]
+
+dat_time_agg %>% ungroup() %>% summarise(min(SurveyNight), max(SurveyNight))
+dat_time_agg %>% ungroup() %>% count(Classification)
+dat_time_agg %>% ungroup() %>% summarise(sum(Count))
+dat_time_agg %>% ungroup() %>% count(GRTS.Cell.ID)
+unique(dat_time_agg$Location.Name)
+length(unique(dat_time_agg$SurveyNight))
+
+# Call df without the noise files
+call_count <- dat_time_agg %>% ungroup () # no noise files but keeping this to keep the same code below, to use with dat_tmime_agg
+
+nrow(dat_sum_sub) # 331 files
+nrow(call_count) # 36
 
 call_count %>% as_tibble()
 
@@ -164,8 +330,10 @@ call_count %>% group_by(GRTS.Cell.ID.SurveyNight) %>% summarise(total.calls = su
 call_count %>% group_by(GRTS.Cell.ID.SurveyNight,Classification) %>% summarise(total.calls = sum(Count)) %>% arrange(desc(total.calls))
 unknown.calls <- call_count %>% filter(Classification=="unknown") %>% summarise(sum(Count)) / sum(call_count$Count)
 
-# 0.1655076 % unknown calls
+# 0.2508039 % unknown calls
 
+call_count %>% group_by(GRTS.Cell.ID.SurveyNight) %>% summarise(sum(Count))
+names(call_count2)
 # subset data for overall mean nightly bat calls by year for each GRTS
 call_count2 <- call_count %>% group_by(GRTS.Cell.ID, SurveyNight)
 
@@ -192,7 +360,7 @@ calls.GRTS <- GRTS.Calls %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8)) +
   theme(legend.position = "none")
 
-Cairo(file="Output/calls.2022.GRTS.plot.PNG", 
+Cairo(file="Output/calls.2023.GRTS.plot.PNG", 
       type="png",
       width=2000, 
       height=1500, 
@@ -204,7 +372,7 @@ dev.off()
 
 GRTS.Calls.SN <- call_count %>% group_by(GRTS.Cell.ID, SurveyNight) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
-GRTS.Calls.SN$SurveyNum <- c(1,2,1,2,3,1,2,3,1,2,1,1,2)
+GRTS.Calls.SN$SurveyNum <- c(1,2,1,2,1,2,1)
 GRTS.Calls.SN$Unique <- paste(GRTS.Calls.SN$GRTS.Cell.ID, GRTS.Calls.SN$SurveyNum, sep="_")
 call_count %>%  group_by(GRTS.Cell.ID, SurveyNight) %>% summarise(Count = sum(Count)) %>% arrange(Count) %>% print(n=59)
 
@@ -226,7 +394,7 @@ fcalls.GRTS <- GRTS.Calls.SN %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1, colour = "black", size = 8)) +
   theme(legend.position = "none")
 
-Cairo(file="Output/fcalls.2022.GRTS.plot.PNG", 
+Cairo(file="Output/fcalls.2023.GRTS.plot.PNG", 
       type="png",
       width=2000, 
       height=1500, 
@@ -254,10 +422,10 @@ Sp.hist.mob <- ggplot(data = Sp.hist.mob.data, aes(x = Classification, y = sum, 
   theme(axis.title.y = element_text(size = 14)) +   theme(axis.title.x = element_blank())+
   facet_wrap(~GRTS.Cell.ID, ncol = 4, scales = "free_y")
 
-Cairo(file="Output/Sp.hist.2022.mob.plot.PNG", 
+Cairo(file="Output/Sp.hist.2023.mob.plot.PNG", 
       type="png",
       width=2000, 
-      height=1500, 
+      height=1200, 
       pointsize=14,
       bg="white",
       dpi=300)
@@ -267,7 +435,7 @@ dev.off()
 # Determine total effort (survey nights)
 total.effort <- call_count %>% group_by(Location.Name, SurveyNum) %>% summarise_at(c("SurveyNight"), list(Min = min, Max=max))
 total.effort$Diff <- (total.effort$Max - total.effort$Min)+1
-sum(total.effort$Diff) # 15 survey nights
+sum(total.effort$Diff) # 7 survey nights
 
 # Determine total calls
 # call_count %>% filter(grepl("swift|SM2", Detector)) %>% group_by(Classification) %>% summarise(sum(Count))
@@ -280,16 +448,17 @@ colnames(Table.Calls) <- c("Species / Species Group", "Call Count", "% of Calls"
 as.data.frame(Table.Calls)
 
 knitr::kable(Table.Calls, 
-             caption=paste("Overall bat call count, percentage and call per night for mobile transects surveyed in 2022"),
+             caption=paste("Overall bat call count, percentage and call per night for mobile transects surveyed in 2023"),
              align = "lrrr")
-write.csv(Table.Calls, "Mobile_Table_Calls_2022.csv")
+write.csv(Table.Calls, "Mobile_Table_Calls_2023.csv")
 
 call_count %>% count(GRTS.Cell.ID)
+call_count %>% count(GRTS.Cell.ID.SurveyNight)
+
 call_count %>% summarise(min(SurveyNight), max(SurveyNight))
 dat_summary %>% count(Land.Unit.Code)
-call_count %>% summarise(sum(Count))
-111/719
-719-129
+call_count %>% group_by (GRTS.Cell.ID.SurveyNight) %>% summarise(sum(Count))
+
 
 ##################################################
 # reformat for NABat submission

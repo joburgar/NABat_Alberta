@@ -15,7 +15,7 @@ if(length(new.packages)) install.packages(new.packages)
 lapply(list.of.packages, require, character.only = TRUE)
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year
-Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2023-01-01"))
 
 load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
 

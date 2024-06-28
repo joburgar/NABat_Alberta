@@ -28,9 +28,13 @@ sta$num.years <-rowSums(sta[18:27])
 sta %>% ungroup() %>% summarise(min(num.years), mean(num.years),max(num.years), se(num.years))
 # min(num.years)` `mean(num.years)` `max(num.years)` `se(num.years)`
 #             1              2                9          0.091
-sta %>% ungroup() %>% count(num.years)
+yrs.srvyed <- sta %>% ungroup() %>% count(num.years)
+yrs.srvyed %>% filter(num.years > 4) %>% summarise(sum(n))
+sta %>% summarise(sum(num.years))
+count(sta)
+sta %>% filter(num.years > 4)
 # num.years     n
-# 1         1 283
+# 1         1 284
 # 2         2  28
 # 3         3  24
 # 4         4  32
@@ -92,13 +96,13 @@ GRTS.sryvd.2023 %>% count(n)
 
 sta_sf %>% filter(X2023==1) %>% summarise(min(num.years), mean(num.years), max(num.years), se(num.years)) %>% st_drop_geometry()
 # min(num.years) mean(num.years) max(num.years) se(num.years)
-# 1        2.788618              9     0.2172895
+# 1        2.774194              9     0.2160122
 
 GRTS.num.years.2023 <- sta_sf %>% filter(X2023==1) %>% group_by(GRTS.Cell.ID) %>% count(num.years) %>% st_drop_geometry()
 GRTS.num.years.2023.sum <- GRTS.num.years.2023 %>% group_by(GRTS.Cell.ID) %>% arrange(desc(num.years)) %>% filter(row_number()==1)
 GRTS.num.years.2023.sum %>% ungroup() %>% summarise(min(num.years), max(num.years), mean(num.years), se(num.years))
 # `min(num.years)` `max(num.years)` `mean(num.years)` `se(num.years)`
-#               1                9              2.77          0.216
+#               1                9              2.54          0.258
 GRTS.num.years.2023.sum %>% ungroup() %>% count(num.years)
 # num.years     n
 #          1    42
@@ -322,7 +326,7 @@ save.image("GIS.sta.covariates.RData")
 #load("GIS.sta.covariates.RData")
 
 #####--- Find mobile cells and covariates
-mobile_meta <- read.csv("Input/NABat_Deployment_Data_DT_2022.csv", header=T)
+mobile_meta <- read.csv("Input/NABat_Deployment_Data_DT_2023.csv", header=T)
 glimpse(mobile_meta)
 summary(mobile_meta)
 mobile_sf <- st_as_sf(mobile_meta, coords = c("Longitude","Latitude"), crs = 4326)
@@ -364,13 +368,13 @@ Fig_provincial.plot_mobile <- ggplot() +
                     values=c("#669933","cadetblue3","#CCFF99","#FFCC66","chocolate1","#CC3333"))+
   geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==1,]$GRTS.Cell.ID), col="blue", lwd=0.8) +
   geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==2,]$GRTS.Cell.ID), col="black", lwd=0.8) +
-  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==3,]$GRTS.Cell.ID), col="white", lwd=0.8) +
-  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==4,]$GRTS.Cell.ID), col="black", lwd=0.8) +
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==3,]$GRTS.Cell.ID), col="red", lwd=0.8) +
+  geom_sf(data = NABat_grid %>% filter(GRTS_ID %in% mobile_survey_per_GRTS[mobile_survey_per_GRTS$n==4,]$GRTS.Cell.ID), col= "white", lwd=0.8) +
   annotation_scale(location = "bl",bar_cols = c("grey", "white")) +
   coord_sf() +
   theme(axis.text.x = element_text(size=5), axis.text.y =element_text(size=5))
 
-Cairo(file="Fig_provincial.plot_2022_mobile.PNG",
+Cairo(file="Fig_provincial.plot_2023_mobile.PNG",
       type="png",
       width=1500,
       height=2000,

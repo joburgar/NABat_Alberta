@@ -14,7 +14,7 @@ lapply(list.of.packages, require, character.only = TRUE)
 # load("NABat_Annual_Submission.RDS")
 
 # # Define the GRTS.Cell.ID and Year of interest if subsetting for year, studyarea
-Year_interest <- year(as.Date("2022-01-01"))
+Year_interest <- year(as.Date("2023-01-01"))
  
 load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
 
@@ -28,7 +28,7 @@ load(paste("NABat_Annual_Report_",Year_interest,".RDS", sep=""))
 
 
 ### now run through (either for individual or all GRTS cells) - still by year
-GRTS.yrs.surveyed <- sta %>% filter(X2022==1) %>% group_by(GRTS.Cell.ID) %>% summarise(max = max(num.years))
+GRTS.yrs.surveyed <- sta %>% filter(X2023==1) %>% group_by(GRTS.Cell.ID) %>% summarise(max = max(num.years))
 
 cov.prop %>% filter(Cov=="Natural.Region") %>% arrange(prop.stn)
 
@@ -136,6 +136,8 @@ nightly.env.cov <- dat_summary[c("Location.Name","SurveyNight")]
 nightly.env.cov$ECCC.stn.id <- staweather$ECCC.stn[match(nightly.env.cov$Location.Name, staweather$LocName)]
 nightly.env.cov <- nightly.env.cov %>% count(Location.Name, SurveyNight, ECCC.stn.id)
 nightly.env.cov <- nightly.env.cov %>% select(-n)
+nightly.env.cov$SurveyNight <- as.Date(nightly.env.cov$SurveyNight)
+weather$SurveyNight <- as.Date(weather$SurveyNight)
 nightly.env.cov <- left_join(nightly.env.cov, weather, by = c("SurveyNight","ECCC.stn.id"))
 # summary(nightly.env.cov)
 # nrow(nightly.env.cov)

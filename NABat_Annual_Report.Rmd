@@ -151,6 +151,7 @@ eff <- read.csv(paste0("Input/NABat_Deployment_Data_",Year_interest,".csv"), hea
 eff <- eff %>% filter(Deployment.ID>=as.numeric(Year_interest)) #%>% filter(GRTS.Cell.ID==GRTS_interest)
 nrow(eff) #124 stations surveyed in 2023 (does not include mobile)
 eff %>% count(Detector.Failure.Details) # 116 good, 8 without data
+eff %>% filter(Detector.Failure.Details!="") %>% count(GRTS.Cell.ID)
 
 eff.names <- eff %>% group_by(Location.Name) %>% count(Orig.Name)
 dat.names <- dat_summary%>% group_by(Location.Name) %>% count(Orig.Name)
@@ -196,14 +197,14 @@ sta$Land.Use.Type <- case_when(sta$Waterbody.Distance < 10 ~ "Water",
                                TRUE ~ as.character(sta$Land.Use.Type))
 sta$Land.Unit.Code <- recode(sta$LandUnitCo, "BNP"="BANP", "JNP"="JANP","LPR"="LOPR","LAR"="LOAR",     "NSR"="NOSR","RDR"="REDR","SSR"="SOSR","UAR"="UPAR","UPR"="UPPR")
 
-sta <- sta %>% mutate(Land.Unit.Code = case_when(LUF_NAME=="Lower Athabasca" ~ "LOAR",
-                                                 LUF_NAME=="Lower Peace" ~ "LOPR",
-                                                 LUF_NAME=="North Saskatchewan" ~ "NOSR",
-                                                 LUF_NAME=="Red Deer" ~ "REDR",
-                                                 LUF_NAME=="South Saskatchewan" ~ "SOSR",
-                                                 LUF_NAME=="Upper Athabasca" ~ "UPAR",
-                                                 LUF_NAME=="Upper Peace" ~ "UPPR",
-                                                  TRUE ~ as.character(Land.Unit.Code)))
+# sta <- sta %>% mutate(Land.Unit.Code = case_when(LUF_NAME=="Lower Athabasca" ~ "LOAR",
+#                                                  LUF_NAME=="Lower Peace" ~ "LOPR",
+#                                                  LUF_NAME=="North Saskatchewan" ~ "NOSR",
+#                                                  LUF_NAME=="Red Deer" ~ "REDR",
+#                                                  LUF_NAME=="South Saskatchewan" ~ "SOSR",
+#                                                  LUF_NAME=="Upper Athabasca" ~ "UPAR",
+#                                                  LUF_NAME=="Upper Peace" ~ "UPPR",
+#                                                   TRUE ~ as.character(Land.Unit.Code)))
 
 eff <- left_join(eff %>% select(-Land.Unit.Code), 
                  sta %>% dplyr::select(Location.Name, Land.Unit.Code, Natural.Region, NP, Land.Use.Type))
@@ -610,9 +611,8 @@ dat_time_agg$Month <- month(dat_time_agg$SurveyNight)
 dat_time_agg$jDay <- yday(dat_time_agg$SurveyNight)
 dat_time_agg$NP <- sta$NP[match(dat_time_agg$Location.Name, sta$Location.Name,)]
 dat_time_agg$Natural.Region <- sta$Natural.Region[match(dat_time_agg$Location.Name, sta$Location.Name,)]
-dat_time_agg$Land.Unit.Code <- sta$LandUnitCo[match(dat_time_agg$Location.Name, sta$Location.Name,)]
+dat_time_agg$Land.Unit.Code <- sta$Land.Unit.Code[match(dat_time_agg$Location.Name, sta$Location.Name,)]
 dat_time_agg$Land.Use.Type <- sta$Land.Cover[match(dat_time_agg$Location.Name, sta$Location.Name,)]
-
 
 dat_time_agg %>% ungroup() %>% summarise(min(SurveyNight), max(SurveyNight))
 dat_time_agg %>% ungroup() %>% count(Classification)
@@ -772,7 +772,9 @@ calls.per.night.locn <- dat_time_agg %>% group_by(Year,jDay, SurveyNight,NP, Nat
 calls.per.night.locn$Night.Count <- 1
 calls.per.night.locn %>% ungroup() %>% summarise(mean(Call.Count), se(Call.Count), min(Call.Count), max(Call.Count))
 calls.per.night.locn %>% ungroup() %>% filter(Call.Count>1000)
+calls.per.night.locn %>% ungroup() %>% filter(Call.Count>500)
 
+calls.per.night.locn %>% filter(Location.Name=="134339_NW_01")
 calls.per.night.locn <- calls.per.night.locn %>% ungroup()
 calls.per.night.locn %>% filter(is.na(Land.Unit.Code))
 
@@ -806,8 +808,8 @@ NightLUC.hist
 # tmp1 <- as.data.frame(tmp1)
 # min(tmp1$nights_surveyed) #1
 # max(tmp1$nights_surveyed) #133
-# mean(tmp1$nights_surveyed) #19
-# se(tmp1$nights_surveyed) #2
+# mean(tmp1$nights_surveyed) #23
+# se(tmp1$nights_surveyed) #3
 # sum(tmp1$nights_surveyed)
 
 ```
@@ -838,7 +840,7 @@ NR.surveyed %>% arrange(Count) %>% tail()
 NR.surveyed %>% filter(Count>999) %>% count(Location.Name)
 NR.surveyed %>% group_by(Natural.Region) %>% summarise(mean(Count), se(Count))
 NR.Calls.Yr <- NR.surveyed %>% group_by(Year,Natural.Region, Volancy) %>% summarise(Mean = mean(Count), SE = se(Count))
-
+call_count %>% group_by(Volancy) %>% summarise(Mean = mean(Count), SE = se(Count))
 
 fcalls.NR <- NR.Calls.Yr %>%
   ggplot(aes(x = Natural.Region, y = Mean, fill=Volancy))+
@@ -929,8 +931,11 @@ sta %>% filter(GRTS.Cell.ID=="179795")
 
 # subset data for overall mean nightly bat calls by year for each GRTS
 GRTS.surveyed <- call_count %>% group_by(Year, Land.Unit.Code, GRTS.Cell.ID, Location.Name, SurveyNight) %>% summarise(Count =sum(Count))
-# GRTS.surveyed %>% ungroup() %>% summarise(mean(Count), min(Count), max(Count), se(Count))
+# GRTS.surveyed %>% ungroup() %>% summarise(mean(Count), min(Count), max(Count), se(Count), median(Count))
 # GRTS.surveyed %>% arrange(Count) %>% tail()
+# GRTS.surveyed %>% ungroup() %>% filter(Count <5) %>% count(GRTS.Cell.ID)
+# GRTS.surveyed %>% ungroup() %>% filter(Count >100) %>% count(GRTS.Cell.ID)
+# 
 # GRTS.surveyed %>% filter(Count>999) %>% count(Location.Name)
 # GRTS.surveyed %>% group_by(GRTS.Cell.ID) %>% summarise(Mean = mean(Count), SE = se(Count)) %>% arrange(Mean)
 GRTS.Calls.Yr <- GRTS.surveyed %>% group_by(Year,Land.Unit.Code, GRTS.Cell.ID) %>% summarise(Mean = mean(Count), SE = se(Count))
@@ -940,10 +945,15 @@ GRTS.Calls.Yr %>% filter(Mean >200) %>% arrange(Mean) %>% print(n=21)
 GRTS.Calls.Yr %>% filter(Mean <5)
 
 call_count %>% group_by(Volancy) %>% summarise(sum(Count))
-98666/(98666+125714)
+98720/(98720+130790)
+
+GRTS.Calls.Yr.Order <- GRTS.Calls.Yr %>% arrange(Land.Unit.Code, GRTS.Cell.ID) %>% 
+  group_by(Land.Unit.Code) %>% count(GRTS.Cell.ID)
+
+GRTS.Calls.Yr %>% group_by(Land.Unit.Code) %>% arrange(Land.Unit.Code)
 
 summary(GRTS.Calls.Yr$Mean)
-fcalls.GRTS <- GRTS.Calls.Yr %>%
+fcalls.GRTS <- GRTS.Calls.Yr %>% group_by(Land.Unit.Code) %>%
   ggplot(aes(x = GRTS.Cell.ID, Mean))+
   geom_point(colour="white", shape=21, size=4,aes(fill=Land.Unit.Code))+
   scale_fill_manual(values=unique(sta$ColsLUC)) +
@@ -995,7 +1005,6 @@ knitr::kable(Table.Calls,
 options(scipen = 100)
 
 call_count %>% filter(Classification=="MYLU") %>% group_by(Natural.Region) %>% summarise(sum(Count))
-51227/99973
 # head(call_count)
 # head(dat_time)
 # bat_count <- call_count %>% filter(Classification!="unknown")
@@ -1020,7 +1029,9 @@ eff %>% filter(GRTS.Cell.ID=="336731")
 call_count %>% ungroup() %>% filter(Classification=="MYEV-MYSE") %>% group_by(Location.Name, Natural.Region,Land.Unit.Code) %>% summarise(sum(Count))
 
 call_count %>% ungroup() %>% filter(Classification=="MYCA") %>% filter(Natural.Region=="Boreal") %>% group_by(Land.Unit.Code) %>% summarise(count = sum(Count)) %>% arrange(desc(count))
-94/1030
+
+call_count %>% filter(Classification=="MYCA") %>% group_by(Land.Unit.Code)%>% summarise(sum(Count))
+329/1827
 
 ```
 
@@ -1073,7 +1084,7 @@ sp.to.use <- call_count.Sp %>% group_by(Classification) %>% summarise(Sum = sum(
 Sp.Calls.Yr <- call_count.Sp%>% group_by(Classification, Year, Volancy) %>% 
   summarise(Mean = mean(Count), SE = se(Count))
 
-Sp.Calls.Yr %>% arrange(Mean) %>% print(n=29)
+Sp.Calls.Yr %>% arrange(Mean) %>% print(n=30)
 
 fcalls.Sp <- Sp.Calls.Yr %>% filter(Classification %in% sp.to.use[sp.to.use$Sum>100,]$Classification)%>%
   ggplot(aes(x = Classification, y = Mean, fill=Volancy))+

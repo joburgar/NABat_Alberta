@@ -215,7 +215,10 @@ dat_summary %>% filter(Date < "2024-01-01") %>% count(Location.Name)
 dat_summary$Location.Name.Yr <- paste(dat_summary$Location.Name, substr(as.character(dat_summary$Date),1,4), sep="_")
 to_file_dat_summary <- unique(dat_summary$Location.Name.Yr)
 
-new_files_to_file <- dat_summary %>% filter(Pfolder=="Bayne") %>% filter(Location.Name=="225642_NE_01") %>% count(Location.Name.Yr)
+dat_summary %>% filter(GRTS.Cell.ID=="Mobile") %>% count(Location.Name)
+
+new_files_to_file <- dat_summary %>% filter(GRTS.Cell.ID=="Mobile") %>% count(Location.Name.Yr)
+# new_files_to_file <- dat_summary %>% filter(Pfolder=="Bayne") %>% filter(Location.Name=="225642_NE_01") %>% count(Location.Name.Yr)
 to_file_dat_summary <- unique(new_files_to_file$Location.Name.Yr)
 
 for(i in 1:length(to_file_dat_summary)){

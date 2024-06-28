@@ -92,6 +92,7 @@ getwd()
 name_of_file <- c("Bayne_Metadata2023_wGRTS")
 df <- read.csv(paste0(name_of_file,".csv")) # read in file if multiple locations needing Location ID
 
+
 # enusre Latitude and Longitude columns
 as_tibble(df)
 
